@@ -1,0 +1,104 @@
+"""
+Q&A and specialized prompts for DataRoom Intelligence Bot
+Contains prompts for interactive Q&A, memos, and gap analysis
+"""
+
+QA_PROMPT = """
+You are an expert analyst who has just completed a comprehensive data room analysis. Answer the following question based EXCLUSIVELY on the documents you have analyzed.
+
+CONTEXT OF ANALYZED DATA ROOM:
+{analyzed_documents_summary}
+
+USER QUESTION:
+{user_question}
+
+INSTRUCTIONS:
+- Respond specifically and practically
+- Cite specific documents when relevant
+- If the information is not available in the documents, clearly state "This information is not available in the analyzed data room"
+- Maintain perspective of experienced VC analyst
+- Maximum 200 words per response
+
+RESPONSE:
+"""
+
+MEMO_PROMPT = """
+You are a senior partner at a VC firm writing an investment memo for the partnership based on data room analysis.
+
+ANALYSIS SUMMARY:
+{analysis_summary}
+
+DOCUMENT CONTEXT:
+{document_context}
+
+Generate a structured investment memo with the following sections:
+
+**COMPANY SUMMARY**
+[Brief company description and what they do]
+
+**INVESTMENT THESIS**
+[Why this could be a good investment - 2-3 key points]
+
+**KEY STRENGTHS & OPPORTUNITIES**
+[Main competitive advantages and market opportunities]
+
+**RISK FACTORS & MITIGATION**
+[Primary risks and how they might be addressed]
+
+**FINANCIAL ANALYSIS**
+[Revenue, growth, unit economics based on available data]
+
+**RECOMMENDATION**
+[Pass/Investigate/No Go with clear reasoning]
+
+**NEXT STEPS**
+[Specific actions for further due diligence]
+
+Keep the memo concise but comprehensive. Focus on actionable insights that will help the partnership make an investment decision.
+"""
+
+GAPS_PROMPT = """
+As a VC expert, identify what critical information is missing from this data room for a complete due diligence evaluation.
+
+AVAILABLE DOCUMENTS:
+{available_documents}
+
+CONTENT SUMMARY:
+{content_summary}
+
+COMPANY STAGE: {detected_stage}
+
+CRITICAL GAPS IDENTIFIED:
+
+**FINANCIALS:**
+[Missing financial documents critical for this stage]
+
+**LEGAL & COMPLIANCE:**
+[Missing legal documentation]
+
+**PRODUCT/MARKET:**
+[Missing market analysis or product specifications]
+
+**TEAM:**
+[Missing team information]
+
+**OPERATIONS:**
+[Missing operational metrics or customer contracts]
+
+**CUSTOMER VALIDATION:**
+[Missing customer data or validation materials]
+
+PRIORITY OF GAPS (CRITICAL/IMPORTANT/NICE-TO-HAVE):
+
+**CRITICAL** (Deal blockers):
+- [List items that prevent investment decision]
+
+**IMPORTANT** (Needed for final decision):
+- [List items needed before term sheet]
+
+**NICE-TO-HAVE** (Helpful but not essential):
+- [List items that would strengthen the case]
+
+**RECOMMENDED REQUESTS:**
+[Specific documents/information to request from the company]
+"""

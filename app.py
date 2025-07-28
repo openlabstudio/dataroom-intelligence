@@ -1,293 +1,424 @@
 """
 DataRoom Intelligence Bot - Main Application
-Basic Slack bot implementation for K Fund MVP
+A Slack bot that analyzes data rooms for venture capital investment decisions using AI
 """
 
 import os
-import logging
+import asyncio
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from config.settings import config
+from handlers.drive_handler import GoogleDriveHandler
+from handlers.doc_processor import DocumentProcessor
+from handlers.ai_analyzer import AIAnalyzer
+from utils.slack_formatter import format_analysis_response, format_health_response, format_error_response
+from utils.logger import get_logger
+from dotenv import load_dotenv
 
-# ==========================================
-# LOGGING CONFIGURATION
-# ==========================================
+# Load environment variables
+load_dotenv()
 
-logging.basicConfig(
-    level=getattr(logging, config.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('temp/bot.log') if config.temp_dir.exists() else logging.StreamHandler()
-    ]
-)
+# Initialize logger
+logger = get_logger(__name__)
 
-logger = logging.getLogger(__name__)
+# Initialize Slack app
+app = App(token=config.SLACK_BOT_TOKEN)
 
-# ==========================================
-# SLACK APP INITIALIZATION
-# ==========================================
+# Initialize handlers
+drive_handler = GoogleDriveHandler() if config.google_drive_configured else None
+doc_processor = DocumentProcessor()
+ai_analyzer = AIAnalyzer()
 
-# Initialize Slack app with bot token
-app = App(
-    token=config.SLACK_BOT_TOKEN,
-    signing_secret=config.SLACK_SIGNING_SECRET
-)
-
-# ==========================================
-# EVENT HANDLERS
-# ==========================================
-
-@app.event("app_mention")
-def handle_app_mention(event, say, logger):
-    """Handle when bot is mentioned in a channel"""
-    user = event.get('user')
-    text = event.get('text', '')
-
-    logger.info(f"Bot mentioned by user {user}: {text}")
-
-    # Simple response for now
-    say(f"Hello <@{user}>! 👋 I'm the DataRoom Intelligence Bot. I'm ready to help analyze data rooms!")
-
-@app.event("message")
-def handle_direct_message(event, say, logger):
-    """Handle direct messages to the bot"""
-    # Only respond to direct messages (not channel messages)
-    if event.get('channel_type') == 'im':
-        user = event.get('user')
-        text = event.get('text', '')
-
-        logger.info(f"Direct message from user {user}: {text}")
-
-        # Simple response
-        say(f"Hi there! 👋 I received your message: '{text}'\n\nI'm the DataRoom Intelligence Bot and I'm currently in development. Soon I'll be able to analyze data rooms for you!")
-
-# ==========================================
-# SLASH COMMANDS
-# ==========================================
+# Store user sessions (in production, use a database)
+user_sessions = {}
 
 @app.command("/analyze")
-def handle_analyze_command(ack, body, respond, logger):
-    """Handle /analyze slash command - main functionality"""
-    # Acknowledge the command immediately
+def handle_analyze_command(ack, body, client):
+    """Handle /analyze command - Main data room analysis"""
     ack()
 
-    user_id = body['user_id']
-    text = body.get('text', '').strip()
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
+        drive_link = body.get('text', '').strip()
 
-    logger.info(f"User {user_id} executed /analyze with text: {text}")
+        if not drive_link:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ Please provide a Google Drive folder link.\n\nUsage: `/analyze [google-drive-link]`"
+            )
+            return
 
-    # For now, just acknowledge the command
-    if not text:
-        respond({
-            "response_type": "ephemeral",  # Only visible to user
-            "text": "🔍 *DataRoom Analysis Command*\n\n" +
-                   "Usage: `/analyze [google-drive-link]`\n\n" +
-                   "Example: `/analyze https://drive.google.com/drive/folders/abc123`\n\n" +
-                   "⚠️ *Currently in development mode* - Full functionality coming soon!"
-        })
-    else:
-        respond({
-            "response_type": "ephemeral",
-            "text": f"🔍 *Analysis Request Received*\n\n" +
-                   f"📁 Link: `{text}`\n\n" +
-                   f"⏳ Starting analysis... (Development mode)\n\n" +
-                   f"🚧 *Note:* Full analysis functionality is under development. " +
-                   f"This is a placeholder response to confirm the bot is working!"
-        })
+        if not config.google_drive_configured:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ Google Drive is not configured. Please contact the administrator."
+            )
+            return
+
+        # Send initial response
+        initial_response = client.chat_postMessage(
+            channel=channel_id,
+            text="🔍 **Analysis Request Received**\n\n" +
+                 f"📁 Link: *{drive_link}*\n" +
+                 f"⏳ Starting analysis... (Development mode)\n\n" +
+                 f"🚧 Note: Full analysis functionality is now being processed!"
+        )
+
+        # Start async analysis
+        asyncio.create_task(perform_dataroom_analysis(
+            client, channel_id, user_id, drive_link, initial_response['ts']
+        ))
+
+    except Exception as e:
+        logger.error(f"❌ Error in analyze command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("analyze", str(e))
+        )
+
+async def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
+    """Perform the actual data room analysis asynchronously"""
+    try:
+        # Update status: Downloading
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text="🔍 **Analysis in Progress**\n\n" +
+                 f"📁 Link: {drive_link}\n" +
+                 f"📥 **Downloading documents from Google Drive...**"
+        )
+
+        # Step 1: Download documents
+        downloaded_files = drive_handler.download_dataroom(drive_link)
+
+        if not downloaded_files:
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text="❌ **Analysis Failed**\n\n" +
+                     "No supported documents found in the Google Drive folder.\n" +
+                     "Supported formats: PDF, Excel, Word, CSV, TXT"
+            )
+            return
+
+        # Update status: Processing
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text="🔍 **Analysis in Progress**\n\n" +
+                 f"📁 Found {len(downloaded_files)} documents\n" +
+                 f"📄 **Processing document contents...**"
+        )
+
+        # Step 2: Process documents
+        processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
+        document_summary = doc_processor.get_content_summary(processed_documents)
+
+        # Update status: AI Analysis
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text="🔍 **Analysis in Progress**\n\n" +
+                 f"📄 Processed {document_summary['successful_processing']} documents\n" +
+                 f"🧠 **Analyzing with AI (GPT-4)...**"
+        )
+
+        # Step 3: AI Analysis
+        analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
+
+        # Step 4: Format and send final response
+        formatted_response = format_analysis_response(analysis_result, document_summary)
+
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=formatted_response
+        )
+
+        # Store analysis in user session
+        user_sessions[user_id] = {
+            'analysis_result': analysis_result,
+            'document_summary': document_summary,
+            'drive_link': drive_link
+        }
+
+        # Cleanup temporary files
+        drive_handler.cleanup_temp_files()
+
+        logger.info(f"✅ Analysis completed for user {user_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Analysis failed: {e}")
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_error_response("analysis", str(e))
+        )
 
 @app.command("/ask")
-def handle_ask_command(ack, body, respond, logger):
-    """Handle /ask slash command - Q&A functionality"""
+def handle_ask_command(ack, body, client):
+    """Handle /ask command - Q&A about analyzed data room"""
     ack()
 
-    user_id = body['user_id']
-    text = body.get('text', '').strip()
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
+        question = body.get('text', '').strip()
 
-    logger.info(f"User {user_id} executed /ask with text: {text}")
+        if not question:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❓ Please provide a question.\n\nUsage: `/ask [your question]`"
+            )
+            return
 
-    if not text:
-        respond({
-            "response_type": "ephemeral",
-            "text": "💭 *Ask Question Command*\n\n" +
-                   "Usage: `/ask [your question]`\n\n" +
-                   "Example: `/ask What is the company's runway?`\n\n" +
-                   "⚠️ *Currently in development mode*"
-        })
-    else:
-        respond({
-            "response_type": "ephemeral",
-            "text": f"💭 *Question Received*\n\n" +
-                   f"❓ Question: `{text}`\n\n" +
-                   f"🤖 I would answer this question based on the last analyzed data room.\n\n" +
-                   f"🚧 *Development mode:* Full Q&A functionality coming soon!"
-        })
+        if user_id not in user_sessions:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+            )
+            return
+
+        # Get answer from AI
+        answer = ai_analyzer.answer_question(question)
+
+        response = f"💡 **Question:** {question}\n\n" +\
+                  f"**Answer:**\n{answer}\n\n" +\
+                  f"📎 *Based on analyzed data room*"
+
+        client.chat_postMessage(
+            channel=channel_id,
+            text=response
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in ask command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("ask", str(e))
+        )
 
 @app.command("/scoring")
-def handle_scoring_command(ack, body, respond, logger):
-    """Handle /scoring slash command"""
+def handle_scoring_command(ack, body, client):
+    """Handle /scoring command - Detailed scoring breakdown"""
     ack()
 
-    user_id = body['user_id']
-    logger.info(f"User {user_id} executed /scoring")
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
 
-    respond({
-        "response_type": "ephemeral",
-        "text": "📊 *Detailed Scoring Breakdown*\n\n" +
-               "🏢 Team & Management: 8/10\n" +
-               "💼 Business Model: 7/10\n" +
-               "💰 Financials & Traction: 6/10\n" +
-               "🎯 Market & Competition: 7/10\n" +
-               "🔧 Technology/Product: 8/10\n" +
-               "⚖️ Legal & Compliance: 5/10\n\n" +
-               "📈 *Overall Score: 6.8/10*\n\n" +
-               "🚧 *Development mode:* This is sample data. Real scoring will be based on actual data room analysis."
-    })
+        if user_id not in user_sessions:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+            )
+            return
+
+        scoring_data = ai_analyzer.get_detailed_scoring()
+
+        if 'error' in scoring_data:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=f"❌ {scoring_data['error']}"
+            )
+            return
+
+        # Format scoring response
+        response = "📊 **DETAILED SCORING BREAKDOWN**\n\n"
+        response += f"🎯 **Overall Score: {scoring_data['overall_score']}/10**\n\n"
+
+        response += "**Category Scores:**\n"
+        for category, data in scoring_data['category_scores'].items():
+            category_name = category.replace('_', ' ').title()
+            score = data.get('score', 0)
+            justification = data.get('justification', 'No justification available')
+            response += f"• **{category_name}:** {score}/10 - {justification}\n"
+
+        response += f"\n🎯 **Recommendation:** {scoring_data['recommendation']}\n"
+
+        client.chat_postMessage(
+            channel=channel_id,
+            text=response
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scoring command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("scoring", str(e))
+        )
 
 @app.command("/memo")
-def handle_memo_command(ack, body, respond, logger):
-    """Handle /memo slash command"""
+def handle_memo_command(ack, body, client):
+    """Handle /memo command - Generate investment memo"""
     ack()
 
-    user_id = body['user_id']
-    logger.info(f"User {user_id} executed /memo")
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
 
-    respond({
-        "response_type": "ephemeral",
-        "text": "📄 *Investment Memo Generation*\n\n" +
-               "🔄 Generating comprehensive investment memo...\n\n" +
-               "📋 *Would include:*\n" +
-               "• Executive Summary\n" +
-               "• Investment Thesis\n" +
-               "• Key Strengths & Risks\n" +
-               "• Financial Analysis\n" +
-               "• Recommendation\n\n" +
-               "🚧 *Development mode:* Full memo generation coming soon!"
-    })
+        if user_id not in user_sessions:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+            )
+            return
+
+        memo = ai_analyzer.generate_investment_memo()
+
+        response = "📄 **INVESTMENT MEMO**\n\n" + memo
+
+        client.chat_postMessage(
+            channel=channel_id,
+            text=response
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in memo command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("memo", str(e))
+        )
 
 @app.command("/gaps")
-def handle_gaps_command(ack, body, respond, logger):
-    """Handle /gaps slash command"""
+def handle_gaps_command(ack, body, client):
+    """Handle /gaps command - Analyze information gaps"""
     ack()
 
-    user_id = body['user_id']
-    logger.info(f"User {user_id} executed /gaps")
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
 
-    respond({
-        "response_type": "ephemeral",
-        "text": "❓ *Missing Information Analysis*\n\n" +
-               "🔍 *Critical gaps identified:*\n" +
-               "• Detailed competitive analysis\n" +
-               "• Customer contracts and pipeline\n" +
-               "• IP protection documentation\n" +
-               "• Team equity distribution\n" +
-               "• Regulatory compliance status\n\n" +
-               "📊 *Completeness Score: 65%*\n\n" +
-               "🚧 *Development mode:* Real gap analysis will be based on actual data room content."
-    })
+        if user_id not in user_sessions:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+            )
+            return
+
+        gaps_analysis = ai_analyzer.analyze_gaps()
+
+        response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
+
+        client.chat_postMessage(
+            channel=channel_id,
+            text=response
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in gaps command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("gaps", str(e))
+        )
 
 @app.command("/reset")
-def handle_reset_command(ack, body, respond, logger):
-    """Handle /reset slash command"""
+def handle_reset_command(ack, body, client):
+    """Handle /reset command - Reset analysis session"""
     ack()
 
-    user_id = body['user_id']
-    logger.info(f"User {user_id} executed /reset")
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
 
-    respond({
-        "response_type": "ephemeral",
-        "text": "🔄 *Session Reset*\n\n" +
-               "✅ Current analysis context cleared\n" +
-               "✅ Ready for new data room analysis\n\n" +
-               "💡 Use `/analyze [google-drive-link]` to start a new analysis"
-    })
+        # Clear user session
+        if user_id in user_sessions:
+            del user_sessions[user_id]
 
-# ==========================================
-# ERROR HANDLING
-# ==========================================
+        # Reset AI analyzer
+        ai_analyzer.reset_analysis()
 
-@app.error
-def global_error_handler(error, body, logger):
-    """Global error handler for unhandled exceptions"""
-    logger.exception(f"Error: {error}")
-    logger.info(f"Request body: {body}")
+        # Cleanup temp files
+        if drive_handler:
+            drive_handler.cleanup_temp_files()
 
-    # Could send notification to admin channel in production
-    return "Sorry, something went wrong. Please try again later."
+        client.chat_postMessage(
+            channel=channel_id,
+            text="🔄 **Session Reset Complete**\n\n" +
+                 "✅ Analysis context cleared\n" +
+                 "✅ Temporary files cleaned up\n" +
+                 "✅ Ready for new data room analysis\n\n" +
+                 "Use `/analyze [google-drive-link]` to start a new analysis."
+        )
 
-# ==========================================
-# HEALTH CHECK
-# ==========================================
+    except Exception as e:
+        logger.error(f"❌ Error in reset command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("reset", str(e))
+        )
 
 @app.command("/health")
-def handle_health_command(ack, body, respond, logger):
-    """Health check command for monitoring"""
+def handle_health_command(ack, body, client):
+    """Handle /health command - System health check"""
     ack()
 
-    user_id = body['user_id']
-    logger.info(f"Health check requested by user {user_id}")
+    try:
+        channel_id = body['channel_id']
+        health_response = format_health_response()
 
-    # Check configuration status
-    status = config.validate_configuration()
+        client.chat_postMessage(
+            channel=channel_id,
+            text=health_response
+        )
 
-    status_text = "🏥 *Health Check Status*\n\n"
+    except Exception as e:
+        logger.error(f"❌ Error in health command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("health", str(e))
+        )
 
-    for component, is_ok in status.items():
-        emoji = "✅" if is_ok else "❌"
-        status_text += f"{emoji} {component.replace('_', ' ').title()}\n"
+@app.event("app_mention")
+def handle_app_mention(event, client):
+    """Handle @mentions of the bot"""
+    try:
+        channel_id = event['channel']
+        text = event.get('text', '')
 
-    status_text += f"\n🌍 Environment: {config.ENVIRONMENT}"
-    status_text += f"\n🐛 Debug Mode: {config.DEBUG}"
+        response = "👋 Hi! I'm the DataRoom Intelligence Bot.\n\n" +\
+                  "**Available commands:**\n" +\
+                  "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
+                  "• `/ask [question]` - Ask questions about analyzed data room\n" +\
+                  "• `/scoring` - Get detailed scoring breakdown\n" +\
+                  "• `/memo` - Generate investment memo\n" +\
+                  "• `/gaps` - Analyze missing information\n" +\
+                  "• `/reset` - Reset current session\n" +\
+                  "• `/health` - Check system status\n\n" +\
+                  "Start by analyzing a data room with `/analyze`!"
 
-    respond({
-        "response_type": "ephemeral",
-        "text": status_text
-    })
+        client.chat_postMessage(
+            channel=channel_id,
+            text=response
+        )
 
-# ==========================================
-# STARTUP VALIDATION
-# ==========================================
-
-def validate_startup_configuration():
-    """Validate configuration before starting the bot"""
-    logger.info("Starting DataRoom Intelligence Bot...")
-    logger.info(f"Environment: {config.ENVIRONMENT}")
-    logger.info(f"Debug mode: {config.DEBUG}")
-
-    # Check critical configuration
-    status = config.validate_configuration()
-
-    if not status.get('slack'):
-        logger.error("❌ Slack configuration missing!")
-        logger.error("Required: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET")
-        return False
-
-    if not status.get('openai'):
-        logger.warning("⚠️ OpenAI configuration missing - AI features will be disabled")
-
-    if not status.get('google_drive'):
-        logger.warning("⚠️ Google Drive configuration missing - Document processing will be disabled")
-
-    logger.info("✅ Bot configuration validated successfully")
-    return True
-
-# ==========================================
-# MAIN APPLICATION
-# ==========================================
+    except Exception as e:
+        logger.error(f"❌ Error handling mention: {e}")
 
 def main():
     """Main application entry point"""
-
-    # Validate configuration before starting
-    if not validate_startup_configuration():
-        logger.error("❌ Configuration validation failed. Exiting.")
-        return
-
-    # Start the bot
     try:
-        logger.info("🚀 Starting Slack Socket Mode Handler...")
+        logger.info("Starting DataRoom Intelligence Bot...")
+        logger.info(f"Environment: {config.ENVIRONMENT}")
+        logger.info(f"Debug mode: {config.DEBUG}")
 
-        # Use Socket Mode for development (easier than ngrok)
+        # Validate configuration
+        if not config.slack_configured:
+            logger.error("❌ Slack configuration missing")
+            return
+
+        if not config.openai_configured:
+            logger.error("❌ OpenAI configuration missing")
+            return
+
+        if not config.google_drive_configured:
+            logger.warning("⚠️ Google Drive configuration missing - Document processing will be disabled")
+
+        logger.info("✅ Bot configuration validated successfully")
+
+        # Start the bot
+        logger.info("🚀 Starting Slack Socket Mode Handler...")
         handler = SocketModeHandler(app, config.SLACK_APP_TOKEN)
 
         logger.info("✅ DataRoom Intelligence Bot is running!")
@@ -302,15 +433,13 @@ def main():
         logger.info("   • Direct messages")
         logger.info("   • @mentions in channels")
 
-        # Start the handler (this blocks)
         handler.start()
 
     except KeyboardInterrupt:
-        logger.info("👋 Bot stopped by user")
+        logger.info("🛑 Bot stopped by user")
     except Exception as e:
-        logger.exception(f"❌ Unexpected error: {e}")
-    finally:
-        logger.info("🛑 DataRoom Intelligence Bot shutdown complete")
+        logger.error(f"❌ Fatal error: {e}")
+        raise
 
 if __name__ == "__main__":
     main()

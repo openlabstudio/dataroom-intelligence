@@ -51,6 +51,8 @@ class Config:
     # GOOGLE DRIVE CONFIGURATION
     # ==========================================
 
+    GOOGLE_SERVICE_ACCOUNT_PATH = "config/kfund_creds.json"
+
     GOOGLE_CREDENTIALS_PATH: str = os.getenv(
         "GOOGLE_CREDENTIALS_PATH",
         str(BASE_DIR / "config" / "kfund_creds.json")
@@ -79,6 +81,14 @@ class Config:
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+
+
+     # Processing Limits  ← AÑADIR ESTA SECCIÓN
+    TIMEOUT_SECONDS = int(os.getenv("TIMEOUT_SECONDS", "300"))
+    MAX_FILES_PER_DATAROOM = int(os.getenv("MAX_FILES", "20"))
+
+    # Storage Configuration  ← AÑADIR ESTA SECCIÓN
+    TEMP_STORAGE_PATH = os.getenv("TEMP_STORAGE_PATH", "temp")
 
     # ==========================================
     # PROCESSING SETTINGS
