@@ -48,11 +48,11 @@ class AIAnalyzer:
                 temperature=0.3
             )
 
-            analysis_result = response.choices[0].message.content
+
 
             # Parse and structure the analysis
+            analysis_result = response.choices[0].message.content
             structured_analysis = self._parse_analysis_response(analysis_result)
-
             # Store for future Q&A
             self.current_analysis = structured_analysis
             self.analysis_context = context
@@ -100,8 +100,10 @@ class AIAnalyzer:
         }
 
     def _parse_analysis_response(self, analysis_text: str) -> Dict[str, Any]:
-        """Parse GPT-4 analysis response into structured format"""
+        """Parse GPT-4 analysis response into structured format with robust scoring extraction"""
         try:
+            import re
+
             # Initialize default structure
             analysis = {
                 'executive_summary': [],
@@ -120,48 +122,89 @@ class AIAnalyzer:
                 'recommendation': 'INVESTIGATE_FURTHER'
             }
 
-            # Simple parsing logic (in real implementation, you'd want more robust parsing)
-            lines = analysis_text.split('\n')
-            current_section = None
+            # Extract executive summary
+            exec_match = re.search(r'1\.\s*EXECUTIVE SUMMARY.*?:(.*?)(?=2\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            if exec_match:
+                exec_content = exec_match.group(1)
+                for line in exec_content.split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['executive_summary'].append(line[1:].strip())
 
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
+            # Extract scoring with improved regex
+            scoring_patterns = {
+                'team_management': [r'Team\s*&?\s*Management:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Business Model|$)'],
+                'business_model': [r'Business Model:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Financials|$)'],
+                'financials_traction': [r'Financials?\s*&?\s*Traction:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Market|$)'],
+                'market_competition': [r'Market\s*&?\s*Competition:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Technology|$)'],
+                'technology_product': [r'Technology/?Product:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Legal|$)'],
+                'legal_compliance': [r'Legal\s*&?\s*Compliance:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|3\.|$)']
+            }
 
-                # Detect sections
-                if 'EXECUTIVE SUMMARY' in line.upper():
-                    current_section = 'executive_summary'
-                elif 'SCORING' in line.upper() or 'DETAILED SCORE' in line.upper():
-                    current_section = 'scoring'
-                elif 'RED FLAGS' in line.upper():
-                    current_section = 'red_flags'
-                elif 'MISSING INFORMATION' in line.upper() or 'INFORMATION GAPS' in line.upper():
-                    current_section = 'missing_info'
-                elif 'KEY QUESTIONS' in line.upper() or 'QUESTIONS FOR DUE DILIGENCE' in line.upper():
-                    current_section = 'key_questions'
-                elif 'RECOMMENDATION' in line.upper():
-                    current_section = 'recommendation'
+            for category, patterns in scoring_patterns.items():
+                for pattern in patterns:
+                    match = re.search(pattern, analysis_text, re.DOTALL | re.IGNORECASE)
+                    if match:
+                        try:
+                            score = int(match.group(1))
+                            justification = match.group(2).strip()
+                            analysis['scoring'][category] = {
+                                'score': max(0, min(10, score)),  # Ensure score is 0-10
+                                'justification': justification if justification else f"Score: {score}/10"
+                            }
+                            logger.debug(f"✅ Extracted {category}: {score}/10")
+                        except (ValueError, IndexError) as e:
+                            logger.debug(f"⚠️ Failed to parse {category}: {e}")
+                        break
 
-                # Parse content based on current section
-                elif current_section == 'executive_summary' and (line.startswith('-') or line.startswith('•')):
-                    analysis['executive_summary'].append(line[1:].strip())
-                elif current_section == 'red_flags' and (line.startswith('-') or line.startswith('•')):
-                    analysis['red_flags'].append(line[1:].strip())
-                elif current_section == 'missing_info' and (line.startswith('-') or line.startswith('•')):
-                    analysis['missing_info'].append(line[1:].strip())
-                elif current_section == 'key_questions' and (line.startswith('-') or line.startswith('•')):
-                    analysis['key_questions'].append(line[1:].strip())
-
-            # Calculate overall score (average of individual scores)
-            scores = [score_data.get('score', 0) for score_data in analysis['scoring'].values()]
-            if scores:
+            # Calculate overall score
+            scores = [data.get('score', 0) for data in analysis['scoring'].values()]
+            if scores and any(s > 0 for s in scores):
                 analysis['overall_score'] = round(sum(scores) / len(scores), 1)
+                logger.info(f"📊 Calculated overall score: {analysis['overall_score']}/10")
+
+            # Extract red flags
+            red_flags_match = re.search(r'3\.\s*RED FLAGS.*?:(.*?)(?=4\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            if red_flags_match:
+                for line in red_flags_match.group(1).split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['red_flags'].append(line[1:].strip())
+
+            # Extract missing information
+            missing_match = re.search(r'4\.\s*CRITICAL MISSING.*?:(.*?)(?=5\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            if missing_match:
+                for line in missing_match.group(1).split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['missing_info'].append(line[1:].strip())
+
+            # Extract key questions
+            questions_match = re.search(r'5\.\s*KEY QUESTIONS.*?:(.*?)(?=6\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            if questions_match:
+                for line in questions_match.group(1).split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['key_questions'].append(line[1:].strip())
+
+            # Extract recommendation
+            rec_match = re.search(r'6\.\s*PRELIMINARY RECOMMENDATION.*?:\s*-?\s*(PASS|INVESTIGATE[^/]*|NO GO)', analysis_text, re.IGNORECASE)
+            if rec_match:
+                analysis['recommendation'] = rec_match.group(1).strip().upper()
+
+            # Log parsing results
+            logger.info(f"📋 Parsing results:")
+            logger.info(f"   Executive summary: {len(analysis['executive_summary'])} points")
+            logger.info(f"   Scoring: {sum(1 for v in analysis['scoring'].values() if v['score'] > 0)}/6 categories")
+            logger.info(f"   Red flags: {len(analysis['red_flags'])}")
+            logger.info(f"   Missing info: {len(analysis['missing_info'])}")
+            logger.info(f"   Overall score: {analysis['overall_score']}/10")
 
             return analysis
 
         except Exception as e:
             logger.error(f"❌ Failed to parse analysis response: {e}")
+            logger.debug(f"Raw response: {analysis_text[:500]}...")
             return {
                 'error': 'Failed to parse analysis',
                 'raw_response': analysis_text,
@@ -180,9 +223,9 @@ class AIAnalyzer:
 
             logger.info(f"🤔 Answering question: {question[:100]}...")
 
-            # Create Q&A prompt
+            # Create Q&A prompt with FULL CONTENT (not just metadata)
             qa_prompt = QA_PROMPT.format(
-                analyzed_documents_summary=json.dumps(self.analysis_context['documents_summary'], indent=2),
+                analyzed_documents_summary=self.analysis_context['full_content'][:10000],  # ← CONTENIDO REAL
                 user_question=question
             )
 

@@ -1,10 +1,11 @@
 """
 DataRoom Intelligence Bot - Main Application
 A Slack bot that analyzes data rooms for venture capital investment decisions using AI
+Combines robust document processing with full AI analysis capabilities
 """
 
 import os
-import asyncio
+import threading
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from config.settings import config
@@ -29,12 +30,16 @@ drive_handler = GoogleDriveHandler() if config.google_drive_configured else None
 doc_processor = DocumentProcessor()
 ai_analyzer = AIAnalyzer()
 
+# Después de las inicializaciones, añade:
+logger.info(f"🔧 AI Analyzer initialized: {ai_analyzer is not None}")
+logger.info(f"🔧 OpenAI configured: {config.openai_configured}")
+
 # Store user sessions (in production, use a database)
 user_sessions = {}
 
 @app.command("/analyze")
 def handle_analyze_command(ack, body, client):
-    """Handle /analyze command - Main data room analysis"""
+    """Handle /analyze command - Complete data room analysis with AI"""
     ack()
 
     try:
@@ -61,14 +66,16 @@ def handle_analyze_command(ack, body, client):
             channel=channel_id,
             text="🔍 **Analysis Request Received**\n\n" +
                  f"📁 Link: *{drive_link}*\n" +
-                 f"⏳ Starting analysis... (Development mode)\n\n" +
-                 f"🚧 Note: Full analysis functionality is now being processed!"
+                 f"⏳ Starting comprehensive data room analysis...\n\n" +
+                 f"🚧 Processing documents and generating AI insights..."
         )
 
-        # Start async analysis
-        asyncio.create_task(perform_dataroom_analysis(
-            client, channel_id, user_id, drive_link, initial_response['ts']
-        ))
+        # Start background processing using threading (proven to work)
+        threading.Thread(
+            target=perform_dataroom_analysis,
+            args=(client, channel_id, user_id, drive_link, initial_response['ts']),
+            daemon=True
+        ).start()
 
     except Exception as e:
         logger.error(f"❌ Error in analyze command: {e}")
@@ -77,10 +84,10 @@ def handle_analyze_command(ack, body, client):
             text=format_error_response("analyze", str(e))
         )
 
-async def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
-    """Perform the actual data room analysis asynchronously"""
+def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
+    """Perform the complete data room analysis with AI"""
     try:
-        # Update status: Downloading
+        # Step 1: Download documents
         client.chat_update(
             channel=channel_id,
             ts=message_ts,
@@ -89,7 +96,6 @@ async def perform_dataroom_analysis(client, channel_id, user_id, drive_link, mes
                  f"📥 **Downloading documents from Google Drive...**"
         )
 
-        # Step 1: Download documents
         downloaded_files = drive_handler.download_dataroom(drive_link)
 
         if not downloaded_files:
@@ -102,46 +108,71 @@ async def perform_dataroom_analysis(client, channel_id, user_id, drive_link, mes
             )
             return
 
-        # Update status: Processing
+        # Step 2: Process documents
         client.chat_update(
             channel=channel_id,
             ts=message_ts,
             text="🔍 **Analysis in Progress**\n\n" +
-                 f"📁 Found {len(downloaded_files)} documents\n" +
-                 f"📄 **Processing document contents...**"
+                 f"📄 Found {len(downloaded_files)} documents\n" +
+                 f"📖 **Processing document contents...**"
         )
 
-        # Step 2: Process documents
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
-        # Update status: AI Analysis
-        client.chat_update(
-            channel=channel_id,
-            ts=message_ts,
-            text="🔍 **Analysis in Progress**\n\n" +
-                 f"📄 Processed {document_summary['successful_processing']} documents\n" +
-                 f"🧠 **Analyzing with AI (GPT-4)...**"
-        )
+        # Step 3: AI Analysis (if configured)
+        if ai_analyzer and config.openai_configured:
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text="🔍 **Analysis in Progress**\n\n" +
+                     f"📄 Processed {document_summary['successful_processing']} documents\n" +
+                     f"🧠 **Analyzing with AI (GPT-4)...**"
+            )
 
-        # Step 3: AI Analysis
-        analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
+            analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
 
-        # Step 4: Format and send final response
-        formatted_response = format_analysis_response(analysis_result, document_summary)
+            # Format and send AI analysis response
+            formatted_response = format_analysis_response(analysis_result, document_summary)
 
-        client.chat_update(
-            channel=channel_id,
-            ts=message_ts,
-            text=formatted_response
-        )
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text=formatted_response
+            )
 
-        # Store analysis in user session
-        user_sessions[user_id] = {
-            'analysis_result': analysis_result,
-            'document_summary': document_summary,
-            'drive_link': drive_link
-        }
+            # Store analysis in user session
+            user_sessions[user_id] = {
+                'analysis_result': analysis_result,
+                'document_summary': document_summary,
+                'processed_documents': processed_documents,
+                'drive_link': drive_link
+            }
+
+        else:
+            # Fallback: Document processing only (like app_drive.py)
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text="🔍 **Analysis in Progress**\n\n" +
+                     f"📄 Processed {document_summary['successful_processing']} documents\n" +
+                     f"⚠️ **AI analysis disabled** - showing document processing results"
+            )
+
+            response = format_processing_results(processed_documents, document_summary, drive_link)
+
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text=response
+            )
+
+            # Store documents in user session (for future AI activation)
+            user_sessions[user_id] = {
+                'processed_documents': processed_documents,
+                'document_summary': document_summary,
+                'drive_link': drive_link
+            }
 
         # Cleanup temporary files
         drive_handler.cleanup_temp_files()
@@ -156,17 +187,124 @@ async def perform_dataroom_analysis(client, channel_id, user_id, drive_link, mes
             text=format_error_response("analysis", str(e))
         )
 
+def format_processing_results(processed_documents, document_summary, drive_link):
+    """Format the processing results when AI is not available (fallback from app_drive.py)"""
+    response = "✅ **DOCUMENT PROCESSING COMPLETE**\n\n"
+
+    # Basic stats
+    total_docs = document_summary.get('total_documents', 0)
+    successful = document_summary.get('successful_processing', 0)
+    failed = document_summary.get('failed_processing', 0)
+
+    response += f"📊 **Processing Summary:**\n"
+    response += f"• **Total Documents:** {total_docs}\n"
+    response += f"• **Successfully Processed:** {successful}\n"
+    if failed > 0:
+        response += f"• **Failed Processing:** {failed}\n"
+    response += "\n"
+
+    # Document types
+    doc_types = document_summary.get('document_types', {})
+    if doc_types:
+        response += "📄 **Document Types Found:**\n"
+        for doc_type, count in doc_types.items():
+            if doc_type != 'error':
+                emoji = get_doc_emoji(doc_type)
+                response += f"• {emoji} **{doc_type.title()}:** {count} files\n"
+        response += "\n"
+
+    # Content overview
+    total_content = document_summary.get('total_content_length', 0)
+    if total_content > 0:
+        response += f"📏 **Total Content Extracted:** {format_size(total_content)}\n\n"
+
+    # Document details
+    response += "📋 **Documents Processed:**\n"
+    for doc in processed_documents[:5]:  # Show first 5
+        if doc['type'] != 'error':
+            emoji = get_doc_emoji(doc['type'])
+            content_size = len(doc.get('content', ''))
+            response += f"{emoji} **{doc['name']}** - {format_size(content_size)}\n"
+
+    if len(processed_documents) > 5:
+        response += f"• *...and {len(processed_documents) - 5} more documents*\n"
+
+    response += "\n"
+
+    # Content samples
+    response += "📖 **Content Samples:**\n"
+    for doc in processed_documents[:2]:  # Show content from first 2 docs
+        if doc['type'] != 'error' and doc.get('content'):
+            content_preview = doc['content'][:200].replace('\n', ' ').strip()
+            response += f"• **{doc['name']}:** {content_preview}...\n"
+
+    response += "\n"
+
+    # Next steps
+    if config.openai_configured:
+        response += "🎯 **Status:** Documents processed, ready for AI analysis!\n"
+        response += "🤖 **Next:** Use commands below for AI insights\n\n"
+        response += "**Available AI Commands:**\n"
+        response += "• `/ask [question]` - Ask questions about the documents\n"
+        response += "• `/scoring` - Get detailed VC scoring\n"
+        response += "• `/memo` - Generate investment memo\n"
+        response += "• `/gaps` - Analyze missing information\n"
+    else:
+        response += "🎯 **Status:** Document extraction successful!\n"
+        response += "🤖 **Note:** AI analysis requires OpenAI configuration\n\n"
+
+    response += "• `/health` - Check system status\n"
+    response += "• `/reset` - Clear current session"
+
+    return response
+
+def get_doc_emoji(doc_type):
+    """Get emoji for document type"""
+    emoji_map = {
+        'pdf': '📕',
+        'word': '📝',
+        'text': '📄',
+        'csv': '📈',
+        'excel': '📊'
+    }
+    return emoji_map.get(doc_type.lower(), '📄')
+
+def format_size(size):
+    """Format content size"""
+    if size < 1000:
+        return f"{size} chars"
+    elif size < 1000000:
+        return f"{size//1000}K chars"
+    else:
+        return f"{size//1000000}M chars"
+
+@app.command("/asktest")
+def handle_asktest_command(ack, body, client):
+    """Simple test version of ask command"""
+    ack()
+    logger.info("🧪 /asktest command received!")
+
+    client.chat_postMessage(
+        channel=body['channel_id'],
+        text="✅ asktest command is working!"
+    )
+
 @app.command("/ask")
 def handle_ask_command(ack, body, client):
     """Handle /ask command - Q&A about analyzed data room"""
     ack()
+
+    logger.info("🔍 /ask command received")
 
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
         question = body.get('text', '').strip()
 
+        logger.info(f"🔍 User: {user_id}, Question: {question}")
+
         if not question:
+            logger.info("❌ No question provided")
             client.chat_postMessage(
                 channel=channel_id,
                 text="❓ Please provide a question.\n\nUsage: `/ask [your question]`"
@@ -174,14 +312,26 @@ def handle_ask_command(ack, body, client):
             return
 
         if user_id not in user_sessions:
+            logger.info(f"❌ No session found for user {user_id}")
+            logger.info(f"📊 Active sessions: {list(user_sessions.keys())}")
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
             )
             return
 
+        if not ai_analyzer or not config.openai_configured:
+            logger.info("❌ AI not configured")
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ AI analysis is not configured. Please configure OpenAI API key."
+            )
+            return
+
+        logger.info("🤖 Calling AI analyzer...")
         # Get answer from AI
         answer = ai_analyzer.answer_question(question)
+        logger.info(f"✅ AI response received: {len(answer)} chars")
 
         response = f"💡 **Question:** {question}\n\n" +\
                   f"**Answer:**\n{answer}\n\n" +\
@@ -191,9 +341,11 @@ def handle_ask_command(ack, body, client):
             channel=channel_id,
             text=response
         )
+        logger.info("✅ Response sent to Slack")
 
     except Exception as e:
         logger.error(f"❌ Error in ask command: {e}")
+        logger.error(f"❌ Full error: {str(e)}")
         client.chat_postMessage(
             channel=channel_id,
             text=format_error_response("ask", str(e))
@@ -212,6 +364,13 @@ def handle_scoring_command(ack, body, client):
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+            )
+            return
+
+        if not ai_analyzer or not config.openai_configured:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ AI analysis is not configured. Please configure OpenAI API key."
             )
             return
 
@@ -265,6 +424,13 @@ def handle_memo_command(ack, body, client):
             )
             return
 
+        if not ai_analyzer or not config.openai_configured:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ AI analysis is not configured. Please configure OpenAI API key."
+            )
+            return
+
         memo = ai_analyzer.generate_investment_memo()
 
         response = "📄 **INVESTMENT MEMO**\n\n" + memo
@@ -297,6 +463,13 @@ def handle_gaps_command(ack, body, client):
             )
             return
 
+        if not ai_analyzer or not config.openai_configured:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ AI analysis is not configured. Please configure OpenAI API key."
+            )
+            return
+
         gaps_analysis = ai_analyzer.analyze_gaps()
 
         response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
@@ -326,8 +499,9 @@ def handle_reset_command(ack, body, client):
         if user_id in user_sessions:
             del user_sessions[user_id]
 
-        # Reset AI analyzer
-        ai_analyzer.reset_analysis()
+        # Reset AI analyzer if available
+        if ai_analyzer:
+            ai_analyzer.reset_analysis()
 
         # Cleanup temp files
         if drive_handler:
@@ -375,9 +549,12 @@ def handle_app_mention(event, client):
     """Handle @mentions of the bot"""
     try:
         channel_id = event['channel']
-        text = event.get('text', '')
+
+        ai_status = "✅" if (ai_analyzer and config.openai_configured) else "⚠️"
+        ai_note = "Full AI analysis available" if (ai_analyzer and config.openai_configured) else "AI analysis requires OpenAI configuration"
 
         response = "👋 Hi! I'm the DataRoom Intelligence Bot.\n\n" +\
+                  f"{ai_status} **AI Status:** {ai_note}\n\n" +\
                   "**Available commands:**\n" +\
                   "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
                   "• `/ask [question]` - Ask questions about analyzed data room\n" +\
@@ -396,10 +573,25 @@ def handle_app_mention(event, client):
     except Exception as e:
         logger.error(f"❌ Error handling mention: {e}")
 
+@app.event("message")
+def handle_message_events(body, client, logger):
+    """Handle direct messages and prevent unhandled request warnings"""
+    # Ignore messages from bots to prevent loops
+    if body.get("event", {}).get("bot_id"):
+        return
+
+    # Only respond to direct messages, not channel messages
+    event = body.get("event", {})
+    if event.get("channel_type") == "im":  # Direct message
+        client.chat_postMessage(
+            channel=event["channel"],
+            text="👋 Hi! Use `/analyze [google-drive-link]` to start analyzing a data room, or mention me with @DataRoom Intelligence Bot for help!"
+        )
+
 def main():
     """Main application entry point"""
     try:
-        logger.info("Starting DataRoom Intelligence Bot...")
+        logger.info("🚀 Starting DataRoom Intelligence Bot...")
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
 
@@ -408,12 +600,14 @@ def main():
             logger.error("❌ Slack configuration missing")
             return
 
-        if not config.openai_configured:
-            logger.error("❌ OpenAI configuration missing")
+        if not config.google_drive_configured:
+            logger.error("❌ Google Drive configuration missing")
             return
 
-        if not config.google_drive_configured:
-            logger.warning("⚠️ Google Drive configuration missing - Document processing will be disabled")
+        if not config.openai_configured:
+            logger.warning("⚠️ OpenAI configuration missing - AI analysis will be disabled")
+        else:
+            logger.info("✅ OpenAI configured - Full AI analysis available")
 
         logger.info("✅ Bot configuration validated successfully")
 
@@ -424,10 +618,11 @@ def main():
         logger.info("✅ DataRoom Intelligence Bot is running!")
         logger.info("📱 The bot will respond to:")
         logger.info("   • /analyze [google-drive-link]")
-        logger.info("   • /ask [question]")
-        logger.info("   • /scoring")
-        logger.info("   • /memo")
-        logger.info("   • /gaps")
+        if config.openai_configured:
+            logger.info("   • /ask [question]")
+            logger.info("   • /scoring")
+            logger.info("   • /memo")
+            logger.info("   • /gaps")
         logger.info("   • /reset")
         logger.info("   • /health")
         logger.info("   • Direct messages")
