@@ -27,3 +27,6 @@ gunicorn==21.2.0
 
 # For better JSON handling
 ujson==5.8.0
+
+flask==2.3.3
+pandas==2.1.3

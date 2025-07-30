@@ -1,11 +1,13 @@
 """
-DataRoom Intelligence Bot - Main Application
+DataRoom Intelligence Bot - Railway-Compatible Version
 A Slack bot that analyzes data rooms for venture capital investment decisions using AI
-Combines robust document processing with full AI analysis capabilities
+Combines robust document processing with full AI analysis capabilities + Flask server for Railway
 """
 
 import os
 import threading
+from datetime import datetime
+from flask import Flask, jsonify
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from config.settings import config
@@ -22,6 +24,75 @@ load_dotenv()
 # Initialize logger
 logger = get_logger(__name__)
 
+# ==========================================
+# FLASK APP FOR RAILWAY HEALTH CHECKS
+# ==========================================
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/health')
+def health_check():
+    """Health check endpoint for Railway"""
+    try:
+        # Check all system components
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "DataRoom Intelligence Bot",
+            "components": {
+                "slack": config.slack_configured,
+                "openai": config.openai_configured,
+                "google_drive": config.google_drive_configured,
+                "temp_storage": config.temp_dir.exists()
+            }
+        }
+
+        # Overall health
+        all_healthy = all(health_status["components"].values())
+        health_status["overall"] = "healthy" if all_healthy else "degraded"
+
+        logger.info(f"Health check: {health_status['overall']}")
+
+        # Always return 200 for Railway (even if degraded, bot can still work partially)
+        return jsonify(health_status), 200
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 200
+
+@flask_app.route('/')
+def root():
+    """Root endpoint"""
+    return jsonify({
+        "service": "DataRoom Intelligence Bot",
+        "status": "running",
+        "version": "1.0.0",
+        "platform": "Railway",
+        "endpoints": ["/health", "/status"]
+    })
+
+@flask_app.route('/status')
+def status():
+    """Detailed status endpoint"""
+    try:
+        return jsonify({
+            "service": "DataRoom Intelligence Bot",
+            "timestamp": datetime.now().isoformat(),
+            "deployment": config.deployment_info(),
+            "active_sessions": len(user_sessions),
+            "configuration_status": config.validate_configuration()
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# SLACK BOT INITIALIZATION
+# ==========================================
+
 # Initialize Slack app
 app = App(token=config.SLACK_BOT_TOKEN)
 
@@ -30,12 +101,16 @@ drive_handler = GoogleDriveHandler() if config.google_drive_configured else None
 doc_processor = DocumentProcessor()
 ai_analyzer = AIAnalyzer()
 
-# Después de las inicializaciones, añade:
+# Log initialization status
 logger.info(f"🔧 AI Analyzer initialized: {ai_analyzer is not None}")
 logger.info(f"🔧 OpenAI configured: {config.openai_configured}")
 
 # Store user sessions (in production, use a database)
 user_sessions = {}
+
+# ==========================================
+# SLACK BOT COMMANDS - COMPLETE SET
+# ==========================================
 
 @app.command("/analyze")
 def handle_analyze_command(ack, body, client):
@@ -150,7 +225,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             }
 
         else:
-            # Fallback: Document processing only (like app_drive.py)
+            # Fallback: Document processing only
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
@@ -188,7 +263,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         )
 
 def format_processing_results(processed_documents, document_summary, drive_link):
-    """Format the processing results when AI is not available (fallback from app_drive.py)"""
+    """Format the processing results when AI is not available"""
     response = "✅ **DOCUMENT PROCESSING COMPLETE**\n\n"
 
     # Basic stats
@@ -553,7 +628,7 @@ def handle_app_mention(event, client):
         ai_status = "✅" if (ai_analyzer and config.openai_configured) else "⚠️"
         ai_note = "Full AI analysis available" if (ai_analyzer and config.openai_configured) else "AI analysis requires OpenAI configuration"
 
-        response = "👋 Hi! I'm the DataRoom Intelligence Bot.\n\n" +\
+        response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway.\n\n" +\
                   f"{ai_status} **AI Status:** {ai_note}\n\n" +\
                   "**Available commands:**\n" +\
                   "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
@@ -588,35 +663,61 @@ def handle_message_events(body, client, logger):
             text="👋 Hi! Use `/analyze [google-drive-link]` to start analyzing a data room, or mention me with @DataRoom Intelligence Bot for help!"
         )
 
-def main():
-    """Main application entry point"""
+# ==========================================
+# RAILWAY DEPLOYMENT ARCHITECTURE
+# ==========================================
+
+def run_slack_bot():
+    """Run Slack bot in background thread"""
     try:
-        logger.info("🚀 Starting DataRoom Intelligence Bot...")
+        logger.info("🚀 Starting Slack Socket Mode Handler...")
+        handler = SocketModeHandler(app, config.SLACK_APP_TOKEN)
+        handler.start()
+    except Exception as e:
+        logger.error(f"❌ Slack bot failed: {e}")
+
+def main():
+    """Main application entry point for Railway"""
+    try:
+        logger.info("🚀 Starting DataRoom Intelligence Bot on Railway...")
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
+        logger.info(f"Port: {config.PORT}")
 
         # Validate configuration
+        config_status = config.validate_configuration()
+        logger.info(f"Configuration status: {config_status}")
+
         if not config.slack_configured:
             logger.error("❌ Slack configuration missing")
-            return
+        else:
+            logger.info("✅ Slack configured - Bot will start")
 
         if not config.google_drive_configured:
             logger.error("❌ Google Drive configuration missing")
-            return
+        else:
+            logger.info("✅ Google Drive configured")
 
         if not config.openai_configured:
             logger.warning("⚠️ OpenAI configuration missing - AI analysis will be disabled")
         else:
             logger.info("✅ OpenAI configured - Full AI analysis available")
 
-        logger.info("✅ Bot configuration validated successfully")
+        # Start Slack bot in background thread
+        if config.slack_configured:
+            slack_thread = threading.Thread(target=run_slack_bot, daemon=True)
+            slack_thread.start()
+            logger.info("✅ Slack bot started in background thread")
+        else:
+            logger.warning("⚠️ Slack bot not started due to missing configuration")
 
-        # Start the bot
-        logger.info("🚀 Starting Slack Socket Mode Handler...")
-        handler = SocketModeHandler(app, config.SLACK_APP_TOKEN)
-
-        logger.info("✅ DataRoom Intelligence Bot is running!")
-        logger.info("📱 The bot will respond to:")
+        # Start Flask server for Railway health checks (MAIN THREAD)
+        logger.info(f"🌐 Starting Flask server on {config.HOST}:{config.PORT}...")
+        logger.info("📋 Available endpoints:")
+        logger.info("   • GET / - Service info")
+        logger.info("   • GET /health - Health check (for Railway)")
+        logger.info("   • GET /status - Detailed status")
+        logger.info("🎯 Slack bot commands:")
         logger.info("   • /analyze [google-drive-link]")
         if config.openai_configured:
             logger.info("   • /ask [question]")
@@ -628,7 +729,12 @@ def main():
         logger.info("   • Direct messages")
         logger.info("   • @mentions in channels")
 
-        handler.start()
+        # Run Flask server (blocks main thread)
+        flask_app.run(
+            host=config.HOST,
+            port=config.PORT,
+            debug=config.DEBUG
+        )
 
     except KeyboardInterrupt:
         logger.info("🛑 Bot stopped by user")
