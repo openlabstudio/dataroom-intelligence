@@ -1,9 +1,11 @@
+# config/settings.py - Updated for cloud deployment
 """
 DataRoom Intelligence Bot - Configuration Settings
-Centralized configuration management for the application
+Cloud-ready configuration management for Railway deployment
 """
 
 import os
+import json
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
@@ -17,19 +19,18 @@ BASE_DIR = Path(__file__).parent.parent
 class Config:
     """
     Configuration class for DataRoom Intelligence Bot
-    All settings loaded from environment variables with sensible defaults
+    Cloud-ready with Railway deployment support
     """
 
     # ==========================================
     # SLACK CONFIGURATION
     # ==========================================
 
-    # K Fund specific Slack tokens
-    SLACK_BOT_TOKEN: str = os.getenv("KFUND_SLACK_BOT_TOKEN", "")
+    # Support both K Fund and OpenLab tokens
+    SLACK_BOT_TOKEN: str = os.getenv("SLACK_BOT_TOKEN") or os.getenv("KFUND_SLACK_BOT_TOKEN", "")
     SLACK_SIGNING_SECRET: str = os.getenv("SLACK_SIGNING_SECRET", "")
     SLACK_APP_TOKEN: str = os.getenv("SLACK_APP_TOKEN", "")
 
-    # Validate Slack configuration
     @property
     def slack_configured(self) -> bool:
         return bool(self.SLACK_BOT_TOKEN and self.SLACK_SIGNING_SECRET)
@@ -48,23 +49,61 @@ class Config:
         return bool(self.OPENAI_API_KEY)
 
     # ==========================================
-    # GOOGLE DRIVE CONFIGURATION
+    # GOOGLE DRIVE CONFIGURATION - CLOUD READY
     # ==========================================
 
-    GOOGLE_SERVICE_ACCOUNT_PATH = "config/kfund_creds.json"
+    @property
+    def google_credentials_json(self) -> Optional[dict]:
+        """Get Google credentials from environment variable or file"""
+        # First try environment variable (Railway deployment)
+        creds_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        if creds_json:
+            try:
+                return json.loads(creds_json)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid JSON in GOOGLE_SERVICE_ACCOUNT_JSON: {e}")
+                return None
 
-    GOOGLE_CREDENTIALS_PATH: str = os.getenv(
-        "GOOGLE_CREDENTIALS_PATH",
-        str(BASE_DIR / "config" / "kfund_creds.json")
-    )
+        # Fallback to file (local development)
+        file_paths = [
+            "config/openlab_creds.json",  # OpenLab corporate
+            "config/kfund_creds.json",    # K Fund specific
+            "config/service_account.json" # Generic
+        ]
+
+        for file_path in file_paths:
+            full_path = BASE_DIR / file_path
+            if full_path.exists():
+                try:
+                    with open(full_path, 'r') as f:
+                        return json.load(f)
+                except Exception as e:
+                    print(f"❌ Failed to load {file_path}: {e}")
+                    continue
+
+        return None
 
     @property
     def google_drive_configured(self) -> bool:
-        return Path(self.GOOGLE_CREDENTIALS_PATH).exists()
+        return self.google_credentials_json is not None
 
     # ==========================================
-    # APPLICATION SETTINGS
+    # CLOUD DEPLOYMENT SETTINGS
     # ==========================================
+
+    # Railway/cloud detection
+    IS_RAILWAY = bool(os.getenv("RAILWAY_ENVIRONMENT"))
+    IS_RENDER = bool(os.getenv("RENDER"))
+    IS_HEROKU = bool(os.getenv("DYNO"))
+
+    @property
+    def is_cloud_deployment(self) -> bool:
+        return self.IS_RAILWAY or self.IS_RENDER or self.IS_HEROKU
+
+    # Environment detection - Fix the self reference
+    @property
+    def environment(self) -> str:
+        return os.getenv("ENVIRONMENT", "production" if self.is_cloud_deployment else "development")
 
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -74,54 +113,42 @@ class Config:
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "3000"))
 
-    @property
-    def is_development(self) -> bool:
-        return self.ENVIRONMENT == "development"
+    # ==========================================
+    # STORAGE CONFIGURATION - CLOUD READY
+    # ==========================================
 
     @property
-    def is_production(self) -> bool:
-        return self.ENVIRONMENT == "production"
+    def temp_storage_path(self) -> str:
+        """Get appropriate temp storage path for cloud deployment"""
+        if self.is_cloud_deployment:
+            # Use /tmp in cloud environments
+            return "/tmp/dataroom_temp"
+        else:
+            # Use local temp directory for development
+            return os.getenv("TEMP_STORAGE_PATH", "./temp")
 
+    @property
+    def temp_dir(self) -> Path:
+        temp_path = Path(self.temp_storage_path)
+        temp_path.mkdir(parents=True, exist_ok=True)
+        return temp_path
 
-     # Processing Limits  ← AÑADIR ESTA SECCIÓN
+    # Processing limits
     TIMEOUT_SECONDS = int(os.getenv("TIMEOUT_SECONDS", "300"))
     MAX_FILES_PER_DATAROOM = int(os.getenv("MAX_FILES", "20"))
-
-    # Storage Configuration  ← AÑADIR ESTA SECCIÓN
-    TEMP_STORAGE_PATH = os.getenv("TEMP_STORAGE_PATH", "temp")
-
-    # ==========================================
-    # PROCESSING SETTINGS
-    # ==========================================
-
-    # Temporary storage
-    TEMP_STORAGE_PATH: str = os.getenv("TEMP_STORAGE_PATH", "./temp")
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
     ANALYSIS_TIMEOUT_SECONDS: int = int(os.getenv("ANALYSIS_TIMEOUT_SECONDS", "300"))
-
-    # Document processing limits
     MAX_DOCUMENTS_PER_DATAROOM: int = int(os.getenv("MAX_DOCUMENTS_PER_DATAROOM", "20"))
     MAX_PAGES_PER_PDF: int = int(os.getenv("MAX_PAGES_PER_PDF", "100"))
 
-    # Ensure temp directory exists
-    @property
-    def temp_dir(self) -> Path:
-        temp_path = Path(self.TEMP_STORAGE_PATH)
-        temp_path.mkdir(exist_ok=True)
-        return temp_path
-
     # ==========================================
-    # K FUND SPECIFIC SETTINGS
+    # COMPANY SETTINGS (OpenLab + K Fund)
     # ==========================================
 
-    # K Fund workspace identification
-    KFUND_SLACK_TEAM_ID: str = os.getenv("KFUND_SLACK_TEAM_ID", "")
-    KFUND_COMPANY_NAME: str = "K Fund"
-
-    # Analysis preferences for K Fund
-    KFUND_PREFERRED_LANGUAGE: str = "en"
-    KFUND_ANALYSIS_STYLE: str = "detailed"
-    KFUND_SCORING_CATEGORIES: list = [
+    COMPANY_NAME: str = os.getenv("COMPANY_NAME", "OpenLab")
+    ANALYSIS_STYLE: str = "detailed"
+    PREFERRED_LANGUAGE: str = "en"
+    SCORING_CATEGORIES: list = [
         "Team & Management",
         "Business Model",
         "Financials & Traction",
@@ -135,23 +162,24 @@ class Config:
     # ==========================================
 
     def validate_configuration(self) -> dict:
-        """
-        Validate all configuration settings and return status
-        """
+        """Validate all configuration settings and return status"""
         status = {
             "slack": self.slack_configured,
             "openai": self.openai_configured,
             "google_drive": self.google_drive_configured,
             "temp_storage": self.temp_dir.exists(),
+            "cloud_deployment": self.is_cloud_deployment
         }
 
-        status["all_configured"] = all(status.values())
+        status["all_configured"] = all([
+            status["slack"],
+            status["openai"],
+            status["google_drive"]
+        ])
         return status
 
     def get_missing_configuration(self) -> list:
-        """
-        Return list of missing configuration items
-        """
+        """Return list of missing configuration items"""
         missing = []
 
         if not self.slack_configured:
@@ -161,9 +189,24 @@ class Config:
             missing.append("OpenAI API key (OPENAI_API_KEY)")
 
         if not self.google_drive_configured:
-            missing.append(f"Google Drive credentials ({self.GOOGLE_CREDENTIALS_PATH})")
+            missing.append("Google Drive service account (GOOGLE_SERVICE_ACCOUNT_JSON or file)")
 
         return missing
+
+    def deployment_info(self) -> dict:
+        """Get deployment environment information"""
+        return {
+            "environment": self.ENVIRONMENT,
+            "is_cloud": self.is_cloud_deployment,
+            "platform": (
+                "Railway" if self.IS_RAILWAY else
+                "Render" if self.IS_RENDER else
+                "Heroku" if self.IS_HEROKU else
+                "Local"
+            ),
+            "temp_storage": str(self.temp_dir),
+            "debug_mode": self.DEBUG
+        }
 
 # ==========================================
 # GLOBAL CONFIGURATION INSTANCE
@@ -173,41 +216,32 @@ class Config:
 config = Config()
 
 # ==========================================
-# HELPER FUNCTIONS
+# CLOUD DEPLOYMENT HELPERS
 # ==========================================
 
-def get_config() -> Config:
-    """Get the global configuration instance"""
-    return config
-
-def is_configured() -> bool:
-    """Check if application is fully configured"""
-    return config.validate_configuration()["all_configured"]
-
-def get_configuration_status() -> dict:
-    """Get detailed configuration status"""
-    return config.validate_configuration()
-
-# ==========================================
-# DEVELOPMENT HELPERS
-# ==========================================
+def get_deployment_info():
+    """Get deployment information for debugging"""
+    info = config.deployment_info()
+    print("🚀 DataRoom Intelligence Bot - Deployment Info")
+    print("=" * 50)
+    print(f"Platform: {info['platform']}")
+    print(f"Environment: {info['environment']}")
+    print(f"Cloud deployment: {info['is_cloud']}")
+    print(f"Temp storage: {info['temp_storage']}")
+    print(f"Debug mode: {info['debug_mode']}")
+    return info
 
 if __name__ == "__main__":
-    # Quick configuration check for development
-    print("DataRoom Intelligence Bot - Configuration Check")
-    print("=" * 50)
+    get_deployment_info()
 
+    # Configuration validation
     status = config.validate_configuration()
-
+    print("\n📋 Configuration Status:")
     for component, configured in status.items():
         emoji = "✅" if configured else "❌"
         print(f"{emoji} {component}: {'OK' if configured else 'NOT CONFIGURED'}")
 
     if not status["all_configured"]:
-        print("\nMissing configuration:")
+        print("\n❌ Missing configuration:")
         for item in config.get_missing_configuration():
             print(f"  - {item}")
-
-    print(f"\nEnvironment: {config.ENVIRONMENT}")
-    print(f"Debug mode: {config.DEBUG}")
-    print(f"Temp directory: {config.temp_dir}")

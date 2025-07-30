@@ -1,6 +1,7 @@
+# handlers/drive_handler.py - Updated for cloud deployment
 """
 Google Drive API handler for DataRoom Intelligence Bot
-Handles downloading and managing documents from Google Drive folders
+Cloud-ready with support for environment variable credentials
 """
 
 import os
@@ -20,20 +21,38 @@ class GoogleDriveHandler:
 
     def __init__(self):
         self.service = self._authenticate()
-        self.temp_dir = config.TEMP_STORAGE_PATH
+        self.temp_dir = config.temp_storage_path
 
     def _authenticate(self):
-        """Authenticate with Google Drive API using service account"""
+        """Authenticate with Google Drive API using service account - Cloud ready"""
         try:
-            credentials = Credentials.from_service_account_file(
-                config.GOOGLE_SERVICE_ACCOUNT_PATH,
+            # Get credentials from config (supports both env var and file)
+            creds_data = config.google_credentials_json
+
+            if not creds_data:
+                raise ValueError("No Google Drive credentials found. Set GOOGLE_SERVICE_ACCOUNT_JSON environment variable or place credentials file.")
+
+            # Create credentials from JSON data
+            credentials = Credentials.from_service_account_info(
+                creds_data,
                 scopes=['https://www.googleapis.com/auth/drive.readonly']
             )
+
             service = build('drive', 'v3', credentials=credentials)
-            logger.info("✅ Google Drive API authenticated successfully")
+
+            # Test the connection
+            about = service.about().get(fields="user").execute()
+            user_email = about.get('user', {}).get('emailAddress', 'Unknown')
+
+            logger.info(f"✅ Google Drive API authenticated successfully")
+            logger.info(f"🔐 Service account: {user_email}")
+            logger.info(f"🌍 Deployment: {'Cloud' if config.is_cloud_deployment else 'Local'}")
+
             return service
+
         except Exception as e:
             logger.error(f"❌ Google Drive authentication failed: {e}")
+            logger.error(f"💡 Ensure GOOGLE_SERVICE_ACCOUNT_JSON is set or credentials file exists")
             raise
 
     def extract_folder_id(self, drive_link: str) -> str:
@@ -91,7 +110,7 @@ class GoogleDriveHandler:
             raise
 
     def download_file(self, file_id: str, file_name: str, mime_type: str) -> str:
-        """Download a file from Google Drive to temp storage"""
+        """Download a file from Google Drive to temp storage - Cloud ready"""
         try:
             # Create temp directory if it doesn't exist
             os.makedirs(self.temp_dir, exist_ok=True)
@@ -110,13 +129,16 @@ class GoogleDriveHandler:
             while done is False:
                 status, done = downloader.next_chunk()
                 if status:
-                    logger.info(f"📥 Download progress: {int(status.progress() * 100)}%")
+                    progress = int(status.progress() * 100)
+                    if progress % 25 == 0:  # Log every 25%
+                        logger.info(f"📥 Download progress: {progress}%")
 
             # Write to local file
             with open(local_path, 'wb') as f:
                 f.write(file_io.getvalue())
 
-            logger.info(f"✅ Downloaded: {file_name} -> {local_path}")
+            file_size = os.path.getsize(local_path)
+            logger.info(f"✅ Downloaded: {file_name} -> {local_path} ({file_size} bytes)")
             return local_path
 
         except Exception as e:
@@ -127,6 +149,7 @@ class GoogleDriveHandler:
         """Download all supported files from a data room folder"""
         try:
             logger.info(f"🚀 Starting data room download from: {drive_link}")
+            logger.info(f"📁 Using temp directory: {self.temp_dir}")
 
             # Extract folder ID
             folder_id = self.extract_folder_id(drive_link)
@@ -145,8 +168,10 @@ class GoogleDriveHandler:
 
             # Download all files
             downloaded_files = []
-            for file_info in files:
+            for i, file_info in enumerate(files, 1):
                 try:
+                    logger.info(f"📥 Downloading {i}/{len(files)}: {file_info['name']}")
+
                     local_path = self.download_file(
                         file_info['id'],
                         file_info['name'],
@@ -164,7 +189,9 @@ class GoogleDriveHandler:
                     logger.error(f"❌ Failed to download {file_info['name']}: {e}")
                     continue
 
-            logger.info(f"✅ Successfully downloaded {len(downloaded_files)} files")
+            logger.info(f"✅ Successfully downloaded {len(downloaded_files)}/{len(files)} files")
+            logger.info(f"📂 Files stored in: {self.temp_dir}")
+
             return downloaded_files
 
         except Exception as e:
@@ -172,14 +199,49 @@ class GoogleDriveHandler:
             raise
 
     def cleanup_temp_files(self):
-        """Clean up temporary downloaded files"""
+        """Clean up temporary downloaded files - Cloud ready"""
         try:
             if os.path.exists(self.temp_dir):
+                file_count = 0
+                total_size = 0
+
                 for filename in os.listdir(self.temp_dir):
                     file_path = os.path.join(self.temp_dir, filename)
                     if os.path.isfile(file_path):
+                        file_size = os.path.getsize(file_path)
+                        total_size += file_size
                         os.remove(file_path)
-                        logger.info(f"🗑️ Cleaned up: {filename}")
-                logger.info("✅ Temporary files cleaned up")
+                        file_count += 1
+
+                if file_count > 0:
+                    size_mb = total_size / (1024 * 1024)
+                    logger.info(f"🗑️ Cleaned up {file_count} files ({size_mb:.1f} MB)")
+                    logger.info(f"💾 Freed temp storage: {self.temp_dir}")
+                else:
+                    logger.info("✅ Temp directory already clean")
+
         except Exception as e:
             logger.error(f"❌ Failed to cleanup temp files: {e}")
+
+    def get_storage_info(self) -> dict:
+        """Get information about temp storage - useful for cloud debugging"""
+        try:
+            info = {
+                "temp_dir": self.temp_dir,
+                "exists": os.path.exists(self.temp_dir),
+                "writable": os.access(self.temp_dir, os.W_OK) if os.path.exists(self.temp_dir) else False,
+                "files_count": 0,
+                "total_size_mb": 0
+            }
+
+            if os.path.exists(self.temp_dir):
+                files = [f for f in os.listdir(self.temp_dir) if os.path.isfile(os.path.join(self.temp_dir, f))]
+                info["files_count"] = len(files)
+
+                total_size = sum(os.path.getsize(os.path.join(self.temp_dir, f)) for f in files)
+                info["total_size_mb"] = total_size / (1024 * 1024)
+
+            return info
+
+        except Exception as e:
+            return {"error": str(e)}

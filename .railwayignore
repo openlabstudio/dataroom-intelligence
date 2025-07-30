@@ -1,0 +1,15 @@
+.env
+.env.local
+.env.*.local
+temp/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.DS_Store
+.vscode/
+.idea/
+*.log
+config/*_creds.json
+!config/openlab_creds.json
