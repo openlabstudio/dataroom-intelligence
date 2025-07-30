@@ -279,35 +279,36 @@ class AIAnalyzer:
             return f"❌ Sorry, I couldn't generate the memo due to a technical error: {str(e)}"
 
     def analyze_gaps(self) -> str:
-        """Analyze information gaps in the data room"""
-        try:
-            if not self.current_analysis or not self.analysis_context:
-                return "❌ No data room has been analyzed yet. Please run /analyze first."
+            """Analyze information gaps in the data room - FIXED"""
+            try:
+                if not self.current_analysis or not self.analysis_context:
+                    return "❌ No data room has been analyzed yet. Please run /analyze first."
 
-            logger.info("🔍 Analyzing information gaps...")
+                logger.info("🔍 Analyzing information gaps...")
 
-            gaps_prompt = GAPS_PROMPT.format(
-                available_documents=self.analysis_context['documents_summary'],
-                content_summary=json.dumps(self.current_analysis.get('missing_info', []), indent=2)
-            )
+                # FIXED: Use only available variables
+                gaps_prompt = GAPS_PROMPT.format(
+                    available_documents=self.analysis_context['documents_summary'],
+                    content_summary=json.dumps(self.current_analysis.get('missing_info', []), indent=2)
+                )
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a VC expert identifying critical missing information for due diligence."},
-                    {"role": "user", "content": gaps_prompt}
-                ],
-                max_tokens=800,
-                temperature=0.2
-            )
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a VC expert identifying critical missing information for due diligence."},
+                        {"role": "user", "content": gaps_prompt}
+                    ],
+                    max_tokens=1000,  # Increased for comprehensive gaps analysis
+                    temperature=0.2
+                )
 
-            gaps_analysis = response.choices[0].message.content
-            logger.info("✅ Gaps analysis completed successfully")
-            return gaps_analysis
+                gaps_analysis = response.choices[0].message.content
+                logger.info("✅ Gaps analysis completed successfully")
+                return gaps_analysis
 
-        except Exception as e:
-            logger.error(f"❌ Failed to analyze gaps: {e}")
-            return f"❌ Sorry, I couldn't analyze gaps due to a technical error: {str(e)}"
+            except Exception as e:
+                logger.error(f"❌ Failed to analyze gaps: {e}")
+                return f"❌ Sorry, I couldn't analyze gaps due to a technical error: {str(e)}"
 
     def get_detailed_scoring(self) -> Dict[str, Any]:
         """Get detailed scoring breakdown"""

@@ -1,6 +1,6 @@
 """
 Q&A and specialized prompts for DataRoom Intelligence Bot
-Contains prompts for interactive Q&A, memos, and gap analysis
+FIXED VERSION - Gaps analysis error resolved
 """
 
 QA_PROMPT = """
@@ -57,6 +57,7 @@ Generate a structured investment memo with the following sections:
 Keep the memo concise but comprehensive. Focus on actionable insights that will help the partnership make an investment decision.
 """
 
+# FIXED: Remove {detected_stage} variable that was causing the error
 GAPS_PROMPT = """
 As a VC expert, identify what critical information is missing from this data room for a complete due diligence evaluation.
 
@@ -66,12 +67,12 @@ AVAILABLE DOCUMENTS:
 CONTENT SUMMARY:
 {content_summary}
 
-COMPANY STAGE: {detected_stage}
+Based on the documents provided, analyze what stage this company appears to be at (Seed, Series A, Series B, etc.) and identify critical gaps.
 
 CRITICAL GAPS IDENTIFIED:
 
 **FINANCIALS:**
-[Missing financial documents critical for this stage]
+[Missing financial documents critical for this investment stage]
 
 **LEGAL & COMPLIANCE:**
 [Missing legal documentation]
@@ -101,4 +102,7 @@ PRIORITY OF GAPS (CRITICAL/IMPORTANT/NICE-TO-HAVE):
 
 **RECOMMENDED REQUESTS:**
 [Specific documents/information to request from the company]
+
+**STAGE ASSESSMENT:**
+[Based on available documents, what investment stage does this appear to be, and what documents are typically expected at this stage]
 """
