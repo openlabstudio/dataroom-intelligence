@@ -14,6 +14,8 @@ from config.settings import config
 from handlers.drive_handler import GoogleDriveHandler
 from handlers.doc_processor import DocumentProcessor
 from handlers.ai_analyzer import AIAnalyzer
+# NEW: Import market research system (not used yet)
+from agents import MarketResearchOrchestrator
 from utils.slack_formatter import format_analysis_response, format_health_response, format_error_response
 from utils.logger import get_logger
 from dotenv import load_dotenv
@@ -268,7 +270,7 @@ def format_processing_results(processed_documents, document_summary, drive_link)
 
     # Basic stats
     total_docs = document_summary.get('total_documents', 0)
-    successful = document_summary.get('successful_processing', 0)
+    successful = document_summary.get('successful_processing', 0)  
     failed = document_summary.get('failed_processing', 0)
 
     response += f"📊 **Processing Summary:**\n"
