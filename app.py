@@ -103,8 +103,12 @@ drive_handler = GoogleDriveHandler() if config.google_drive_configured else None
 doc_processor = DocumentProcessor()
 ai_analyzer = AIAnalyzer()
 
+# NEW: Initialize market research orchestrator (not used yet)
+market_research_orchestrator = MarketResearchOrchestrator() if config.openai_configured else None
+
 # Log initialization status
 logger.info(f"🔧 AI Analyzer initialized: {ai_analyzer is not None}")
+logger.info(f"🔧 Market Research Orchestrator initialized: {market_research_orchestrator is not None}")
 logger.info(f"🔧 OpenAI configured: {config.openai_configured}")
 
 # Store user sessions (in production, use a database)
@@ -579,6 +583,11 @@ def handle_reset_command(ack, body, client):
         # Reset AI analyzer if available
         if ai_analyzer:
             ai_analyzer.reset_analysis()
+
+        # NEW: Reset market research orchestrator if available  
+        if market_research_orchestrator:
+            # Future: add reset method when needed
+            pass
 
         # Cleanup temp files
         if drive_handler:
