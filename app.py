@@ -72,8 +72,9 @@ def root():
     return jsonify({
         "service": "DataRoom Intelligence Bot",
         "status": "running",
-        "version": "1.0.0",
+        "version": "2.0.0-phase2a",
         "platform": "Railway",
+        "phase": "2A - Market Research Agent",
         "endpoints": ["/health", "/status"]
     })
 
@@ -86,7 +87,9 @@ def status():
             "timestamp": datetime.now().isoformat(),
             "deployment": config.deployment_info(),
             "active_sessions": len(user_sessions),
-            "configuration_status": config.validate_configuration()
+            "configuration_status": config.validate_configuration(),
+            "phase": "2A - Market Research Agent",
+            "new_features": ["Market vertical detection", "Critical market assessment", "Multi-agent architecture"]
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -115,7 +118,263 @@ logger.info(f"🔧 OpenAI configured: {config.openai_configured}")
 user_sessions = {}
 
 # ==========================================
-# SLACK BOT COMMANDS - COMPLETE SET
+# SLACK BOT COMMANDS - ENHANCED WITH MARKET RESEARCH
+# ==========================================
+
+@app.command("/market-research")
+def handle_market_research_command(ack, body, client):
+    """Handle /market-research command - NEW Market Intelligence Analysis"""
+    ack()
+    
+    try:
+        user_id = body['user_id']
+        channel_id = body['channel_id']
+        
+        # Check if user has analyzed documents
+        if user_id not in user_sessions:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first to analyze documents before market research."
+            )
+            return
+        
+        if not market_research_orchestrator or not config.openai_configured:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ Market research requires OpenAI configuration. Please configure OpenAI API key."
+            )
+            return
+        
+        # Get processed documents from session
+        processed_documents = user_sessions[user_id].get('processed_documents', [])
+        document_summary = user_sessions[user_id].get('document_summary', {})
+        
+        if not processed_documents:
+            client.chat_postMessage(
+                channel=channel_id,
+                text="❌ No processed documents found. Please run `/analyze` first."
+            )
+            return
+        
+        # Send initial response with progress tracking
+        initial_response = client.chat_postMessage(
+            channel=channel_id,
+            text=format_market_research_progress("started", processed_documents, document_summary)
+        )
+        
+        # Start background market research processing
+        threading.Thread(
+            target=perform_market_research_analysis,
+            args=(client, channel_id, user_id, processed_documents, document_summary, initial_response['ts']),
+            daemon=True
+        ).start()
+        
+    except Exception as e:
+        logger.error(f"❌ Error in market-research command: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=format_error_response("market-research", str(e))
+        )
+
+def perform_market_research_analysis(client, channel_id, user_id, processed_documents, document_summary, message_ts):
+    """Perform comprehensive market research analysis with real-time progress updates"""
+    try:
+        logger.info(f"🔍 Starting market research analysis for user {user_id}")
+        
+        # Step 1: Market Detection
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_market_research_progress("market_detection", processed_documents, document_summary)
+        )
+        
+        # Perform market intelligence analysis
+        intelligence_result = market_research_orchestrator.perform_market_intelligence(
+            processed_documents, document_summary
+        )
+        
+        # Step 2: Competitive Analysis (Future)
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_market_research_progress("competitive_analysis", processed_documents, document_summary, intelligence_result)
+        )
+        
+        # Step 3: Market Validation (Future)
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_market_research_progress("market_validation", processed_documents, document_summary, intelligence_result)
+        )
+        
+        # Step 4: Critical Assessment 
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_market_research_progress("critical_assessment", processed_documents, document_summary, intelligence_result)
+        )
+        
+        # Final Results
+        final_response = format_market_research_results(intelligence_result, processed_documents, document_summary)
+        
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=final_response
+        )
+        
+        # Store market research results in user session
+        user_sessions[user_id]['market_research'] = intelligence_result.to_dict()
+        
+        logger.info(f"✅ Market research analysis completed for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Market research analysis failed: {e}")
+        client.chat_update(
+            channel=channel_id,
+            ts=message_ts,
+            text=format_error_response("market research analysis", str(e))
+        )
+
+def format_market_research_progress(stage, processed_documents, document_summary, intelligence_result=None):
+    """Format market research progress messages"""
+    
+    # Detect basic info for progress display
+    doc_count = len([d for d in processed_documents if d.get('type') != 'error'])
+    vertical = "detecting..." if not intelligence_result else intelligence_result.market_profile.vertical if intelligence_result.market_profile else "unknown"
+    
+    if stage == "started":
+        return f"""🔍 **MARKET RESEARCH INICIADO**
+📊 Documentos analizados: {doc_count}
+🌍 Vertical: Detectando...
+⏱️ Tiempo estimado: 3-5 minutos
+
+**Progreso:**
+🔄 1/4 Detección de mercado y segmento
+⚪ 2/4 Análisis competitivo (Futuro - Week 1.2)
+⚪ 3/4 Validación de TAM/SAM (Futuro - Week 1.3) 
+⚪ 4/4 Análisis crítico y recomendaciones
+
+🔄 Procesando... Te notificaré cuando esté listo."""
+
+    elif stage == "market_detection":
+        return f"""🔍 **MARKET RESEARCH EN PROGRESO**
+📊 Documentos analizados: {doc_count}
+🌍 Vertical: {vertical}
+⏱️ Tiempo estimado: 3-5 minutos
+
+**Progreso:**
+✅ 1/4 Detección de mercado y segmento
+🔄 2/4 Análisis competitivo (Futuro - Week 1.2)
+⚪ 3/4 Validación de TAM/SAM (Futuro - Week 1.3)
+⚪ 4/4 Análisis crítico y recomendaciones
+
+🔄 Procesando análisis competitivo..."""
+
+    elif stage == "competitive_analysis":
+        return f"""🔍 **MARKET RESEARCH EN PROGRESO**
+📊 Documentos analizados: {doc_count}
+🌍 Vertical detectado: {vertical}
+⏱️ Tiempo estimado: 2-3 minutos restantes
+
+**Progreso:**
+✅ 1/4 Detección de mercado y segmento
+✅ 2/4 Análisis competitivo (Planificado para Week 1.2)
+🔄 3/4 Validación de TAM/SAM (Futuro - Week 1.3)
+⚪ 4/4 Análisis crítico y recomendaciones
+
+🔄 Procesando validación de mercado..."""
+
+    elif stage == "market_validation":
+        return f"""🔍 **MARKET RESEARCH EN PROGRESO**  
+📊 Documentos analizados: {doc_count}
+🌍 Vertical detectado: {vertical}
+⏱️ Tiempo estimado: 1-2 minutos restantes
+
+**Progreso:**
+✅ 1/4 Detección de mercado y segmento
+✅ 2/4 Análisis competitivo (Planificado para Week 1.2)  
+✅ 3/4 Validación de TAM/SAM (Planificado para Week 1.3)
+🔄 4/4 Análisis crítico y recomendaciones
+
+🔄 Generando análisis crítico..."""
+
+    elif stage == "critical_assessment":
+        return f"""🔍 **MARKET RESEARCH EN PROGRESO**
+📊 Documentos analizados: {doc_count}
+🌍 Vertical detectado: {vertical}
+⏱️ Finalizando análisis...
+
+**Progreso:**
+✅ 1/4 Detección de mercado y segmento
+✅ 2/4 Análisis competitivo (Planificado para Week 1.2)
+✅ 3/4 Validación de TAM/SAM (Planificado para Week 1.3)  
+✅ 4/4 Análisis crítico y recomendaciones
+
+🔄 Preparando reporte final..."""
+
+def format_market_research_results(intelligence_result, processed_documents, document_summary):
+    """Format final market research results"""
+    try:
+        market_profile = intelligence_result.market_profile
+        critical_assessment = intelligence_result.critical_assessment
+        confidence = intelligence_result.confidence_score
+        
+        response = "🎯 **MARKET RESEARCH COMPLETADO**\n\n"
+        
+        # Market Profile Results
+        if market_profile:
+            response += "📊 **PERFIL DE MERCADO DETECTADO:**\n"
+            response += f"• **Vertical:** {market_profile.vertical.title()}\n"
+            response += f"• **Sub-vertical:** {market_profile.sub_vertical}\n" 
+            response += f"• **Mercado objetivo:** {market_profile.target_market}\n"
+            response += f"• **Enfoque geográfico:** {market_profile.geo_focus}\n"
+            response += f"• **Modelo de negocio:** {market_profile.business_model}\n"
+            response += f"• **Confianza:** {market_profile.confidence_score:.1f}/1.0\n\n"
+        
+        # Critical Assessment
+        if critical_assessment and isinstance(critical_assessment, dict):
+            response += "🧠 **ANÁLISIS CRÍTICO:**\n"
+            
+            reality_check = critical_assessment.get('market_reality_check', 'No analysis available')
+            response += f"**Reality Check:** {reality_check}\n\n"
+            
+            red_flags = critical_assessment.get('red_flags', [])
+            if red_flags and isinstance(red_flags, list):
+                response += "🚩 **Red Flags Identificados:**\n"
+                for flag in red_flags[:3]:  # Show top 3
+                    response += f"• {flag}\n"
+                response += "\n"
+            
+            go_no_go = critical_assessment.get('go_no_go_factors', [])
+            if go_no_go and isinstance(go_no_go, list):
+                response += "⚖️ **Factores GO/NO-GO:**\n"
+                for factor in go_no_go[:3]:  # Show top 3  
+                    response += f"• {factor}\n"
+                response += "\n"
+        
+        # System Status & Next Steps
+        response += f"📈 **Confidence Score:** {confidence:.2f}/1.0\n\n"
+        
+        response += "🔮 **PRÓXIMAS MEJORAS (Phase 2A):**\n"
+        response += "• **Week 1.2:** Integración con Crunchbase API para análisis competitivo\n"
+        response += "• **Week 1.3:** Validación TAM/SAM con datos externos\n"
+        response += "• **Week 2:** Agentes especializados y chain-of-thought reasoning\n\n"
+        
+        response += "**Comandos disponibles:**\n"
+        response += "• `/ask [pregunta]` - Preguntas sobre el análisis\n"
+        response += "• `/scoring` - Scoring detallado VC\n"
+        response += "• `/memo` - Generar investment memo\n"
+        response += "• `/gaps` - Análisis de información faltante"
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Error formatting market research results: {e}")
+        return f"✅ **MARKET RESEARCH COMPLETADO**\n\nError formatting results: {str(e)}\n\nPlease check logs for details."
+
+# ==========================================
+# EXISTING COMMANDS (ENHANCED)
 # ==========================================
 
 @app.command("/analyze")
@@ -269,7 +528,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         )
 
 def format_processing_results(processed_documents, document_summary, drive_link):
-    """Format the processing results when AI is not available"""
+    """Format the processing results when AI is not available - ENHANCED"""
     response = "✅ **DOCUMENT PROCESSING COMPLETE**\n\n"
 
     # Basic stats
@@ -321,11 +580,12 @@ def format_processing_results(processed_documents, document_summary, drive_link)
 
     response += "\n"
 
-    # Next steps
+    # Next steps - ENHANCED with market research
     if config.openai_configured:
         response += "🎯 **Status:** Documents processed, ready for AI analysis!\n"
         response += "🤖 **Next:** Use commands below for AI insights\n\n"
         response += "**Available AI Commands:**\n"
+        response += "• `/market-research` - **NEW:** Comprehensive market intelligence\n"
         response += "• `/ask [question]` - Ask questions about the documents\n"
         response += "• `/scoring` - Get detailed VC scoring\n"
         response += "• `/memo` - Generate investment memo\n"
@@ -359,6 +619,7 @@ def format_size(size):
     else:
         return f"{size//1000000}M chars"
 
+# All other existing commands remain the same...
 @app.command("/asktest")
 def handle_asktest_command(ack, body, client):
     """Simple test version of ask command"""
@@ -632,18 +893,25 @@ def handle_health_command(ack, body, client):
 
 @app.event("app_mention")
 def handle_app_mention(event, client):
-    """Handle @mentions of the bot"""
+    """Handle @mentions of the bot - ENHANCED"""
     try:
         channel_id = event['channel']
 
         ai_status = "✅" if (ai_analyzer and config.openai_configured) else "⚠️"
         ai_note = "Full AI analysis available" if (ai_analyzer and config.openai_configured) else "AI analysis requires OpenAI configuration"
+        
+        market_status = "✅" if (market_research_orchestrator and config.openai_configured) else "⚠️"
 
         response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway.\n\n" +\
-                  f"{ai_status} **AI Status:** {ai_note}\n\n" +\
+                  f"{ai_status} **AI Status:** {ai_note}\n" +\
+                  f"{market_status} **Market Research:** {'Available' if market_research_orchestrator else 'Requires OpenAI'}\n\n" +\
                   "**Available commands:**\n" +\
-                  "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
-                  "• `/ask [question]` - Ask questions about analyzed data room\n" +\
+                  "• `/analyze [google-drive-link]` - Analyze a data room\n"
+        
+        if config.openai_configured:
+            response += "• `/market-research` - **NEW:** Comprehensive market intelligence\n"
+        
+        response += "• `/ask [question]` - Ask questions about analyzed data room\n" +\
                   "• `/scoring` - Get detailed scoring breakdown\n" +\
                   "• `/memo` - Generate investment memo\n" +\
                   "• `/gaps` - Analyze missing information\n" +\
@@ -731,6 +999,7 @@ def main():
         logger.info("🎯 Slack bot commands:")
         logger.info("   • /analyze [google-drive-link]")
         if config.openai_configured:
+            logger.info("   • /market-research [NEW]")
             logger.info("   • /ask [question]")
             logger.info("   • /scoring")
             logger.info("   • /memo")
