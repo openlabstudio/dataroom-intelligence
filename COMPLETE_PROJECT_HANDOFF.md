@@ -368,6 +368,75 @@ Before any merge to main, verify:
 
 ---
 
+## 💡 FUTURE IMPROVEMENTS & NON-CRITICAL ENHANCEMENTS
+
+> **Note:** This section tracks improvement ideas that are not currently prioritized but should be considered for future development cycles.
+
+### 🔄 SYSTEM RELIABILITY & PERSISTENCE
+**Persistent Document Storage (Non-Critical)**
+- **Issue:** Currently, document analysis sessions are lost on app restart/redeploy
+- **Current State:** Documents stored in `user_sessions` (in-memory dictionary)
+- **Impact:** Users need to re-run `/analyze` after system restarts
+- **Proposed Solution:** Implement persistent storage (Redis, PostgreSQL, or file-based storage)
+- **Implementation Approach:**
+  ```python
+  # Future: Replace in-memory sessions with persistent storage
+  # Current: user_sessions = {}  # In-memory
+  # Future: PersistentSessionManager with Redis/DB backend
+  ```
+- **Priority:** Medium - Quality of life improvement
+- **Estimated Effort:** 1-2 weeks (database integration + migration)
+
+### 🚀 PERFORMANCE OPTIMIZATIONS
+**Analysis Caching (Non-Critical)**
+- **Issue:** Duplicate analyses of same document sets require full reprocessing
+- **Proposed Solution:** Document fingerprint-based caching system
+- **Benefit:** Faster subsequent analyses of similar documents
+- **Priority:** Low - Performance optimization
+
+**Parallel Document Processing (Non-Critical)**
+- **Issue:** Large document sets process sequentially
+- **Proposed Solution:** Parallel processing for document extraction
+- **Benefit:** Reduced analysis time for large data rooms
+- **Priority:** Low - Performance optimization
+
+### 🎯 USER EXPERIENCE ENHANCEMENTS
+**Cross-Channel Session Access (Non-Critical)**
+- **Issue:** Analysis sessions are channel-specific
+- **Proposed Solution:** User-based sessions accessible across channels
+- **Benefit:** Improved team collaboration workflows
+- **Priority:** Low - UX improvement
+
+**Analysis History & Comparison (Non-Critical)**
+- **Issue:** No historical analysis tracking or comparison features
+- **Proposed Solution:** Analysis history with diff/comparison capabilities
+- **Benefit:** Track changes in startup documents over time
+- **Priority:** Low - Advanced feature
+
+### 🔧 TECHNICAL DEBT & MAINTENANCE
+**Error Handling Standardization (Non-Critical)**
+- **Issue:** Inconsistent error handling patterns across modules
+- **Proposed Solution:** Standardized error handling framework
+- **Priority:** Low - Code quality improvement
+
+**Logging & Monitoring Enhancement (Non-Critical)**
+- **Issue:** Limited structured logging for debugging
+- **Proposed Solution:** Enhanced logging with structured data and monitoring dashboards
+- **Priority:** Low - Operational improvement
+
+### 📋 FEATURE REQUESTS BACKLOG
+**Custom Analysis Templates (Non-Critical)**
+- **Issue:** One-size-fits-all analysis approach
+- **Proposed Solution:** Customizable analysis templates per industry/stage
+- **Priority:** Low - Advanced feature
+
+**Webhook Integration (Non-Critical)**
+- **Issue:** No external system integration capabilities
+- **Proposed Solution:** Webhook system for analysis completion notifications
+- **Priority:** Low - Integration feature
+
+---
+
 ## 📚 KEY CONTEXT FOR CONTINUITY
 
 ### PROJECT PHILOSOPHY
