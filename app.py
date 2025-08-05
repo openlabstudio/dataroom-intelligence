@@ -518,27 +518,27 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
             processed_documents, document_summary
         )
         
-        # Format comprehensive response
+        # Format comprehensive response with FIXED object access
         response = "✅ **ANÁLISIS DE INTELIGENCIA DE MERCADO COMPLETADO**\n\n"
         
-        # Market Profile
-        if hasattr(market_intelligence_result, 'market_profile'):
+        # Market Profile - FIXED: Use object attributes, not dictionary access
+        if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
             profile = market_intelligence_result.market_profile
             response += f"🎯 **Perfil de Mercado:**\n"
-            response += f"• **Vertical:** {profile.get('primary_vertical', 'No identificado')}\n"
-            response += f"• **Sub-vertical:** {profile.get('sub_vertical', 'No identificado')}\n"
-            response += f"• **Modelo de negocio:** {profile.get('business_model', 'No identificado')}\n"
-            response += f"• **Mercado objetivo:** {profile.get('target_market', 'No identificado')}\n"
-            response += f"• **Enfoque geográfico:** {profile.get('geographic_focus', 'No identificado')}\n"
-            response += f"• **Confianza:** {profile.get('confidence_score', 0):.1f}/1.0\n\n"
+            response += f"• **Vertical:** {getattr(profile, 'primary_vertical', 'No identificado')}\n"
+            response += f"• **Sub-vertical:** {getattr(profile, 'sub_vertical', 'No identificado')}\n"
+            response += f"• **Modelo de negocio:** {getattr(profile, 'business_model', 'No identificado')}\n"
+            response += f"• **Mercado objetivo:** {getattr(profile, 'target_market', 'No identificado')}\n"
+            response += f"• **Enfoque geográfico:** {getattr(profile, 'geographic_focus', 'No identificado')}\n"
+            response += f"• **Confianza:** {getattr(profile, 'confidence_score', 0):.1f}/1.0\n\n"
         
         # Critical Assessment
-        if hasattr(market_intelligence_result, 'critical_assessment'):
+        if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
             assessment = market_intelligence_result.critical_assessment
             response += f"🔍 **Evaluación Crítica:**\n{assessment}\n\n"
         
         # Market Intelligence Summary
-        if hasattr(market_intelligence_result, 'intelligence_summary'):
+        if hasattr(market_intelligence_result, 'intelligence_summary') and market_intelligence_result.intelligence_summary:
             summary = market_intelligence_result.intelligence_summary
             response += f"📊 **Resumen de Inteligencia:**\n{summary}\n\n"
         
