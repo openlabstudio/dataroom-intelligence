@@ -118,20 +118,22 @@ logger.info(f"🔧 OpenAI configured: {config.openai_configured}")
 user_sessions = {}
 
 # ==========================================
-# SLACK BOT COMMANDS - ENHANCED WITH MARKET RESEARCH
+# MARKET RESEARCH COMMAND HANDLERS
 # ==========================================
 
-@app.command("/market-research")
-def handle_market_research_command(ack, body, client):
-    """Handle /market-research command - NEW Market Intelligence Analysis"""
+def handle_market_research_logic(ack, body, client):
+    """Shared logic for market research command variants"""
     ack()
     
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
         
+        logger.info(f"🔍 Market research command received from user {user_id} in channel {channel_id}")
+        
         # Check if user has analyzed documents
         if user_id not in user_sessions:
+            logger.warning(f"❌ No session found for user {user_id}")
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first to analyze documents before market research."
@@ -139,6 +141,7 @@ def handle_market_research_command(ack, body, client):
             return
         
         if not market_research_orchestrator or not config.openai_configured:
+            logger.warning("❌ Market research orchestrator not available")
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ Market research requires OpenAI configuration. Please configure OpenAI API key."
@@ -150,11 +153,14 @@ def handle_market_research_command(ack, body, client):
         document_summary = user_sessions[user_id].get('document_summary', {})
         
         if not processed_documents:
+            logger.warning(f"❌ No processed documents found for user {user_id}")
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No processed documents found. Please run `/analyze` first."
             )
             return
+        
+        logger.info(f"✅ Starting market research for user {user_id} with {len(processed_documents)} documents")
         
         # Send initial response with progress tracking
         initial_response = client.chat_postMessage(
@@ -175,6 +181,26 @@ def handle_market_research_command(ack, body, client):
             channel=channel_id,
             text=format_error_response("market-research", str(e))
         )
+
+# Register multiple command variants for market research
+@app.command("/market-research")
+def handle_market_research_command_hyphen(ack, body, client):
+    """Handle /market-research command (hyphen variant)"""
+    logger.info("📨 Received /market-research command (hyphen variant)")
+    handle_market_research_logic(ack, body, client)
+
+@app.command("/market_research")
+def handle_market_research_command_underscore(ack, body, client):
+    """Handle /market_research command (underscore variant)"""
+    logger.info("📨 Received /market_research command (underscore variant)")
+    handle_market_research_logic(ack, body, client)
+
+# Also register a short variant
+@app.command("/market")
+def handle_market_command_short(ack, body, client):
+    """Handle /market command (short variant)"""
+    logger.info("📨 Received /market command (short variant)")
+    handle_market_research_logic(ack, body, client)
 
 def perform_market_research_analysis(client, channel_id, user_id, processed_documents, document_summary, message_ts):
     """Perform comprehensive market research analysis with real-time progress updates"""
@@ -585,7 +611,7 @@ def format_processing_results(processed_documents, document_summary, drive_link)
         response += "🎯 **Status:** Documents processed, ready for AI analysis!\n"
         response += "🤖 **Next:** Use commands below for AI insights\n\n"
         response += "**Available AI Commands:**\n"
-        response += "• `/market-research` - **NEW:** Comprehensive market intelligence\n"
+        response += "• `/market-research` or `/market` - **NEW:** Comprehensive market intelligence\n"
         response += "• `/ask [question]` - Ask questions about the documents\n"
         response += "• `/scoring` - Get detailed VC scoring\n"
         response += "• `/memo` - Generate investment memo\n"
@@ -909,7 +935,7 @@ def handle_app_mention(event, client):
                   "• `/analyze [google-drive-link]` - Analyze a data room\n"
         
         if config.openai_configured:
-            response += "• `/market-research` - **NEW:** Comprehensive market intelligence\n"
+            response += "• `/market-research` (or `/market`) - **NEW:** Comprehensive market intelligence\n"
         
         response += "• `/ask [question]` - Ask questions about analyzed data room\n" +\
                   "• `/scoring` - Get detailed scoring breakdown\n" +\
@@ -999,7 +1025,7 @@ def main():
         logger.info("🎯 Slack bot commands:")
         logger.info("   • /analyze [google-drive-link]")
         if config.openai_configured:
-            logger.info("   • /market-research [NEW]")
+            logger.info("   • /market-research or /market [NEW]")
             logger.info("   • /ask [question]")
             logger.info("   • /scoring")
             logger.info("   • /memo")
