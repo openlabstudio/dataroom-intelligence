@@ -351,7 +351,7 @@ def format_processing_results(processed_documents, document_summary, drive_link)
         response += "• `/scoring` - Get detailed VC scoring\n"
         response += "• `/memo` - Generate investment memo\n"
         response += "• `/gaps` - Analyze missing information\n"
-        
+
         if market_research_orchestrator:
             response += "• `/market-research` - NEW: Comprehensive market intelligence\n"
     else:
@@ -393,7 +393,7 @@ def handle_market_research_command(ack, body, client):
     logger.info("📨 Received /market-research command")
     handle_market_research_logic(ack, body, client)
 
-@app.command("/market_research")  
+@app.command("/market_research")
 def handle_market_research_command_alt(ack, body, client):
     """Handle /market_research command (underscore variant)"""
     logger.info("📨 Received /market_research command (underscore variant)")
@@ -402,13 +402,13 @@ def handle_market_research_command_alt(ack, body, client):
 def handle_market_research_logic(ack, body, client):
     """Core logic for market research command"""
     ack()
-    
+
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
-        
+
         logger.info(f"🔍 Starting market research analysis for user {user_id}")
-        
+
         # Check if market research orchestrator is available
         if not market_research_orchestrator:
             client.chat_postMessage(
@@ -416,7 +416,7 @@ def handle_market_research_logic(ack, body, client):
                 text="❌ Market research functionality is not available. OpenAI configuration required."
             )
             return
-        
+
         # Check if user has analyzed documents
         if user_id not in user_sessions:
             logger.info(f"❌ No session found for user {user_id}")
@@ -428,9 +428,9 @@ def handle_market_research_logic(ack, body, client):
                      "then use `/market-research` for market intelligence analysis."
             )
             return
-        
+
         session_data = user_sessions[user_id]
-        
+
         # Validate session has required data
         if 'processed_documents' not in session_data or 'document_summary' not in session_data:
             logger.error(f"❌ Session data incomplete for user {user_id}")
@@ -439,7 +439,7 @@ def handle_market_research_logic(ack, body, client):
                 text="❌ Session data incomplete. Please run `/analyze [google-drive-link]` again."
             )
             return
-            
+
         # Send initial response
         initial_response = client.chat_postMessage(
             channel=channel_id,
@@ -448,14 +448,14 @@ def handle_market_research_logic(ack, body, client):
                  "⏳ Este proceso puede tomar 3-5 minutos\n\n" +
                  "🚧 **Estado:** Inicializando agentes de análisis..."
         )
-        
+
         # Start background market research analysis
         threading.Thread(
             target=perform_market_research_analysis,
             args=(client, channel_id, user_id, initial_response['ts']),
             daemon=True
         ).start()
-        
+
     except Exception as e:
         logger.error(f"❌ Error in market research command: {e}")
         client.chat_postMessage(
@@ -470,9 +470,9 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
         session_data = user_sessions[user_id]
         processed_documents = session_data['processed_documents']
         document_summary = session_data['document_summary']
-        
+
         logger.info(f"🔍 Starting market intelligence analysis for user {user_id}")
-        
+
         # Step 1: Market Detection
         client.chat_update(
             channel=channel_id,
@@ -482,7 +482,7 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
                  "🎯 Analizando documentos para identificar sector\n" +
                  "⏳ Estado: Procesando con IA..."
         )
-        
+
         # Step 2: Competitive Analysis (placeholder)
         client.chat_update(
             channel=channel_id,
@@ -492,7 +492,7 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
                  "🏢 Identificando competidores y posicionamiento\n" +
                  "⏳ Estado: Procesando datos de mercado..."
         )
-        
+
         # Step 3: Market Validation (placeholder)
         client.chat_update(
             channel=channel_id,
@@ -502,7 +502,7 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
                  "📈 Validando TAM/SAM y oportunidades\n" +
                  "⏳ Estado: Analizando datos externos..."
         )
-        
+
         # Step 4: Critical Assessment
         client.chat_update(
             channel=channel_id,
@@ -512,15 +512,15 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
                  "🧠 Generando análisis crítico con \"brutal honesty\"\n" +
                  "⏳ Estado: Finalizando análisis..."
         )
-        
+
         # Perform actual market intelligence analysis
         market_intelligence_result = market_research_orchestrator.perform_market_intelligence(
             processed_documents, document_summary
         )
-        
+
         # Format comprehensive response with FIXED object access
         response = "✅ **ANÁLISIS DE INTELIGENCIA DE MERCADO COMPLETADO**\n\n"
-        
+
         # Market Profile - FIXED: Use object attributes, not dictionary access
         if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
             profile = market_intelligence_result.market_profile
@@ -531,45 +531,45 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
             response += f"• **Mercado objetivo:** {getattr(profile, 'target_market', 'No identificado')}\n"
             response += f"• **Enfoque geográfico:** {getattr(profile, 'geographic_focus', 'No identificado')}\n"
             response += f"• **Confianza:** {getattr(profile, 'confidence_score', 0):.1f}/1.0\n\n"
-        
+
         # Critical Assessment
         if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
             assessment = market_intelligence_result.critical_assessment
             response += f"🔍 **Evaluación Crítica:**\n{assessment}\n\n"
-        
+
         # Market Intelligence Summary
         if hasattr(market_intelligence_result, 'intelligence_summary') and market_intelligence_result.intelligence_summary:
             summary = market_intelligence_result.intelligence_summary
             response += f"📊 **Resumen de Inteligencia:**\n{summary}\n\n"
-        
+
         response += "🎯 **Análisis disponible para:**\n"
         response += "• `/ask [pregunta]` - Preguntas sobre el análisis de mercado\n"
         response += "• `/scoring` - Puntuación detallada incluyendo mercado\n"
         response += "• `/memo` - Memo de inversión con análisis de mercado\n"
         response += "• `/reset` - Limpiar sesión actual"
-        
+
         # Update Slack with final results
         client.chat_update(
             channel=channel_id,
             ts=message_ts,
             text=response
         )
-        
+
         # CRITICAL FIX: Store market research results in user session BEFORE any cleanup
         user_sessions[user_id]['market_research'] = {
             'result': market_intelligence_result,
             'timestamp': datetime.now().isoformat(),
             'analysis_type': 'comprehensive_market_intelligence'
         }
-        
+
         logger.info("✅ AI analysis completed successfully")
-        
+
         # CRITICAL: NO cleanup here - documents must remain for subsequent commands
         # The cleanup will be handled by the reset command or session expiry
         # drive_handler.cleanup_temp_files()  # REMOVED TO PREVENT SESSION LOSS
-        
+
         logger.info(f"✅ Market research analysis completed for user {user_id}")
-        
+
     except Exception as e:
         logger.error(f"❌ Market research analysis failed: {e}")
         client.chat_update(
@@ -592,44 +592,44 @@ def handle_market_command_short(ack, body, client):
 def handle_debug_sessions_command(ack, body, client):
     """Handle /debug-sessions command - Check active sessions"""
     ack()
-    
+
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
-        
+
         logger.info(f"🔍 Debug sessions command from user {user_id}")
-        
+
         response = "🔍 **DEBUG: ACTIVE SESSIONS**\n\n"
         response += f"**Total Sessions:** {len(user_sessions)}\n"
         response += f"**Active Users:** {list(user_sessions.keys())}\n\n"
-        
+
         if user_id in user_sessions:
             session_data = user_sessions[user_id]
             response += f"**Your Session (ID: {user_id}):**\n"
             response += f"• Session keys: {list(session_data.keys())}\n"
-            
+
             if 'processed_documents' in session_data:
                 response += f"• Processed documents: {len(session_data['processed_documents'])}\n"
-            
+
             if 'document_summary' in session_data:
                 response += f"• Document summary available: ✅\n"
-            
+
             if 'analysis_result' in session_data:
                 response += f"• Analysis result available: ✅\n"
-                
+
             if 'market_research' in session_data:
                 response += f"• Market research available: ✅\n"
-                
+
             response += "\n✅ **Market research should work!**"
         else:
             response += f"**Your Session (ID: {user_id}):** ❌ Not found\n"
             response += "\n⚠️ **Please run `/analyze [link]` first**"
-        
+
         client.chat_postMessage(
             channel=channel_id,
             text=response
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Error in debug-sessions command: {e}")
         client.chat_postMessage(
@@ -688,11 +688,11 @@ def handle_ask_command(ack, body, client):
         response = f"💡 **Question:** {question}\n\n" +\
                   f"**Answer:**\n{answer}\n\n" +\
                   f"📎 *Based on analyzed data room"
-        
+
         # Add market research context if available
         if 'market_research' in user_sessions[user_id]:
             response += " and market intelligence analysis"
-            
+
         response += "*"
 
         client.chat_postMessage(
@@ -753,7 +753,7 @@ def handle_scoring_command(ack, body, client):
             response += f"• **{category_name}:** {score}/10 - {justification}\n"
 
         response += f"\n🎯 **Recommendation:** {scoring_data['recommendation']}\n"
-        
+
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
             response += "\n📊 **Market Intelligence:** Market research data available\n"
@@ -797,7 +797,7 @@ def handle_memo_command(ack, body, client):
         memo = ai_analyzer.generate_investment_memo()
 
         response = "📄 **INVESTMENT MEMO**\n\n" + memo
-        
+
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
             response += "\n\n📊 **Market Intelligence Integrated**\n"
@@ -841,7 +841,7 @@ def handle_gaps_command(ack, body, client):
         gaps_analysis = ai_analyzer.analyze_gaps()
 
         response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
-        
+
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
             response += "\n\n📊 **Market Research Recommendation**\n"
@@ -875,7 +875,7 @@ def handle_reset_command(ack, body, client):
         # Reset AI analyzer if available
         if ai_analyzer:
             ai_analyzer.reset_analysis()
-            
+
         # Reset market research orchestrator if available
         if market_research_orchestrator:
             # Market research orchestrator reset (placeholder)
@@ -910,7 +910,7 @@ def handle_health_command(ack, body, client):
     try:
         channel_id = body['channel_id']
         health_response = format_health_response()
-        
+
         # Add Phase 2A status
         health_response += f"\n🔬 **Phase 2A Status:**\n"
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
@@ -937,7 +937,7 @@ def handle_app_mention(event, client):
 
         ai_status = "✅" if (ai_analyzer and config.openai_configured) else "⚠️"
         ai_note = "Full AI analysis available" if (ai_analyzer and config.openai_configured) else "AI analysis requires OpenAI configuration"
-        
+
         market_status = "✅" if market_research_orchestrator else "⚠️"
         market_note = "Market research available" if market_research_orchestrator else "Market research requires OpenAI configuration"
 
@@ -978,6 +978,63 @@ def handle_message_events(body, client, logger):
             text="👋 Hi! Use `/analyze [google-drive-link]` to start analyzing a data room, then `/market-research` for market intelligence, or mention me with @DataRoom Intelligence Bot for help!"
         )
 
+def format_compact_market_research_response(market_intelligence_result):
+    """Format compact market research response to stay within Slack limits"""
+    response = "✅ **ANÁLISIS DE MERCADO COMPLETADO**\n\n"
+
+    # Market Profile - Compact format
+    if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
+        profile = market_intelligence_result.market_profile
+        primary_vertical = getattr(profile, 'primary_vertical', 'No identificado')
+        sub_vertical = getattr(profile, 'sub_vertical', '')
+        confidence = getattr(profile, 'confidence_score', 0)
+        target_market = getattr(profile, 'target_market', 'No identificado')
+        geographic_focus = getattr(profile, 'geographic_focus', 'No identificado')
+        business_model = getattr(profile, 'business_model', 'No identificado')
+
+        # Compact market profile
+        vertical_display = f"{primary_vertical}/{sub_vertical}" if sub_vertical else primary_vertical
+        response += f"🎯 **PERFIL** ({'🟢' if confidence > 0.8 else '🟡' if confidence > 0.6 else '🔴'} {confidence:.1f} confianza)\n"
+        response += f"• **Vertical:** {vertical_display}\n"
+        response += f"• **Target:** {target_market[:50]}{'...' if len(target_market) > 50 else ''}\n"
+        response += f"• **Geo:** {geographic_focus[:30]}{'...' if len(geographic_focus) > 30 else ''}\n"
+        response += f"• **Modelo:** {business_model[:40]}{'...' if len(business_model) > 40 else ''}\n\n"
+
+    # Critical Assessment - Top 3 points only
+    if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
+        assessment = market_intelligence_result.critical_assessment
+
+        # Convert to string if it's a dict/object
+        assessment_text = str(assessment) if assessment else ""
+
+        # Extract key points (simplified - take first 3 sentences or key points)
+        lines = assessment_text.split('\n')
+        key_points = []
+        for line in lines:
+            line = line.strip()
+            if line and ('•' in line or '-' in line or len(line) > 20):
+                # Clean up bullet points and formatting
+                clean_line = line.replace('•', '').replace('-', '').replace('*', '').strip()
+                if len(clean_line) > 15:
+                    key_points.append(clean_line[:80] + ('...' if len(clean_line) > 80 else ''))
+                if len(key_points) >= 3:
+                    break
+
+        if key_points:
+            response += "🔍 **EVALUACIÓN CRÍTICA** (Top 3):\n"
+            for i, point in enumerate(key_points[:3], 1):
+                emoji = "⚠️" if i == 1 else "💡" if i == 2 else "🎯"
+                response += f"• {emoji} {point}\n"
+            response += "\n"
+
+    # Available commands
+    response += "📋 **COMANDOS DISPONIBLES:**\n"
+    response += "• `/market-critical` - Evaluación detallada\n"
+    response += "• `/market-full` - Informe completo PDF\n"
+    response += "• `/ask [pregunta]` - Consultas específicas\n"
+    response += "• `/scoring` - Puntuación detallada"
+
+    return response
 # ==========================================
 # RAILWAY DEPLOYMENT ARCHITECTURE
 # ==========================================
@@ -1018,7 +1075,7 @@ def main():
             logger.warning("⚠️ OpenAI configuration missing - AI analysis will be disabled")
         else:
             logger.info("✅ OpenAI configured - Full AI analysis available")
-            
+
         logger.info(f"🔧 Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}")
 
         # Start Slack bot in background thread
