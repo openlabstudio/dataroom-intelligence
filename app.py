@@ -212,6 +212,41 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
+# Check for test mode - skip expensive AI analysis
+        import os
+        if os.getenv('TEST_MODE', 'false').lower() == 'true':
+            logger.info("🧪 TEST MODE: Skipping AI analysis, using mock session data")
+
+            # Create mock response
+            mock_response = "✅ **ANALYSIS COMPLETE (TEST MODE)**\n\n"
+            mock_response += f"📊 **Processing Summary:**\n"
+            mock_response += f"• **Documents Processed:** {len(processed_documents)}\n"
+            mock_response += f"• **Total Content:** Successfully extracted\n\n"
+            mock_response += "🎯 **Available Commands:**\n"
+            mock_response += "• `/ask [question]` - Ask questions about documents\n"
+            mock_response += "• `/scoring` - Get VC scoring\n"
+            mock_response += "• `/memo` - Generate investment memo\n"
+            mock_response += "• `/gaps` - Analyze information gaps\n"
+            mock_response += "• `/market-research` - NEW: Market intelligence (TEST)\n"
+            mock_response += "• `/reset` - Clear session\n"
+
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text=mock_response
+            )
+
+            # Store mock session data
+            user_sessions[user_id] = {
+                'processed_documents': processed_documents,
+                'document_summary': document_summary,
+                'drive_link': drive_link,
+                'test_mode': True
+            }
+
+            logger.info(f"✅ Analysis completed (TEST MODE) for user {user_id}")
+            return
+
         # Step 3: AI Analysis (if configured)
         if ai_analyzer and config.openai_configured:
             client.chat_update(
@@ -518,35 +553,8 @@ def perform_market_research_analysis(client, channel_id, user_id, message_ts):
             processed_documents, document_summary
         )
 
-        # Format comprehensive response with FIXED object access
-        response = "✅ **ANÁLISIS DE INTELIGENCIA DE MERCADO COMPLETADO**\n\n"
-
-        # Market Profile - FIXED: Use object attributes, not dictionary access
-        if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
-            profile = market_intelligence_result.market_profile
-            response += f"🎯 **Perfil de Mercado:**\n"
-            response += f"• **Vertical:** {getattr(profile, 'primary_vertical', 'No identificado')}\n"
-            response += f"• **Sub-vertical:** {getattr(profile, 'sub_vertical', 'No identificado')}\n"
-            response += f"• **Modelo de negocio:** {getattr(profile, 'business_model', 'No identificado')}\n"
-            response += f"• **Mercado objetivo:** {getattr(profile, 'target_market', 'No identificado')}\n"
-            response += f"• **Enfoque geográfico:** {getattr(profile, 'geographic_focus', 'No identificado')}\n"
-            response += f"• **Confianza:** {getattr(profile, 'confidence_score', 0):.1f}/1.0\n\n"
-
-        # Critical Assessment
-        if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
-            assessment = market_intelligence_result.critical_assessment
-            response += f"🔍 **Evaluación Crítica:**\n{assessment}\n\n"
-
-        # Market Intelligence Summary
-        if hasattr(market_intelligence_result, 'intelligence_summary') and market_intelligence_result.intelligence_summary:
-            summary = market_intelligence_result.intelligence_summary
-            response += f"📊 **Resumen de Inteligencia:**\n{summary}\n\n"
-
-        response += "🎯 **Análisis disponible para:**\n"
-        response += "• `/ask [pregunta]` - Preguntas sobre el análisis de mercado\n"
-        response += "• `/scoring` - Puntuación detallada incluyendo mercado\n"
-        response += "• `/memo` - Memo de inversión con análisis de mercado\n"
-        response += "• `/reset` - Limpiar sesión actual"
+        # Format compact response for Slack character limits
+        response = format_compact_market_research_response(market_intelligence_result)
 
         # Update Slack with final results
         client.chat_update(
@@ -996,36 +1004,60 @@ def format_compact_market_research_response(market_intelligence_result):
         vertical_display = f"{primary_vertical}/{sub_vertical}" if sub_vertical else primary_vertical
         response += f"🎯 **PERFIL** ({'🟢' if confidence > 0.8 else '🟡' if confidence > 0.6 else '🔴'} {confidence:.1f} confianza)\n"
         response += f"• **Vertical:** {vertical_display}\n"
-        response += f"• **Target:** {target_market[:50]}{'...' if len(target_market) > 50 else ''}\n"
+        response += f"• **Target:** {target_market[:60]}{'...' if len(target_market) > 60 else ''}\n"
         response += f"• **Geo:** {geographic_focus[:30]}{'...' if len(geographic_focus) > 30 else ''}\n"
         response += f"• **Modelo:** {business_model[:40]}{'...' if len(business_model) > 40 else ''}\n\n"
 
-    # Critical Assessment - Top 3 points only
+    # Critical Assessment - Better formatting with complete thoughts
     if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
         assessment = market_intelligence_result.critical_assessment
 
-        # Convert to string if it's a dict/object
-        assessment_text = str(assessment) if assessment else ""
+        # Handle different data types
+        if isinstance(assessment, dict):
+            # Extract meaningful content from dictionary
+            meaningful_points = []
+            for key, value in assessment.items():
+                if isinstance(value, str) and len(value) > 50:
+                    clean_text = value.replace('"', '').replace("'", "").strip()
+                    # Find a good stopping point (end of sentence)
+                    if len(clean_text) > 400:
+                        # Try to cut at end of sentence
+                        cut_point = clean_text.find('.', 300)
+                        if cut_point > 300:
+                            clean_text = clean_text[:cut_point + 1]
+                        else:
+                            clean_text = clean_text[:400] + "..."
+                    meaningful_points.append(clean_text)
+                    if len(meaningful_points) >= 2:
+                        break
 
-        # Extract key points (simplified - take first 3 sentences or key points)
-        lines = assessment_text.split('\n')
-        key_points = []
-        for line in lines:
-            line = line.strip()
-            if line and ('•' in line or '-' in line or len(line) > 20):
-                # Clean up bullet points and formatting
-                clean_line = line.replace('•', '').replace('-', '').replace('*', '').strip()
-                if len(clean_line) > 15:
-                    key_points.append(clean_line[:80] + ('...' if len(clean_line) > 80 else ''))
-                if len(key_points) >= 3:
-                    break
+            if meaningful_points:
+                response += "🔍 **EVALUACIÓN CRÍTICA:**\n\n"
+                for i, point in enumerate(meaningful_points):
+                    emoji = "⚠️" if i == 0 else "💡"
+                    response += f"{emoji} **Punto {i+1}:** {point}\n\n"
+        else:
+            # Handle string format
+            assessment_text = str(assessment)
+            # Try to split into meaningful sentences
+            sentences = assessment_text.replace('.', '.|').split('|')
+            good_sentences = []
 
-        if key_points:
-            response += "🔍 **EVALUACIÓN CRÍTICA** (Top 3):\n"
-            for i, point in enumerate(key_points[:3], 1):
-                emoji = "⚠️" if i == 1 else "💡" if i == 2 else "🎯"
-                response += f"• {emoji} {point}\n"
-            response += "\n"
+            current_length = 0
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if sentence and len(sentence) > 30 and current_length + len(sentence) < 800:
+                    good_sentences.append(sentence)
+                    current_length += len(sentence)
+                    if len(good_sentences) >= 3:  # Max 3 sentences
+                        break
+
+            if good_sentences:
+                response += "🔍 **EVALUACIÓN CRÍTICA:**\n\n"
+                combined_text = '. '.join(good_sentences)
+                if not combined_text.endswith('.'):
+                    combined_text += '.'
+                response += f"⚠️ {combined_text}\n\n"
 
     # Available commands
     response += "📋 **COMANDOS DISPONIBLES:**\n"
@@ -1035,6 +1067,7 @@ def format_compact_market_research_response(market_intelligence_result):
     response += "• `/scoring` - Puntuación detallada"
 
     return response
+
 # ==========================================
 # RAILWAY DEPLOYMENT ARCHITECTURE
 # ==========================================
@@ -1110,7 +1143,7 @@ def main():
         flask_app.run(
             host=config.HOST,
             port=config.PORT,
-            debug=config.DEBUG
+            debug=False
         )
 
     except KeyboardInterrupt:
