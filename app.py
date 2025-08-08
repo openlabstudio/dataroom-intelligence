@@ -139,6 +139,14 @@ def handle_analyze_command(ack, body, client):
         channel_id = body['channel_id']
         drive_link = body.get('text', '').strip()
 
+        # NUEVO: Debug logs para capturar el problema
+        logger.info(f"🎯 ANALYZE COMMAND - Starting for user {user_id}")
+        logger.info(f"🎯 ANALYZE COMMAND - Channel: {channel_id}")
+        logger.info(f"🎯 ANALYZE COMMAND - Drive link: {drive_link}")
+
+        if not drive_link:
+            logger.info("🎯 ANALYZE COMMAND - No drive link provided")
+
         if not drive_link:
             client.chat_postMessage(
                 channel=channel_id,
@@ -179,6 +187,14 @@ def handle_analyze_command(ack, body, client):
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
+        # NUEVO: Debug logs para diagnosticar el problema
+        import os
+        test_mode_value = os.getenv('TEST_MODE', 'false')
+        logger.info(f"🔍 DEBUG - Starting analysis for user {user_id}")
+        logger.info(f"🔍 DEBUG - TEST_MODE environment variable: '{test_mode_value}'")
+        logger.info(f"🔍 DEBUG - TEST_MODE lower: '{test_mode_value.lower()}'")
+        logger.info(f"🔍 DEBUG - Condition result: {test_mode_value.lower() == 'true'}")
+
         # Step 1: Download documents
         client.chat_update(
             channel=channel_id,
@@ -215,8 +231,11 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
 # Check for test mode - skip expensive AI analysis
         import os
         if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            logger.info("🧪 TEST MODE: Skipping AI analysis, using mock session data")
+            test_mode_check = os.getenv('TEST_MODE', 'false').lower() == 'true'
+            logger.info(f"🔍 DEBUG - Second TEST_MODE check: {test_mode_check}")
 
+        if test_mode_check:
+            logger.info("🧪 TEST MODE: Skipping AI analysis, using mock session data")
             # Create mock response
             mock_response = "✅ **ANALYSIS COMPLETE (TEST MODE)**\n\n"
             mock_response += f"📊 **Processing Summary:**\n"
@@ -483,13 +502,17 @@ def handle_market_research_logic(ack, body, client):
                  "⏳ Este proceso puede tomar 3-5 minutos\n\n" +
                  "🚧 **Estado:** Inicializando agentes de análisis..."
         )
-
+        # NUEVO: Log antes del thread
+        logger.info("🎯 ANALYZE COMMAND - About to start background thread")
         # Start background market research analysis
         threading.Thread(
             target=perform_market_research_analysis,
             args=(client, channel_id, user_id, initial_response['ts']),
             daemon=True
         ).start()
+
+        logger.info("🎯 ANALYZE COMMAND - Background thread started successfully")
+
 
     except Exception as e:
         logger.error(f"❌ Error in market research command: {e}")
