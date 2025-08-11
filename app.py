@@ -194,13 +194,14 @@ def handle_analyze_command(ack, body, client):
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
-        # NUEVO: Debug logs para diagnosticar el problema
-        import os
+        # FIX #1: Define test_mode_check BEFORE any conditional
         test_mode_value = os.getenv('TEST_MODE', 'false')
+        test_mode_check = test_mode_value.lower() == 'true'
+        
+        # Debug logs
         logger.info(f"🔍 DEBUG - Starting analysis for user {user_id}")
         logger.info(f"🔍 DEBUG - TEST_MODE environment variable: '{test_mode_value}'")
-        logger.info(f"🔍 DEBUG - TEST_MODE lower: '{test_mode_value.lower()}'")
-        logger.info(f"🔍 DEBUG - Condition result: {test_mode_value.lower() == 'true'}")
+        logger.info(f"🔍 DEBUG - TEST_MODE check result: {test_mode_check}")
 
         # Step 1: Download documents
         client.chat_update(
@@ -235,12 +236,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
-# Check for test mode - skip expensive AI analysis
-        import os
-        if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            test_mode_check = os.getenv('TEST_MODE', 'false').lower() == 'true'
-            logger.info(f"🔍 DEBUG - Second TEST_MODE check: {test_mode_check}")
-
+        # Check for test mode - skip expensive AI analysis
         if test_mode_check:
             logger.info("🧪 TEST MODE: Skipping AI analysis, using mock session data")
             # Create mock response
@@ -271,6 +267,10 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             }
 
             logger.info(f"✅ Analysis completed (TEST MODE) for user {user_id}")
+            
+            # FIX #2: NO cleanup here - keep session data!
+            # DO NOT call drive_handler.cleanup_temp_files() here
+            
             return
 
         # Step 3: AI Analysis (if configured)
@@ -332,15 +332,12 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'drive_link': drive_link
             }
 
-        # AI analysis completed successfully
-        logger.info("✅ AI analysis completed successfully")
-
-        # CRITICAL: Cleanup temporary files AFTER session storage
-        drive_handler.cleanup_temp_files()
-        logger.info("🗑️ Cleaned up temporary files")
-        logger.info("💾 Freed temp storage: ./temp")
-
+        # FIX #2: DO NOT cleanup temp files here - it destroys session data!
+        # The cleanup should ONLY happen in /reset command
+        # REMOVED: drive_handler.cleanup_temp_files()
+        
         logger.info(f"✅ Analysis completed for user {user_id}")
+        logger.info("💾 Session data preserved (temp files NOT cleaned)")
 
     except Exception as e:
         logger.error(f"❌ Analysis failed: {e}")
@@ -781,9 +778,10 @@ def handle_reset_command(ack, body, client):
             # Market research orchestrator reset (placeholder)
             pass
 
-        # Cleanup temp files
+        # FIX #2: NOW is the right time to cleanup temp files
         if drive_handler:
             drive_handler.cleanup_temp_files()
+            logger.info("🗑️ Cleaned up temporary files in /reset command")
 
         client.chat_postMessage(
             channel=channel_id,
