@@ -72,7 +72,7 @@ def root():
     return jsonify({
         "service": "DataRoom Intelligence Bot",
         "status": "running",
-        "version": "2.0.0-phase2b-fixed",
+        "version": "2.0.0-phase2b-fixed-v2",
         "platform": "Railway",
         "features": ["Document Analysis", "Market Research", "AI Intelligence"],
         "endpoints": ["/health", "/status"]
@@ -88,7 +88,7 @@ def status():
             "deployment": config.deployment_info(),
             "active_sessions": len(user_sessions),
             "configuration_status": config.validate_configuration(),
-            "phase": "2B - Market Research Agent (Fixed)",
+            "phase": "2B - Market Research Agent (Fixed v2)",
             "market_research_available": market_research_orchestrator is not None
         })
     except Exception as e:
@@ -257,17 +257,18 @@ def debug_sessions(user_id, channel_id, client):
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
-        # FIX #1: Define test_mode_check BEFORE any conditional
+        # FIX: Check TEST_MODE FIRST before anything else
         test_mode_value = os.getenv('TEST_MODE', 'false')
         test_mode_check = test_mode_value.lower() == 'true'
         
-        # ENHANCED DEBUG LOGS
-        logger.info(f"🔍 DEBUG - Starting analysis for user {user_id}")
-        logger.info(f"🔍 DEBUG - Process PID: {os.getpid()}")
-        logger.info(f"🔍 DEBUG - TEST_MODE environment variable raw value: '{test_mode_value}'")
-        logger.info(f"🔍 DEBUG - TEST_MODE after lower(): '{test_mode_value.lower()}'")
-        logger.info(f"🔍 DEBUG - TEST_MODE check result: {test_mode_check}")
-        logger.info(f"🔍 DEBUG - All env vars starting with TEST: {[k for k in os.environ.keys() if 'TEST' in k]}")
+        # CRITICAL LOG
+        logger.info(f"🔍 ============ ANALYSIS START ============")
+        logger.info(f"🔍 User: {user_id}")
+        logger.info(f"🔍 Process PID: {os.getpid()}")
+        logger.info(f"🔍 TEST_MODE raw value: '{test_mode_value}'")
+        logger.info(f"🔍 TEST_MODE check result: {test_mode_check}")
+        logger.info(f"🔍 Will skip GPT-4: {'YES ✅' if test_mode_check else 'NO ❌ (WILL USE GPT-4)'}")
+        logger.info(f"🔍 ========================================")
 
         # Step 1: Download documents
         client.chat_update(
@@ -275,7 +276,8 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             ts=message_ts,
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📁 Link: {drive_link}\n" +
-                 f"📥 **Downloading documents from Google Drive...**"
+                 f"📥 **Downloading documents from Google Drive...**" +
+                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-4" if test_mode_check else "")
         )
 
         downloaded_files = drive_handler.download_dataroom(drive_link)
@@ -296,26 +298,31 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             ts=message_ts,
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📄 Found {len(downloaded_files)} documents\n" +
-                 f"📖 **Processing document contents...**"
+                 f"📖 **Processing document contents...**" +
+                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-4" if test_mode_check else "")
         )
 
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
-        # Check for test mode - skip expensive AI analysis
+        # CRITICAL FIX: Check TEST_MODE IMMEDIATELY and handle it FIRST
         if test_mode_check:
-            logger.info("🧪 TEST MODE: Skipping AI analysis, using mock session data")
+            logger.info("🧪 ========== TEST MODE ACTIVE ==========")
+            logger.info("🧪 Skipping AI analysis completely")
+            logger.info("🧪 Creating mock session data")
+            
             # Create mock response
             mock_response = "✅ **ANALYSIS COMPLETE (TEST MODE)**\n\n"
+            mock_response += "⚠️ **TEST MODE ACTIVE** - No GPT-4 calls made\n\n"
             mock_response += f"📊 **Processing Summary:**\n"
             mock_response += f"• **Documents Processed:** {len(processed_documents)}\n"
             mock_response += f"• **Total Content:** Successfully extracted\n\n"
             mock_response += "🎯 **Available Commands:**\n"
-            mock_response += "• `/ask [question]` - Ask questions about documents\n"
-            mock_response += "• `/scoring` - Get VC scoring\n"
-            mock_response += "• `/memo` - Generate investment memo\n"
-            mock_response += "• `/gaps` - Analyze information gaps\n"
-            mock_response += "• `/market-research` - NEW: Market intelligence (TEST)\n"
+            mock_response += "• `/ask [question]` - Ask questions about documents (TEST MODE)\n"
+            mock_response += "• `/scoring` - Get VC scoring (TEST MODE)\n"
+            mock_response += "• `/memo` - Generate investment memo (TEST MODE)\n"
+            mock_response += "• `/gaps` - Analyze information gaps (TEST MODE)\n"
+            mock_response += "• `/market-research` - NEW: Market intelligence (TEST MODE)\n"
             mock_response += "• `/analyze debug` - Check session status\n"
             mock_response += "• `/reset` - Clear session\n"
 
@@ -339,15 +346,15 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             logger.info(f"✅ TEST MODE - Session keys: {list(user_sessions[user_id].keys())}")
             logger.info(f"✅ TEST MODE - Active sessions: {list(user_sessions.keys())}")
             logger.info(f"✅ TEST MODE - Process PID: {os.getpid()}")
+            logger.info("🧪 ========== TEST MODE COMPLETE ==========")
 
-            logger.info(f"✅ Analysis completed (TEST MODE) for user {user_id}")
-            
-            # FIX #2: NO cleanup here - keep session data!
-            # DO NOT call drive_handler.cleanup_temp_files() here
-            
+            # RETURN HERE - DO NOT CONTINUE TO AI ANALYSIS
             return
 
-        # Step 3: AI Analysis (if configured)
+        # Step 3: AI Analysis (ONLY if NOT in test mode)
+        logger.info("📊 ========== PRODUCTION MODE ==========")
+        logger.info("📊 TEST_MODE is not active, proceeding with GPT-4 analysis")
+        
         if ai_analyzer and config.openai_configured:
             client.chat_update(
                 channel=channel_id,
@@ -375,7 +382,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 text=formatted_response
             )
 
-            # CRITICAL: Store analysis in user session BEFORE cleanup
+            # CRITICAL: Store analysis in user session
             user_sessions[user_id] = {
                 'analysis_result': analysis_result,
                 'document_summary': document_summary,
@@ -385,9 +392,9 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             }
             
             # DEBUG: Log session storage
-            logger.info(f"✅ AI MODE - Session stored for user {user_id}")
-            logger.info(f"✅ AI MODE - Session keys: {list(user_sessions[user_id].keys())}")
-            logger.info(f"✅ AI MODE - Active sessions: {list(user_sessions.keys())}")
+            logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
+            logger.info(f"✅ PRODUCTION MODE - With GPT-4 analysis results")
+            logger.info(f"✅ PRODUCTION MODE - Active sessions: {list(user_sessions.keys())}")
 
         else:
             # Fallback: Document processing only
@@ -407,7 +414,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 text=response
             )
 
-            # CRITICAL: Store documents in user session BEFORE cleanup
+            # Store documents in user session
             user_sessions[user_id] = {
                 'processed_documents': processed_documents,
                 'document_summary': document_summary,
@@ -415,18 +422,10 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'analysis_timestamp': datetime.now().isoformat()
             }
             
-            # DEBUG: Log session storage
             logger.info(f"✅ FALLBACK MODE - Session stored for user {user_id}")
-            logger.info(f"✅ FALLBACK MODE - Session keys: {list(user_sessions[user_id].keys())}")
-            logger.info(f"✅ FALLBACK MODE - Active sessions: {list(user_sessions.keys())}")
 
-        # FIX #2: DO NOT cleanup temp files here - it destroys session data!
-        # The cleanup should ONLY happen in /reset command
-        # REMOVED: drive_handler.cleanup_temp_files()
-        
         logger.info(f"✅ Analysis completed for user {user_id}")
         logger.info("💾 Session data preserved (temp files NOT cleaned)")
-        logger.info(f"💾 Current active sessions after analysis: {list(user_sessions.keys())}")
 
     except Exception as e:
         logger.error(f"❌ Analysis failed: {e}")
@@ -619,6 +618,21 @@ def handle_ask_command(ack, body, client):
             )
             return
 
+        # Check if in TEST MODE
+        session_data = user_sessions[user_id]
+        if session_data.get('test_mode', False):
+            logger.info("🧪 TEST MODE: Returning mock answer")
+            response = f"💡 **Question:** {question}\n\n"
+            response += f"**Answer (TEST MODE):**\n"
+            response += "This is a test mode response. In production, this would analyze your documents and provide a real answer based on the content.\n\n"
+            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            
+            client.chat_postMessage(
+                channel=channel_id,
+                text=response
+            )
+            return
+
         if not ai_analyzer or not config.openai_configured:
             logger.info("❌ AI not configured")
             client.chat_postMessage(
@@ -669,6 +683,26 @@ def handle_scoring_command(ack, body, client):
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
+            )
+            return
+
+        # Check if in TEST MODE
+        session_data = user_sessions[user_id]
+        if session_data.get('test_mode', False):
+            logger.info("🧪 TEST MODE: Returning mock scoring")
+            response = "📊 **DETAILED SCORING BREAKDOWN (TEST MODE)**\n\n"
+            response += "🎯 **Overall Score: 7.5/10** (Mock)\n\n"
+            response += "**Category Scores:**\n"
+            response += "• **Market Opportunity:** 8/10 - Strong market potential\n"
+            response += "• **Team:** 7/10 - Experienced founders\n"
+            response += "• **Product:** 7/10 - MVP ready\n"
+            response += "• **Traction:** 6/10 - Early stage\n\n"
+            response += "🎯 **Recommendation:** Proceed with due diligence\n\n"
+            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            
+            client.chat_postMessage(
+                channel=channel_id,
+                text=response
             )
             return
 
@@ -734,6 +768,26 @@ def handle_memo_command(ack, body, client):
             )
             return
 
+        # Check if in TEST MODE
+        session_data = user_sessions[user_id]
+        if session_data.get('test_mode', False):
+            logger.info("🧪 TEST MODE: Returning mock memo")
+            response = "📄 **INVESTMENT MEMO (TEST MODE)**\n\n"
+            response += "**Executive Summary:**\n"
+            response += "This is a test mode investment memo. In production, this would provide a comprehensive analysis of the investment opportunity.\n\n"
+            response += "**Key Points:**\n"
+            response += "• Strong market opportunity\n"
+            response += "• Experienced team\n"
+            response += "• Clear revenue model\n"
+            response += "• Competitive advantages\n\n"
+            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            
+            client.chat_postMessage(
+                channel=channel_id,
+                text=response
+            )
+            return
+
         if not ai_analyzer or not config.openai_configured:
             client.chat_postMessage(
                 channel=channel_id,
@@ -775,6 +829,27 @@ def handle_gaps_command(ack, body, client):
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
+            )
+            return
+
+        # Check if in TEST MODE
+        session_data = user_sessions[user_id]
+        if session_data.get('test_mode', False):
+            logger.info("🧪 TEST MODE: Returning mock gaps analysis")
+            response = "🔍 **INFORMATION GAPS ANALYSIS (TEST MODE)**\n\n"
+            response += "**Missing Information:**\n"
+            response += "• Financial projections for next 3 years\n"
+            response += "• Customer acquisition cost details\n"
+            response += "• Competitive analysis depth\n"
+            response += "• Technical architecture documentation\n\n"
+            response += "**Recommendations:**\n"
+            response += "• Request detailed financial model\n"
+            response += "• Ask for unit economics breakdown\n\n"
+            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            
+            client.chat_postMessage(
+                channel=channel_id,
+                text=response
             )
             return
 
@@ -862,11 +937,16 @@ def handle_health_command(ack, body, client):
         health_response = format_health_response()
 
         # Add Phase 2A status
-        health_response += f"\n🔬 **Phase 2B Status (Fixed):**\n"
+        health_response += f"\n🔬 **Phase 2B Status (Fixed v2):**\n"
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
         health_response += f"• Market Research Handler: {'✅' if market_research_handler else '❌'}\n"
         health_response += f"• Active Sessions: {len(user_sessions)}\n"
         health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
+        
+        # Show TEST_MODE status
+        test_mode_value = os.getenv('TEST_MODE', 'false')
+        health_response += f"• TEST_MODE: '{test_mode_value}' ({'✅ Active' if test_mode_value.lower() == 'true' else '❌ Inactive'})\n"
+        
         health_response += f"• Available Commands: `/analyze`, `/market-research`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/reset`\n\n"
         health_response += "💡 **Tip:** Use `/analyze debug` to check detailed session info"
 
@@ -893,10 +973,15 @@ def handle_app_mention(event, client):
 
         market_status = "✅" if market_research_orchestrator else "⚠️"
         market_note = "Market research available (fixed)" if market_research_orchestrator else "Market research requires OpenAI configuration"
+        
+        # Check TEST_MODE
+        test_mode_value = os.getenv('TEST_MODE', 'false')
+        test_mode_status = f"TEST MODE: {'✅ ACTIVE' if test_mode_value.lower() == 'true' else '❌ INACTIVE'}"
 
-        response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway with Phase 2B Market Research (Fixed).\n\n" +\
+        response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway with Phase 2B Market Research (Fixed v2).\n\n" +\
                   f"{ai_status} **AI Status:** {ai_note}\n" +\
-                  f"{market_status} **Market Research:** {market_note}\n\n" +\
+                  f"{market_status} **Market Research:** {market_note}\n" +\
+                  f"🧪 **{test_mode_status}**\n\n" +\
                   "**Available commands:**\n" +\
                   "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
                   "• `/analyze debug` - Check session status (NEW!)\n" +\
@@ -949,7 +1034,7 @@ def main():
     """Main application entry point for Railway"""
     try:
         logger.info("🚀 Starting DataRoom Intelligence Bot on Railway...")
-        logger.info("🔬 Phase 2B: Market Research Agent (Fixed dispatch_failed)")
+        logger.info("🔬 Phase 2B: Market Research Agent (Fixed v2)")
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
         logger.info(f"Port: {config.PORT}")
@@ -958,7 +1043,7 @@ def main():
         # LOG TEST_MODE STATUS AT STARTUP
         test_mode_value = os.getenv('TEST_MODE', 'false')
         logger.info(f"🔧 TEST_MODE environment variable: '{test_mode_value}'")
-        logger.info(f"🔧 TEST_MODE is active: {'✅ YES' if test_mode_value.lower() == 'true' else '❌ NO'}")
+        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-4 calls' if test_mode_value.lower() == 'true' else '❌ NO - Will use GPT-4'}")
 
         # Validate configuration
         config_status = config.validate_configuration()
