@@ -145,6 +145,10 @@ def handle_analyze_command(ack, body, client):
         user_id = body['user_id']
         channel_id = body['channel_id']
         drive_link = body.get('text', '').strip()
+        
+        # SPECIAL DEBUG MODE: /analyze debug
+        if drive_link.lower() == 'debug':
+            return debug_sessions(user_id, channel_id, client)
 
         # NUEVO: Debug logs para capturar el problema
         logger.info(f"🎯 ANALYZE COMMAND - Starting for user {user_id}")
@@ -157,7 +161,7 @@ def handle_analyze_command(ack, body, client):
         if not drive_link:
             client.chat_postMessage(
                 channel=channel_id,
-                text="❌ Please provide a Google Drive folder link.\n\nUsage: `/analyze [google-drive-link]`"
+                text="❌ Please provide a Google Drive folder link.\n\nUsage: `/analyze [google-drive-link]`\n\n💡 **Debug tip:** Use `/analyze debug` to check active sessions"
             )
             return
 
@@ -191,6 +195,65 @@ def handle_analyze_command(ack, body, client):
             text=format_error_response("analyze", str(e))
         )
 
+def debug_sessions(user_id, channel_id, client):
+    """Debug function to check active sessions"""
+    logger.info(f"🔍 Debug sessions requested by user {user_id}")
+    
+    response = "🔍 **DEBUG: ACTIVE SESSIONS & SYSTEM STATUS**\n\n"
+    
+    # System info
+    response += "**🖥️ SYSTEM INFO:**\n"
+    response += f"• Process PID: {os.getpid()}\n"
+    response += f"• TEST_MODE: '{os.getenv('TEST_MODE', 'not set')}'\n"
+    response += f"• TEST_MODE Active: {'✅' if os.getenv('TEST_MODE', 'false').lower() == 'true' else '❌'}\n"
+    response += f"• OpenAI Configured: {'✅' if config.openai_configured else '❌'}\n"
+    response += f"• Market Research Available: {'✅' if market_research_orchestrator else '❌'}\n\n"
+    
+    # Session info
+    response += f"**📊 SESSION INFO:**\n"
+    response += f"• Total Sessions: {len(user_sessions)}\n"
+    response += f"• Active Users: {list(user_sessions.keys()) if user_sessions else 'None'}\n\n"
+
+    if user_id in user_sessions:
+        session_data = user_sessions[user_id]
+        response += f"**✅ YOUR SESSION (ID: {user_id}):**\n"
+        response += f"• Session keys: {list(session_data.keys())}\n"
+
+        if 'processed_documents' in session_data:
+            response += f"• Processed documents: {len(session_data['processed_documents'])}\n"
+
+        if 'document_summary' in session_data:
+            response += f"• Document summary available: ✅\n"
+
+        if 'analysis_result' in session_data:
+            response += f"• Analysis result available: ✅\n"
+
+        if 'market_research' in session_data:
+            response += f"• Market research available: ✅\n"
+            
+        if 'test_mode' in session_data:
+            response += f"• Test mode session: ✅\n"
+            
+        if 'analysis_timestamp' in session_data:
+            response += f"• Created at: {session_data['analysis_timestamp']}\n"
+
+        response += "\n✅ **Session is active - commands should work!**"
+    else:
+        response += f"**❌ YOUR SESSION (ID: {user_id}):** Not found\n"
+        response += "\n⚠️ **Please run `/analyze [google-drive-link]` first**"
+    
+    # Instructions
+    response += "\n\n**📚 TROUBLESHOOTING:**\n"
+    response += "1. If TEST_MODE is not 'true', set it: `export TEST_MODE=true`\n"
+    response += "2. After `/analyze`, your session should appear here\n"
+    response += "3. If session disappears, the bot may be restarting\n"
+    response += "4. Use `/health` to check overall system status"
+
+    client.chat_postMessage(
+        channel=channel_id,
+        text=response
+    )
+
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
@@ -200,6 +263,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         
         # ENHANCED DEBUG LOGS
         logger.info(f"🔍 DEBUG - Starting analysis for user {user_id}")
+        logger.info(f"🔍 DEBUG - Process PID: {os.getpid()}")
         logger.info(f"🔍 DEBUG - TEST_MODE environment variable raw value: '{test_mode_value}'")
         logger.info(f"🔍 DEBUG - TEST_MODE after lower(): '{test_mode_value.lower()}'")
         logger.info(f"🔍 DEBUG - TEST_MODE check result: {test_mode_check}")
@@ -252,6 +316,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             mock_response += "• `/memo` - Generate investment memo\n"
             mock_response += "• `/gaps` - Analyze information gaps\n"
             mock_response += "• `/market-research` - NEW: Market intelligence (TEST)\n"
+            mock_response += "• `/analyze debug` - Check session status\n"
             mock_response += "• `/reset` - Clear session\n"
 
             client.chat_update(
@@ -273,6 +338,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             logger.info(f"✅ TEST MODE - Session stored for user {user_id}")
             logger.info(f"✅ TEST MODE - Session keys: {list(user_sessions[user_id].keys())}")
             logger.info(f"✅ TEST MODE - Active sessions: {list(user_sessions.keys())}")
+            logger.info(f"✅ TEST MODE - Process PID: {os.getpid()}")
 
             logger.info(f"✅ Analysis completed (TEST MODE) for user {user_id}")
             
@@ -300,6 +366,8 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             if market_research_orchestrator:
                 formatted_response += "\n\n🎯 **NEW: Market Research Available!**\n"
                 formatted_response += "Use `/market-research` for comprehensive market intelligence analysis."
+            
+            formatted_response += "\n\n💡 **Tip:** Use `/analyze debug` to check session status"
 
             client.chat_update(
                 channel=channel_id,
@@ -438,6 +506,7 @@ def format_processing_results(processed_documents, document_summary, drive_link)
         response += "🎯 **Status:** Document extraction successful!\n"
         response += "🤖 **Note:** AI analysis requires OpenAI configuration\n\n"
 
+    response += "• `/analyze debug` - Check session status\n"
     response += "• `/health` - Check system status\n"
     response += "• `/reset` - Clear current session"
 
@@ -515,67 +584,6 @@ def handle_market_command_short(ack, body, client):
             text="❌ Market research functionality is not available. OpenAI configuration required."
         )
 
-# Debug command to check sessions
-@app.command("/debug-sessions")
-def handle_debug_sessions_command(ack, body, client):
-    """Handle /debug-sessions command - Check active sessions"""
-    ack()
-
-    try:
-        user_id = body['user_id']
-        channel_id = body['channel_id']
-
-        logger.info(f"🔍 Debug sessions command from user {user_id}")
-
-        response = "🔍 **DEBUG: ACTIVE SESSIONS**\n\n"
-        response += f"**Total Sessions:** {len(user_sessions)}\n"
-        response += f"**Active Users:** {list(user_sessions.keys())}\n\n"
-
-        if user_id in user_sessions:
-            session_data = user_sessions[user_id]
-            response += f"**Your Session (ID: {user_id}):**\n"
-            response += f"• Session keys: {list(session_data.keys())}\n"
-
-            if 'processed_documents' in session_data:
-                response += f"• Processed documents: {len(session_data['processed_documents'])}\n"
-
-            if 'document_summary' in session_data:
-                response += f"• Document summary available: ✅\n"
-
-            if 'analysis_result' in session_data:
-                response += f"• Analysis result available: ✅\n"
-
-            if 'market_research' in session_data:
-                response += f"• Market research available: ✅\n"
-                
-            if 'test_mode' in session_data:
-                response += f"• Test mode: ✅ (Session created in TEST_MODE)\n"
-                
-            if 'analysis_timestamp' in session_data:
-                response += f"• Created at: {session_data['analysis_timestamp']}\n"
-
-            response += "\n✅ **Market research should work!**"
-        else:
-            response += f"**Your Session (ID: {user_id}):** ❌ Not found\n"
-            response += "\n⚠️ **Please run `/analyze [link]` first**"
-            
-        # Show TEST_MODE status
-        test_mode_value = os.getenv('TEST_MODE', 'false')
-        response += f"\n\n🔧 **TEST_MODE Status:** {test_mode_value}"
-        response += f"\n🔧 **TEST_MODE Active:** {'✅' if test_mode_value.lower() == 'true' else '❌'}"
-
-        client.chat_postMessage(
-            channel=channel_id,
-            text=response
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error in debug-sessions command: {e}")
-        client.chat_postMessage(
-            channel=channel_id,
-            text=f"❌ Debug error: {str(e)}"
-        )
-
 # ==========================================
 # ORIGINAL COMMANDS - ENHANCED FOR PHASE 2A
 # ==========================================
@@ -607,7 +615,7 @@ def handle_ask_command(ack, body, client):
             logger.info(f"📊 Active sessions: {list(user_sessions.keys())}")
             client.chat_postMessage(
                 channel=channel_id,
-                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
             )
             return
 
@@ -660,7 +668,7 @@ def handle_scoring_command(ack, body, client):
         if user_id not in user_sessions:
             client.chat_postMessage(
                 channel=channel_id,
-                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
             )
             return
 
@@ -722,7 +730,7 @@ def handle_memo_command(ack, body, client):
         if user_id not in user_sessions:
             client.chat_postMessage(
                 channel=channel_id,
-                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
             )
             return
 
@@ -766,7 +774,7 @@ def handle_gaps_command(ack, body, client):
         if user_id not in user_sessions:
             client.chat_postMessage(
                 channel=channel_id,
-                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first."
+                text="❌ No data room analysis found. Please run `/analyze [google-drive-link]` first.\n\n💡 **Tip:** Use `/analyze debug` to check your session status."
             )
             return
 
@@ -849,6 +857,8 @@ def handle_health_command(ack, body, client):
 
     try:
         channel_id = body['channel_id']
+        user_id = body['user_id']
+        
         health_response = format_health_response()
 
         # Add Phase 2A status
@@ -856,7 +866,9 @@ def handle_health_command(ack, body, client):
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
         health_response += f"• Market Research Handler: {'✅' if market_research_handler else '❌'}\n"
         health_response += f"• Active Sessions: {len(user_sessions)}\n"
-        health_response += f"• Available Commands: `/analyze`, `/market-research`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/reset`"
+        health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
+        health_response += f"• Available Commands: `/analyze`, `/market-research`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/reset`\n\n"
+        health_response += "💡 **Tip:** Use `/analyze debug` to check detailed session info"
 
         client.chat_postMessage(
             channel=channel_id,
@@ -887,6 +899,7 @@ def handle_app_mention(event, client):
                   f"{market_status} **Market Research:** {market_note}\n\n" +\
                   "**Available commands:**\n" +\
                   "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
+                  "• `/analyze debug` - Check session status (NEW!)\n" +\
                   "• `/market-research` - NEW: Comprehensive market intelligence (FIXED)\n" +\
                   "• `/ask [question]` - Ask questions about analyzed data room\n" +\
                   "• `/scoring` - Get detailed scoring breakdown\n" +\
@@ -916,7 +929,7 @@ def handle_message_events(body, client, logger):
     if event.get("channel_type") == "im":  # Direct message
         client.chat_postMessage(
             channel=event["channel"],
-            text="👋 Hi! Use `/analyze [google-drive-link]` to start analyzing a data room, then `/market-research` for market intelligence, or mention me with @DataRoom Intelligence Bot for help!"
+            text="👋 Hi! Use `/analyze [google-drive-link]` to start analyzing a data room, then `/market-research` for market intelligence, or mention me with @DataRoom Intelligence Bot for help!\n\n💡 **New:** Use `/analyze debug` to check your session status!"
         )
 
 # ==========================================
@@ -940,6 +953,7 @@ def main():
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
         logger.info(f"Port: {config.PORT}")
+        logger.info(f"Process PID: {os.getpid()}")
         
         # LOG TEST_MODE STATUS AT STARTUP
         test_mode_value = os.getenv('TEST_MODE', 'false')
@@ -984,7 +998,7 @@ def main():
         logger.info("   • GET /status - Detailed status")
         logger.info("🎯 Slack bot commands:")
         logger.info("   • /analyze [google-drive-link]")
-        logger.info("   • /debug-sessions - Check active sessions")
+        logger.info("   • /analyze debug - Check session status (NEW!)")
         if market_research_orchestrator:
             logger.info("   • /market-research - NEW: Market intelligence (FIXED)")
         if config.openai_configured:
