@@ -198,10 +198,12 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         test_mode_value = os.getenv('TEST_MODE', 'false')
         test_mode_check = test_mode_value.lower() == 'true'
         
-        # Debug logs
+        # ENHANCED DEBUG LOGS
         logger.info(f"🔍 DEBUG - Starting analysis for user {user_id}")
-        logger.info(f"🔍 DEBUG - TEST_MODE environment variable: '{test_mode_value}'")
+        logger.info(f"🔍 DEBUG - TEST_MODE environment variable raw value: '{test_mode_value}'")
+        logger.info(f"🔍 DEBUG - TEST_MODE after lower(): '{test_mode_value.lower()}'")
         logger.info(f"🔍 DEBUG - TEST_MODE check result: {test_mode_check}")
+        logger.info(f"🔍 DEBUG - All env vars starting with TEST: {[k for k in os.environ.keys() if 'TEST' in k]}")
 
         # Step 1: Download documents
         client.chat_update(
@@ -263,8 +265,14 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'processed_documents': processed_documents,
                 'document_summary': document_summary,
                 'drive_link': drive_link,
-                'test_mode': True
+                'test_mode': True,
+                'analysis_timestamp': datetime.now().isoformat()
             }
+            
+            # DEBUG: Log session storage
+            logger.info(f"✅ TEST MODE - Session stored for user {user_id}")
+            logger.info(f"✅ TEST MODE - Session keys: {list(user_sessions[user_id].keys())}")
+            logger.info(f"✅ TEST MODE - Active sessions: {list(user_sessions.keys())}")
 
             logger.info(f"✅ Analysis completed (TEST MODE) for user {user_id}")
             
@@ -304,8 +312,14 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'analysis_result': analysis_result,
                 'document_summary': document_summary,
                 'processed_documents': processed_documents,
-                'drive_link': drive_link
+                'drive_link': drive_link,
+                'analysis_timestamp': datetime.now().isoformat()
             }
+            
+            # DEBUG: Log session storage
+            logger.info(f"✅ AI MODE - Session stored for user {user_id}")
+            logger.info(f"✅ AI MODE - Session keys: {list(user_sessions[user_id].keys())}")
+            logger.info(f"✅ AI MODE - Active sessions: {list(user_sessions.keys())}")
 
         else:
             # Fallback: Document processing only
@@ -329,8 +343,14 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             user_sessions[user_id] = {
                 'processed_documents': processed_documents,
                 'document_summary': document_summary,
-                'drive_link': drive_link
+                'drive_link': drive_link,
+                'analysis_timestamp': datetime.now().isoformat()
             }
+            
+            # DEBUG: Log session storage
+            logger.info(f"✅ FALLBACK MODE - Session stored for user {user_id}")
+            logger.info(f"✅ FALLBACK MODE - Session keys: {list(user_sessions[user_id].keys())}")
+            logger.info(f"✅ FALLBACK MODE - Active sessions: {list(user_sessions.keys())}")
 
         # FIX #2: DO NOT cleanup temp files here - it destroys session data!
         # The cleanup should ONLY happen in /reset command
@@ -338,9 +358,11 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         
         logger.info(f"✅ Analysis completed for user {user_id}")
         logger.info("💾 Session data preserved (temp files NOT cleaned)")
+        logger.info(f"💾 Current active sessions after analysis: {list(user_sessions.keys())}")
 
     except Exception as e:
         logger.error(f"❌ Analysis failed: {e}")
+        logger.error(f"❌ Full traceback: ", exc_info=True)
         client.chat_update(
             channel=channel_id,
             ts=message_ts,
@@ -449,6 +471,9 @@ def format_size(size):
 def handle_market_research_command(ack, body, client):
     """Handle /market-research command - Uses new handler to fix dispatch_failed"""
     logger.info("📨 Received /market-research command")
+    logger.info(f"📨 Current active sessions: {list(user_sessions.keys())}")
+    logger.info(f"📨 User requesting: {body.get('user_id')}")
+    
     if market_research_handler:
         market_research_handler.handle_command(ack, body, client)
     else:
@@ -462,6 +487,9 @@ def handle_market_research_command(ack, body, client):
 def handle_market_research_command_alt(ack, body, client):
     """Handle /market_research command (underscore variant)"""
     logger.info("📨 Received /market_research command (underscore variant)")
+    logger.info(f"📨 Current active sessions: {list(user_sessions.keys())}")
+    logger.info(f"📨 User requesting: {body.get('user_id')}")
+    
     if market_research_handler:
         market_research_handler.handle_command(ack, body, client)
     else:
@@ -475,6 +503,9 @@ def handle_market_research_command_alt(ack, body, client):
 def handle_market_command_short(ack, body, client):
     """Handle /market command (short variant)"""
     logger.info("📨 Received /market command (short variant)")
+    logger.info(f"📨 Current active sessions: {list(user_sessions.keys())}")
+    logger.info(f"📨 User requesting: {body.get('user_id')}")
+    
     if market_research_handler:
         market_research_handler.handle_command(ack, body, client)
     else:
@@ -516,11 +547,22 @@ def handle_debug_sessions_command(ack, body, client):
 
             if 'market_research' in session_data:
                 response += f"• Market research available: ✅\n"
+                
+            if 'test_mode' in session_data:
+                response += f"• Test mode: ✅ (Session created in TEST_MODE)\n"
+                
+            if 'analysis_timestamp' in session_data:
+                response += f"• Created at: {session_data['analysis_timestamp']}\n"
 
             response += "\n✅ **Market research should work!**"
         else:
             response += f"**Your Session (ID: {user_id}):** ❌ Not found\n"
             response += "\n⚠️ **Please run `/analyze [link]` first**"
+            
+        # Show TEST_MODE status
+        test_mode_value = os.getenv('TEST_MODE', 'false')
+        response += f"\n\n🔧 **TEST_MODE Status:** {test_mode_value}"
+        response += f"\n🔧 **TEST_MODE Active:** {'✅' if test_mode_value.lower() == 'true' else '❌'}"
 
         client.chat_postMessage(
             channel=channel_id,
@@ -898,6 +940,11 @@ def main():
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
         logger.info(f"Port: {config.PORT}")
+        
+        # LOG TEST_MODE STATUS AT STARTUP
+        test_mode_value = os.getenv('TEST_MODE', 'false')
+        logger.info(f"🔧 TEST_MODE environment variable: '{test_mode_value}'")
+        logger.info(f"🔧 TEST_MODE is active: {'✅ YES' if test_mode_value.lower() == 'true' else '❌ NO'}")
 
         # Validate configuration
         config_status = config.validate_configuration()
@@ -937,6 +984,7 @@ def main():
         logger.info("   • GET /status - Detailed status")
         logger.info("🎯 Slack bot commands:")
         logger.info("   • /analyze [google-drive-link]")
+        logger.info("   • /debug-sessions - Check active sessions")
         if market_research_orchestrator:
             logger.info("   • /market-research - NEW: Market intelligence (FIXED)")
         if config.openai_configured:
