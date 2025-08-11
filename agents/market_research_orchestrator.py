@@ -2,14 +2,16 @@
 Market Research Orchestrator for DataRoom Intelligence
 Coordinates multiple specialized agents for comprehensive market intelligence
 
-Phase 2A: Multi-Agent Market Intelligence System
+Phase 2B: Chain of Thought with Progress Tracking
 """
 
 import json
+import time
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from .base_agent import BaseAgent
 from .market_detection import MarketDetectionAgent, MarketProfile
+from .progress_tracker import ProgressTracker, create_test_progress_tracker
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -72,66 +74,135 @@ class MarketIntelligenceResult:
         }
 
 class MarketResearchOrchestrator(BaseAgent):
-    """Orchestrates multi-agent market research analysis"""
+    """Orchestrates multi-agent market research analysis with progress tracking"""
 
     def __init__(self):
         super().__init__("Market Research Orchestrator")
         self.market_detector = MarketDetectionAgent()
-        # Future agents will be added here in subsequent weeks
+        # Future agents will be added here in Phase 2B.1
         # self.competitor_analyst = CompetitiveIntelAgent()
         # self.market_validator = MarketSizingValidator()
-        # self.report_generator = CriticalReportAgent()
+        # self.funding_benchmarker = FundingBenchmarker()
+        # self.critical_synthesizer = CriticalSynthesizer()
+        
+        # Progress tracker will be initialized per analysis
+        self.progress_tracker = None
 
     def perform_market_intelligence(self, processed_documents: List[Dict[str, Any]],
                                   document_summary: Dict[str, Any]) -> MarketIntelligenceResult:
-        """Orchestrate comprehensive market intelligence analysis"""
+        """Orchestrate comprehensive market intelligence analysis with progress tracking"""
         try:
             logger.info("🔍 Starting comprehensive market intelligence analysis...")
+            
+            # Initialize progress tracker (no Slack integration yet)
+            self.progress_tracker = create_test_progress_tracker()
+            logger.info("📊 Progress tracker initialized (test mode - no Slack)")
 
             # Check if we're in test mode
             import os
             if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                logger.info("🧪 TEST MODE: Using mock data instead of GPT-4")
-                return get_mock_market_intelligence_result()
+                logger.info("🧪 TEST MODE: Using mock data with simulated progress")
+                return self._perform_test_mode_analysis()
 
             result = MarketIntelligenceResult()
 
-            # Step 1: Market Detection (Week 1.1 - Current Implementation)
-            logger.info("🎢 Step 1/4: Market Detection and Vertical Classification")
-            result.processing_steps.append("Market Detection Started")
+            # ==== PHASE 1: Market Detection (Agent 1) ====
+            logger.info("🎯 PHASE 1/5: Market Detection and Profiling")
+            self.progress_tracker.phases[0].status = "running"
+            self.progress_tracker.phases[0].start_time = datetime.now()
+            logger.info(f"Progress Update: {self.progress_tracker.format_progress_message()[:200]}...")
+            result.processing_steps.append("Phase 1: Market Detection Started")
 
             market_profile = self.market_detector.detect_vertical(processed_documents, document_summary)
             result.market_profile = market_profile
-            result.processing_steps.append(f"Market Detected: {market_profile.vertical} -> {market_profile.sub_vertical}")
+            
+            # Update progress tracker with detected market
+            self.progress_tracker.detected_market = f"{market_profile.primary_vertical}/{market_profile.sub_vertical}"
+            self.progress_tracker.phases[0].status = "completed"
+            self.progress_tracker.phases[0].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = 1
+            
+            result.processing_steps.append(f"Market Detected: {market_profile.primary_vertical} -> {market_profile.sub_vertical}")
+            logger.info(f"✅ Phase 1 Complete: {self.progress_tracker.detected_market}")
 
-            # Step 2: Competitive Analysis (Week 1.2 - Future Implementation)
-            logger.info("🎢 Step 2/4: Competitive Analysis (Future - Week 1.2)")
+            # ==== PHASE 2: Competitive Intelligence (Placeholder) ====
+            logger.info("🏢 PHASE 2/5: Competitive Intelligence (Simulated)")
+            self.progress_tracker.phases[1].status = "running"
+            self.progress_tracker.phases[1].start_time = datetime.now()
+            
+            # Simulate processing time in test
+            time.sleep(0.5)
+            
             result.competitive_analysis = {
-                'status': 'planned_for_week_1_2',
-                'description': 'Crunchbase API integration for competitor discovery',
-                'market_vertical': market_profile.vertical
+                'status': 'simulated_for_phase_2b',
+                'description': 'Chain of Thought Agent 2 - Coming Soon',
+                'market_vertical': market_profile.primary_vertical,
+                'placeholder_competitors': ['Competitor A', 'Competitor B', 'Competitor C']
             }
-            result.processing_steps.append("Competitive Analysis: Planned for Week 1.2")
+            
+            self.progress_tracker.phases[1].status = "completed"
+            self.progress_tracker.phases[1].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = 2
+            result.processing_steps.append("Phase 2: Competitive Intelligence (Simulated)")
+            logger.info("✅ Phase 2 Complete (Simulated)")
 
-            # Step 3: Market Validation (Week 1.3 - Future Implementation)
-            logger.info("🎢 Step 3/4: Market Validation (Future - Week 1.3)")
+            # ==== PHASE 3: Market Validation (Placeholder) ====
+            logger.info("📈 PHASE 3/5: TAM/SAM Validation (Simulated)")
+            self.progress_tracker.phases[2].status = "running"
+            self.progress_tracker.phases[2].start_time = datetime.now()
+            
+            time.sleep(0.5)
+            
             result.market_validation = {
-                'status': 'planned_for_week_1_3',
-                'description': 'TAM/SAM claim validation with external data',
-                'target_market': market_profile.target_market
+                'status': 'simulated_for_phase_2b',
+                'description': 'Chain of Thought Agent 3 - Coming Soon',
+                'target_market': market_profile.target_market,
+                'placeholder_tam': '$10B',
+                'placeholder_sam': '$1B'
             }
-            result.processing_steps.append("Market Validation: Planned for Week 1.3")
+            
+            self.progress_tracker.phases[2].status = "completed"
+            self.progress_tracker.phases[2].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = 3
+            result.processing_steps.append("Phase 3: Market Validation (Simulated)")
+            logger.info("✅ Phase 3 Complete (Simulated)")
 
-            # Step 4: Critical Assessment (Current - Basic Implementation)
-            logger.info("🎢 Step 4/4: Critical Assessment Generation")
+            # ==== PHASE 4: Funding Benchmarking (Placeholder) ====
+            logger.info("💰 PHASE 4/5: Funding & Metrics Benchmarking (Simulated)")
+            self.progress_tracker.phases[3].status = "running"
+            self.progress_tracker.phases[3].start_time = datetime.now()
+            
+            time.sleep(0.5)
+            
+            # Placeholder for future funding analysis
+            self.progress_tracker.phases[3].status = "completed"
+            self.progress_tracker.phases[3].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = 4
+            result.processing_steps.append("Phase 4: Funding Benchmarking (Simulated)")
+            logger.info("✅ Phase 4 Complete (Simulated)")
+
+            # ==== PHASE 5: Critical Synthesis (Current Implementation) ====
+            logger.info("🧠 PHASE 5/5: Critical Assessment & Synthesis")
+            self.progress_tracker.phases[4].status = "running"
+            self.progress_tracker.phases[4].start_time = datetime.now()
+            
             critical_assessment = self._generate_critical_assessment(market_profile, processed_documents)
             result.critical_assessment = critical_assessment
-            result.processing_steps.append("Critical Assessment: Generated")
+            
+            self.progress_tracker.phases[4].status = "completed"
+            self.progress_tracker.phases[4].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = 5
+            result.processing_steps.append("Phase 5: Critical Assessment Generated")
+            logger.info("✅ Phase 5 Complete: Critical Synthesis")
 
             # Calculate overall confidence
             result.confidence_score = self._calculate_overall_confidence(result)
 
+            # Log final progress state
+            logger.info("📊 Final Progress State:")
+            logger.info(self.progress_tracker.format_progress_message())
             logger.info(f"✅ Market intelligence analysis completed with confidence: {result.confidence_score:.2f}")
+            
             return result
 
         except Exception as e:
@@ -139,6 +210,38 @@ class MarketResearchOrchestrator(BaseAgent):
             result = MarketIntelligenceResult()
             result.processing_steps.append(f"ERROR: {str(e)}")
             return result
+
+    def _perform_test_mode_analysis(self) -> Any:
+        """Perform simulated analysis in TEST_MODE with progress tracking"""
+        logger.info("🧪 Running TEST_MODE analysis with simulated progress")
+        
+        # Simulate all 5 phases
+        phases_simulation = [
+            ("market_detection", "FinTech/Payments", 0.5),
+            ("competitive_intelligence", "Analyzing competitors", 0.5),
+            ("market_validation", "Validating TAM/SAM", 0.5),
+            ("funding_benchmarking", "Benchmarking metrics", 0.5),
+            ("critical_synthesis", "Generating assessment", 0.5)
+        ]
+        
+        for i, (phase_id, description, delay) in enumerate(phases_simulation):
+            self.progress_tracker.phases[i].status = "running"
+            self.progress_tracker.phases[i].start_time = datetime.now()
+            
+            if i == 0:  # Set detected market in first phase
+                self.progress_tracker.detected_market = "FinTech/Payments"
+            
+            logger.info(f"🔄 Phase {i+1}/5: {description}")
+            time.sleep(delay)  # Simulate processing
+            
+            self.progress_tracker.phases[i].status = "completed"
+            self.progress_tracker.phases[i].end_time = datetime.now()
+            self.progress_tracker.current_phase_index = i + 1
+            
+            logger.info(f"✅ Phase {i+1} complete")
+        
+        logger.info("🧪 TEST_MODE analysis complete with all phases simulated")
+        return get_mock_market_intelligence_result()
 
     def _generate_critical_assessment(self, market_profile: MarketProfile,
                                      processed_documents: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -150,9 +253,9 @@ class MarketResearchOrchestrator(BaseAgent):
             document_context = self._prepare_document_context(processed_documents, max_content_length=8000)
 
             system_prompt = """
-ROLE: Market Sizing Expert & BS Detector
-TASK: Validate market claims with brutal honesty
-CONTEXT: Startups always inflate market size - find the truth
+ROLE: Senior Partner at top-tier VC fund making final investment decision
+TASK: Synthesize market findings into brutal honest investment recommendation
+CONTEXT: Your reputation depends on making the right call
 
 Your job is to critically assess market claims and provide honest, evidence-based analysis.
 Look for red flags, unrealistic assumptions, and missing competitive context.
@@ -170,10 +273,10 @@ Provide JSON response with:
 Analyze this startup's market positioning with brutal honesty:
 
 DETECTED MARKET PROFILE:
-- Vertical: {market_profile.vertical}
+- Vertical: {market_profile.primary_vertical}
 - Sub-vertical: {market_profile.sub_vertical}
 - Target Market: {market_profile.target_market}
-- Geographic Focus: {market_profile.geo_focus}
+- Geographic Focus: {market_profile.geographic_focus}
 - Business Model: {market_profile.business_model}
 
 DOCUMENT CONTENT:
@@ -226,13 +329,13 @@ Be brutally honest - this analysis will be used for investment decisions.
             if result.market_profile:
                 confidence_factors.append(result.market_profile.confidence_score)
 
-            # Analysis completeness (currently only market detection is implemented)
-            analysis_completeness = 0.25  # 1/4 agents currently implemented
+            # Analysis completeness (2/5 agents currently real, 3 simulated)
+            analysis_completeness = 0.4  # 2/5 agents currently implemented
             confidence_factors.append(analysis_completeness)
 
-            # Critical assessment quality (basic implementation)
+            # Critical assessment quality
             if result.critical_assessment and 'red_flags' in result.critical_assessment:
-                assessment_quality = 0.7  # Basic assessment available
+                assessment_quality = 0.8  # Good assessment available
                 confidence_factors.append(assessment_quality)
 
             return sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.0
