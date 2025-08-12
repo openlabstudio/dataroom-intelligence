@@ -29,6 +29,17 @@ Generar reportes PDF completos (superar límite de 4000 chars de Slack)
 
 ---
 
+## 🚀 ESTRATEGIA DE IMPLEMENTACIÓN
+
+### **Enfoque Híbrido Recomendado:**
+1. **Fase 1 (1 semana):** Implementar Agents 2-5 con mock data
+2. **Fase 2 (3-4 días):** Añadir web search a Agent 2 como piloto
+3. **Fase 3 (1 semana):** Escalar web search a todos los agentes
+
+**Razón:** Arquitectura completa primero, luego añadir valor real con datos externos.
+
+---
+
 ## 📝 TAREAS ACTIVAS
 
 ### 🔴 PRIORIDAD ALTA (Hacer ahora)
@@ -37,6 +48,7 @@ Generar reportes PDF completos (superar límite de 4000 chars de Slack)
 **Estado:** 🟡 Por hacer  
 **Asignado:** Por asignar  
 **Branch:** `feature/agent-2-competitive`  
+**Estrategia:** Mock data primero, web search después
 
 **Subtareas:**
 - [ ] Crear archivo `agents/competitive_intelligence.py`
@@ -100,29 +112,83 @@ class CompetitiveIntelligenceAgent(BaseAgent):
 
 ---
 
-### 🟢 PRIORIDAD BAJA (Futuro)
+### 🟢 PRIORIDAD BAJA (Futuro - Phase 2B.2)
 
-#### TASK-005: Web Search Integration - DuckDuckGo
+#### TASK-005: Web Search Integration - Estrategia Escalonada
 **Estado:** 📋 Backlog  
 **Phase:** 2B.2  
+**Estrategia:** Brave Search API → DuckDuckGo fallback → Sector-specific scraping
 
-**Subtareas:**
-- [ ] Investigar DuckDuckGo API (gratis)
-- [ ] Crear `utils/web_search.py`
-- [ ] Integrar en `base_agent.py`
-- [ ] Mock responses para TEST_MODE
-- [ ] Rate limiting y manejo de errores
+**Subtareas Actualizadas:**
+- [ ] **Investigar y seleccionar APIs:**
+  - Brave Search API (2000/mes gratis) - PRIMERA OPCIÓN
+  - DuckDuckGo Instant Answer API (ilimitado gratis) - FALLBACK
+  - Evaluar Tavily si necesario ($100/mes para 10K búsquedas)
+  
+- [ ] **Crear sistema de web search:**
+  - Crear `utils/web_search.py`
+  - Implementar estrategia escalonada (Brave → DDG → Scraping)
+  - Soporte para búsquedas sector-específicas
+  
+- [ ] **Implementar citation tracking:**
+  - Cada resultado debe trackear: `{content, source_url, source_name, date_accessed}`
+  - Crear clase `Citation` para gestionar fuentes
+  - Asegurar trazabilidad de cada dato
+  
+- [ ] **Búsquedas inteligentes por sector:**
+  ```python
+  SECTOR_SOURCES = {
+      "fintech": ["techcrunch.com/fintech", "fintechfutures.com"],
+      "healthtech": ["mobihealthnews.com", "rockhealth.com"],
+      "cleantech": ["cleantechnica.com", "iea.org"]
+  }
+  ```
+  
+- [ ] **Integración en Agent 2 (piloto):**
+  - Añadir web search a CompetitiveIntelligenceAgent
+  - Buscar competidores no mencionados
+  - Validar con casos reales
+  
+- [ ] **Mostrar fuentes en Slack:**
+  - Sección "📚 SOURCES" al final del mensaje
+  - Formato: `[1] TechCrunch - "Article Title" (Dec 2024)`
+  - Enlaces clicables cuando sea posible
+  
+- [ ] **Mock responses para TEST_MODE:**
+  - Simular resultados de búsqueda realistas
+  - Incluir fuentes mock para testing
 
-#### TASK-006: PDF Report Generation
+#### TASK-006: PDF Report Generation con Bibliografía
 **Estado:** 📋 Backlog  
 **Phase:** 2B.3  
 
-**Subtareas:**
+**Subtareas Actualizadas:**
 - [ ] Seleccionar librería PDF (reportlab o similar)
 - [ ] Crear `utils/pdf_generator.py`
 - [ ] Diseñar template profesional VC
+- [ ] **Añadir sección "References and Sources":**
+  - Página dedicada al final del PDF
+  - Formato académico: Author, Title, Source, Date, URL
+  - Organizado por sección del reporte
+  - Numeración consistente con citas en el texto
 - [ ] Integrar gráficos y visualizaciones
 - [ ] Upload automático a Slack
+
+**Estructura de Referencias en PDF:**
+```
+REFERENCES AND SOURCES
+----------------------
+Market Analysis
+[1] CB Insights (2024). "State of Fintech Q4 2024". 
+    Retrieved Dec 15, 2024. https://cbinsights.com/...
+
+[2] TechCrunch (2024). "Fintech Funding Drops 50%". 
+    Retrieved Dec 14, 2024. https://techcrunch.com/...
+
+Competitive Intelligence
+[3] Crunchbase (2024). "Competitor X Raises $50M Series B".
+    Retrieved Dec 13, 2024. https://crunchbase.com/...
+```
 
 ---
 
@@ -168,7 +234,7 @@ class CompetitiveIntelligenceAgent(BaseAgent):
 ## 📊 MÉTRICAS DE PROGRESO
 
 ### Sprint Actual (Aug 12-26, 2025)
-- **Objetivo:** Completar Agents 2 y 3
+- **Objetivo:** Completar Agents 2 y 3 con mock data
 - **Progreso:** 0/2 agentes
 - **Bloqueadores:** Ninguno
 
@@ -255,7 +321,8 @@ Muéstrame el código primero, no lo implementes hasta que lo apruebe"
 
 - **2025-08-12 16:00:** Documento creado, tareas iniciales definidas
 - **2025-08-12 16:05:** Actualizado commit de referencia a `31e7fba`
-- **2025-08-12 16:08:** Actualizado commit estable a `ba67bd0` (incluye documentación completa)
+- **2025-08-12 16:08:** Actualizado commit estable a `ba67bd0`
+- **2025-08-12 16:20:** Añadida estrategia híbrida y detalles de web search con citaciones
 - **[Fecha]:** [Cambios realizados]
 
 ---
