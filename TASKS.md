@@ -7,10 +7,14 @@
 ## 📍 Estado Actual
 
 - **Branch activo:** `phase2b-market-research`
-- **Último commit funcional:** `31e7fba` (Simplified handler - base estable)
-- **Commit actual:** `4d67ef6` (TASKS.md añadido)
+- **Commit estable:** `ba67bd0` (Funcionalidad completa + documentación)
 - **TEST MODE:** ✅ Funcionando
 - **Agentes implementados:** 1 de 5 (Market Detection)
+
+### Commits de referencia
+- `31e7fba` - Base funcional sin documentación
+- `373e18f` - TASKS.md añadido
+- `ba67bd0` - claude.md actualizado (ACTUAL - ESTABLE)
 
 ## 🎯 Roadmap de Alto Nivel
 
@@ -142,6 +146,7 @@ class CompetitiveIntelligenceAgent(BaseAgent):
 **Completado:** August 12, 2025  
 - claude.md creado - Commit: `95ddd5fb`
 - TASKS.md creado - Commit: `4d67ef6`
+- claude.md actualizado - Commit: `ba67bd0`
 - Documentación completa para desarrollo
 - Guías de desarrollo y protección TEST_MODE
 
@@ -225,8 +230,9 @@ Phase 2B.3 (PDF Reports):      ░░░░░░░░░░ 0%
 
 ### Para Claude Code:
 ```
-"Mira TASKS.md, vamos a trabajar en TASK-001.
-Muéstrame el código primero, no lo implementes hasta que lo apruebe."
+"Lee claude.md y TASKS.md
+Vamos a trabajar en TASK-001
+Muéstrame el código primero, no lo implementes hasta que lo apruebe"
 ```
 
 ### Comandos útiles:
@@ -241,7 +247,7 @@ Muéstrame el código primero, no lo implementes hasta que lo apruebe."
 - **claude.md:** Guía técnica completa
 - **phase2b-roadmap-updated.md:** Visión estratégica
 - **GitHub Issues:** [Crear issues desde estas tareas](https://github.com/openlabstudio/dataroom-intelligence/issues)
-- **Commit estable base:** `31e7fba` (revertir aquí si hay problemas)
+- **Commit estable:** `ba67bd0` (usar para revertir si hay problemas)
 
 ---
 
@@ -249,6 +255,7 @@ Muéstrame el código primero, no lo implementes hasta que lo apruebe."
 
 - **2025-08-12 16:00:** Documento creado, tareas iniciales definidas
 - **2025-08-12 16:05:** Actualizado commit de referencia a `31e7fba`
+- **2025-08-12 16:08:** Actualizado commit estable a `ba67bd0` (incluye documentación completa)
 - **[Fecha]:** [Cambios realizados]
 
 ---
