@@ -7,7 +7,8 @@
 ## 📍 Estado Actual
 
 - **Branch activo:** `phase2b-market-research`
-- **Último commit estable:** `95ddd5fb` (claude.md añadido)
+- **Último commit funcional:** `31e7fba` (Simplified handler - base estable)
+- **Commit actual:** `4d67ef6` (TASKS.md añadido)
 - **TEST MODE:** ✅ Funcionando
 - **Agentes implementados:** 1 de 5 (Market Detection)
 
@@ -125,7 +126,8 @@ class CompetitiveIntelligenceAgent(BaseAgent):
 
 ### BUG-001: ❌ RESUELTO - dispatch_failed en Slack
 **Estado:** ✅ Resuelto  
-**Solución:** Simplificar handler, ack() inmediato
+**Solución:** Simplificar handler, ack() inmediato  
+**Commit:** `31e7fba`
 
 ### BUG-002: Session persistence entre comandos
 **Estado:** 🟡 Monitorear  
@@ -136,21 +138,23 @@ class CompetitiveIntelligenceAgent(BaseAgent):
 
 ## ✅ TAREAS COMPLETADAS
 
-### ✅ TASK-000: Crear claude.md
+### ✅ TASK-000: Crear documentación para Claude Code
 **Completado:** August 12, 2025  
-**Commit:** `95ddd5fb`  
-- Documentación completa para Claude Code
-- Guías de desarrollo
-- Protección TEST_MODE
+- claude.md creado - Commit: `95ddd5fb`
+- TASKS.md creado - Commit: `4d67ef6`
+- Documentación completa para desarrollo
+- Guías de desarrollo y protección TEST_MODE
 
 ### ✅ Simplificar market research handler
 **Completado:** August 12, 2025  
 **Commit:** `31e7fba`  
 - Eliminar progress tracking complejo
 - Mensaje simple "analysis in progress"
+- Base estable para desarrollo
 
 ### ✅ Implementar TEST_MODE
 **Completado:** August 11, 2025  
+**Commit:** `0a4f842`
 - Evitar costos GPT-4 en desarrollo
 - Mock responses completas
 
@@ -237,12 +241,14 @@ Muéstrame el código primero, no lo implementes hasta que lo apruebe."
 - **claude.md:** Guía técnica completa
 - **phase2b-roadmap-updated.md:** Visión estratégica
 - **GitHub Issues:** [Crear issues desde estas tareas](https://github.com/openlabstudio/dataroom-intelligence/issues)
+- **Commit estable base:** `31e7fba` (revertir aquí si hay problemas)
 
 ---
 
 ## 📅 HISTORIAL DE CAMBIOS
 
-- **2025-08-12:** Documento creado, tareas iniciales definidas
+- **2025-08-12 16:00:** Documento creado, tareas iniciales definidas
+- **2025-08-12 16:05:** Actualizado commit de referencia a `31e7fba`
 - **[Fecha]:** [Cambios realizados]
 
 ---
