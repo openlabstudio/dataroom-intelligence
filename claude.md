@@ -5,7 +5,7 @@
 **Purpose:** AI-powered data room analysis for venture capital firms
 **Current Status:** Phase 2B - Market Research with Chain of Thought agents
 **Branch:** `phase2b-market-research` (stable, working)
-**Last Working Commit:** `31e7fba31bd49b5ad806e6102c090d4beb7e7f18`
+**Stable Commit:** `373e18f66d9925505035a19f2829bca38ff42765` (includes full documentation)
 
 ### Core Functionality
 - **Document Processing:** Extracts and analyzes documents from Google Drive folders
@@ -47,6 +47,8 @@ python app.py
 ```
 dataroom-intelligence/
 ├── app.py                    # Main application entry point
+├── claude.md                 # This guide (Claude Code reference)
+├── TASKS.md                  # Task management and tracking
 ├── agents/                   # Market research agents (Chain of Thought)
 │   ├── base_agent.py        # Base class for all agents
 │   ├── market_detection.py  # Agent 1: Market vertical detection (✅ WORKING)
@@ -89,16 +91,17 @@ dataroom-intelligence/
 - TEST MODE with full mock responses
 - Simplified progress tracking
 - All Slack commands functional
+- Complete documentation (claude.md + TASKS.md)
 
 ### 🚧 In Development (Phase 2B.1)
-- **Agent 2:** Competitive Intelligence
-- **Agent 3:** Market Validation
-- **Agent 4:** Funding Benchmarker
-- **Agent 5:** Critical Synthesizer
+- **Agent 2:** Competitive Intelligence (TASK-001)
+- **Agent 3:** Market Validation (TASK-002)
+- **Agent 4:** Funding Benchmarker (TASK-003)
+- **Agent 5:** Critical Synthesizer (TASK-004)
 
 ### 📋 Future Features (Phase 2B.2-3)
-- Web search integration (DuckDuckGo API)
-- PDF report generation (overcome Slack 4000 char limit)
+- Web search integration (DuckDuckGo API) (TASK-005)
+- PDF report generation (overcome Slack 4000 char limit) (TASK-006)
 - Advanced visualizations
 
 ## 💻 Development Workflow
@@ -364,6 +367,7 @@ As Product Owner, you should:
 
 - **Repository:** https://github.com/openlabstudio/dataroom-intelligence
 - **Current Branch:** phase2b-market-research
+- **Task Tracking:** See TASKS.md for detailed task management
 - **Railway Dashboard:** [Configure in Railway]
 - **Slack App:** [Configure in Slack API]
 
@@ -371,11 +375,11 @@ As Product Owner, you should:
 
 ### If TEST MODE Breaks
 ```bash
-# Revert to last working commit
-git checkout 31e7fba31bd49b5ad806e6102c090d4beb7e7f18
+# Revert to stable commit with documentation
+git checkout 373e18f66d9925505035a19f2829bca38ff42765
 
-# Or reset to safe state
-git reset --hard 31e7fba31bd49b5ad806e6102c090d4beb7e7f18
+# Or if you need minimal functional version
+git checkout 31e7fba31bd49b5ad806e6102c090d4beb7e7f18
 ```
 
 ### If Production Has Issues
@@ -388,9 +392,11 @@ git reset --hard 31e7fba31bd49b5ad806e6102c090d4beb7e7f18
 ## 📌 Current Focus
 
 **Phase 2B.1: Chain of Thought Implementation**
-- Next: Implement Agent 2 (Competitive Intelligence)
+- Next: Implement Agent 2 (Competitive Intelligence) - See TASK-001 in TASKS.md
 - Keep it simple, mock first
 - Test thoroughly
 - One agent at a time
+
+**Active Tasks:** Check TASKS.md for current priorities and progress
 
 Remember: **Stability > Features**. A working TEST MODE is more important than new features!
