@@ -146,6 +146,12 @@ class MarketResearchHandler:
         response += "• **Geo:** Mexico, Brazil, Colombia\n"
         response += "• **Model:** SaaS + Transaction fees\n\n"
         
+        # TASK-001: Add Competitive Analysis section
+        response += "🏢 **COMPETITIVE LANDSCAPE** (🟡 MEDIUM threat)\n"
+        response += "• **Direct competitors:** Stripe, MercadoPago, dLocal\n"
+        response += "• **Competitive moat:** Regional expertise and vertical focus\n"
+        response += "• **Threat assessment:** Established players have resources, but vertical specialization provides opportunity\n\n"
+        
         response += "🔍 **CRITICAL ASSESSMENT:**\n\n"
         response += "⚠️ **Point 1:** Strong market opportunity with 70% of SMBs lacking digital payment solutions. "
         response += "However, regulatory complexity varies significantly across target countries.\n\n"
