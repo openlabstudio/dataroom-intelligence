@@ -11,6 +11,8 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from .base_agent import BaseAgent
 from .market_detection import MarketDetectionAgent, MarketProfile
+from .competitive_intelligence import CompetitiveIntelligenceAgent
+from .market_validation import MarketValidationAgent
 from .progress_tracker import ProgressTracker, create_test_progress_tracker
 from utils.logger import get_logger
 
@@ -79,9 +81,11 @@ class MarketResearchOrchestrator(BaseAgent):
     def __init__(self):
         super().__init__("Market Research Orchestrator")
         self.market_detector = MarketDetectionAgent()
-        # Future agents will be added here in Phase 2B.1
-        # self.competitor_analyst = CompetitiveIntelAgent()
-        # self.market_validator = MarketSizingValidator()
+        # TASK-001: Competitive Intelligence Agent
+        self.competitive_analyzer = CompetitiveIntelligenceAgent()
+        # TASK-002: Market Validation Agent  
+        self.market_validator = MarketValidationAgent()
+        # Future agents (Phase 2B.1 continuation)
         # self.funding_benchmarker = FundingBenchmarker()
         # self.critical_synthesizer = CriticalSynthesizer()
         
@@ -117,55 +121,47 @@ class MarketResearchOrchestrator(BaseAgent):
             result.market_profile = market_profile
             
             # Update progress tracker with detected market
-            self.progress_tracker.detected_market = f"{market_profile.primary_vertical}/{market_profile.sub_vertical}"
+            self.progress_tracker.detected_market = f"{market_profile.vertical}/{market_profile.sub_vertical}"
             self.progress_tracker.phases[0].status = "completed"
             self.progress_tracker.phases[0].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 1
             
-            result.processing_steps.append(f"Market Detected: {market_profile.primary_vertical} -> {market_profile.sub_vertical}")
+            result.processing_steps.append(f"Market Detected: {market_profile.vertical} -> {market_profile.sub_vertical}")
             logger.info(f"✅ Phase 1 Complete: {self.progress_tracker.detected_market}")
 
-            # ==== PHASE 2: Competitive Intelligence (Placeholder) ====
-            logger.info("🏢 PHASE 2/5: Competitive Intelligence (Simulated)")
+            # ==== PHASE 2: Competitive Intelligence (TASK-001) ====
+            logger.info("🏢 PHASE 2/5: Competitive Intelligence Analysis")
             self.progress_tracker.phases[1].status = "running"
             self.progress_tracker.phases[1].start_time = datetime.now()
             
-            # Simulate processing time in test
-            time.sleep(0.5)
-            
-            result.competitive_analysis = {
-                'status': 'simulated_for_phase_2b',
-                'description': 'Chain of Thought Agent 2 - Coming Soon',
-                'market_vertical': market_profile.primary_vertical,
-                'placeholder_competitors': ['Competitor A', 'Competitor B', 'Competitor C']
-            }
+            # Use real competitive intelligence agent
+            competitive_profile = self.competitive_analyzer.analyze_competitors(
+                market_profile.to_dict(), processed_documents, document_summary
+            )
+            result.competitive_analysis = competitive_profile.to_dict()
             
             self.progress_tracker.phases[1].status = "completed"
             self.progress_tracker.phases[1].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 2
-            result.processing_steps.append("Phase 2: Competitive Intelligence (Simulated)")
-            logger.info("✅ Phase 2 Complete (Simulated)")
+            result.processing_steps.append("Phase 2: Competitive Intelligence Analysis")
+            logger.info("✅ Phase 2 Complete: Competitive Intelligence")
 
-            # ==== PHASE 3: Market Validation (Placeholder) ====
-            logger.info("📈 PHASE 3/5: TAM/SAM Validation (Simulated)")
+            # ==== PHASE 3: Market Validation (TASK-002) ====
+            logger.info("📈 PHASE 3/5: TAM/SAM Market Validation")
             self.progress_tracker.phases[2].status = "running"
             self.progress_tracker.phases[2].start_time = datetime.now()
             
-            time.sleep(0.5)
-            
-            result.market_validation = {
-                'status': 'simulated_for_phase_2b',
-                'description': 'Chain of Thought Agent 3 - Coming Soon',
-                'target_market': market_profile.target_market,
-                'placeholder_tam': '$10B',
-                'placeholder_sam': '$1B'
-            }
+            # Use real market validation agent
+            validation_profile = self.market_validator.validate_market_opportunity(
+                market_profile.to_dict(), processed_documents, document_summary
+            )
+            result.market_validation = validation_profile.to_dict()
             
             self.progress_tracker.phases[2].status = "completed"
             self.progress_tracker.phases[2].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 3
-            result.processing_steps.append("Phase 3: Market Validation (Simulated)")
-            logger.info("✅ Phase 3 Complete (Simulated)")
+            result.processing_steps.append("Phase 3: Market Validation Analysis")
+            logger.info("✅ Phase 3 Complete: Market Validation")
 
             # ==== PHASE 4: Funding Benchmarking (Placeholder) ====
             logger.info("💰 PHASE 4/5: Funding & Metrics Benchmarking (Simulated)")
@@ -273,10 +269,10 @@ Provide JSON response with:
 Analyze this startup's market positioning with brutal honesty:
 
 DETECTED MARKET PROFILE:
-- Vertical: {market_profile.primary_vertical}
+- Vertical: {market_profile.vertical}
 - Sub-vertical: {market_profile.sub_vertical}
 - Target Market: {market_profile.target_market}
-- Geographic Focus: {market_profile.geographic_focus}
+- Geographic Focus: {market_profile.geo_focus}
 - Business Model: {market_profile.business_model}
 
 DOCUMENT CONTENT:

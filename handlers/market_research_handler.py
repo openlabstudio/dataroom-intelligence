@@ -152,6 +152,12 @@ class MarketResearchHandler:
         response += "• **Competitive moat:** Regional expertise and vertical focus\n"
         response += "• **Threat assessment:** Established players have resources, but vertical specialization provides opportunity\n\n"
         
+        # TASK-002: Add Market Validation section
+        response += "📈 **MARKET VALIDATION** (📊 7.5/10 score)\n"
+        response += "• **TAM Assessment:** $1.6B claimed - reasonable but optimistic\n"
+        response += "• **Market Timing:** Good - regulatory tailwinds supporting adoption\n"
+        response += "• **Key Risk:** Revenue projections assume rapid adoption curve\n\n"
+        
         response += "🔍 **CRITICAL ASSESSMENT:**\n\n"
         response += "⚠️ **Point 1:** Strong market opportunity with 70% of SMBs lacking digital payment solutions. "
         response += "However, regulatory complexity varies significantly across target countries.\n\n"
@@ -291,21 +297,105 @@ class MarketResearchHandler:
         
         # Market Profile - Compact format
         if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
-            profile = market_intelligence_result.market_profile
-            primary_vertical = getattr(profile, 'primary_vertical', 'Not identified')
+            profile = market_intelligence_result.market_profile            
+            # Fix attribute names to match MarketProfile structure
+            primary_vertical = getattr(profile, 'vertical', 'Not identified')  # Changed from 'primary_vertical'
             sub_vertical = getattr(profile, 'sub_vertical', '')
             confidence = getattr(profile, 'confidence_score', 0)
             target_market = getattr(profile, 'target_market', 'Not identified')
-            geographic_focus = getattr(profile, 'geographic_focus', 'Not identified')
+            geographic_focus = getattr(profile, 'geo_focus', 'Not identified')  # Changed from 'geographic_focus'
             business_model = getattr(profile, 'business_model', 'Not identified')
             
             # Compact market profile
             vertical_display = f"{primary_vertical}/{sub_vertical}" if sub_vertical else primary_vertical
             response += f"🎯 **PROFILE** ({'🟢' if confidence > 0.8 else '🟡' if confidence > 0.6 else '🔴'} {confidence:.1f} confidence)\n"
             response += f"• **Vertical:** {vertical_display}\n"
-            response += f"• **Target:** {target_market[:60]}{'...' if len(target_market) > 60 else ''}\n"
-            response += f"• **Geo:** {geographic_focus[:30]}{'...' if len(geographic_focus) > 30 else ''}\n"
-            response += f"• **Model:** {business_model[:40]}{'...' if len(business_model) > 40 else ''}\n\n"
+            response += f"• **Target:** {target_market}\n"
+            response += f"• **Geo:** {geographic_focus}\n"
+            response += f"• **Model:** {business_model}\n\n"
+        
+        # TASK-001: Competitive Analysis section
+        if hasattr(market_intelligence_result, 'competitive_analysis') and market_intelligence_result.competitive_analysis:
+            comp_analysis = market_intelligence_result.competitive_analysis
+            if isinstance(comp_analysis, dict):
+                # Fix attribute names to match CompetitiveProfile structure
+                direct_competitors = comp_analysis.get('direct_competitors', [])
+                market_position = comp_analysis.get('market_position', 'Unknown')
+                competitive_moat = comp_analysis.get('competitive_moat', 'Not analyzed')
+                competitive_risks = comp_analysis.get('competitive_risks', [])
+                
+                response += f"🏢 **COMPETITIVE LANDSCAPE** (🟡 {market_position} position)\n"
+                if direct_competitors:
+                    # Handle case where competitors might be dicts instead of strings
+                    comp_names = []
+                    for comp in direct_competitors[:4]:  # Show first 4
+                        if isinstance(comp, dict):
+                            # Extract name from dict (try common keys)
+                            name = comp.get('name') or comp.get('company') or comp.get('competitor') or str(comp)
+                            comp_names.append(str(name))
+                        else:
+                            comp_names.append(str(comp))
+                    comp_list = ', '.join(comp_names)
+                    response += f"• **Direct competitors:** {comp_list}\n"
+                
+                # Show indirect competitors if available
+                indirect_competitors = comp_analysis.get('indirect_competitors', [])
+                if indirect_competitors:
+                    # Handle case where competitors might be dicts instead of strings
+                    indirect_names = []
+                    for comp in indirect_competitors[:3]:  # Show first 3
+                        if isinstance(comp, dict):
+                            # Extract name from dict (try common keys)
+                            name = comp.get('name') or comp.get('company') or comp.get('competitor') or str(comp)
+                            indirect_names.append(str(name))
+                        else:
+                            indirect_names.append(str(comp))
+                    indirect_list = ', '.join(indirect_names)
+                    response += f"• **Indirect competitors:** {indirect_list}\n"
+                
+                response += f"• **Competitive moat:** {competitive_moat}\n"
+                
+                # Show competitive advantages
+                competitive_advantages = comp_analysis.get('competitive_advantages', [])
+                if competitive_advantages:
+                    advantage = competitive_advantages[0] if competitive_advantages else "Not identified"
+                    response += f"• **Key advantage:** {str(advantage)}\n"
+                
+                if competitive_risks:
+                    risk = competitive_risks[0] if competitive_risks else "Not identified"
+                    response += f"• **Key competitive risk:** {str(risk)}\n"
+                response += "\n"
+        
+        # TASK-002: Market Validation section  
+        if hasattr(market_intelligence_result, 'market_validation') and market_intelligence_result.market_validation:
+            validation = market_intelligence_result.market_validation
+            if isinstance(validation, dict):
+                score = validation.get('validation_score', 0)
+                response += f"📈 **MARKET VALIDATION** (📊 {score}/10 score)\n"
+                tam_assessment = validation.get('tam_assessment', {})
+                if isinstance(tam_assessment, dict):
+                    claimed_tam = tam_assessment.get('claimed_tam', 'Unknown')
+                    assessment = tam_assessment.get('assessment', 'Not analyzed')
+                    response += f"• **TAM Assessment:** {claimed_tam} - {assessment}\n"
+                timing = validation.get('market_timing', 'Not analyzed')
+                response += f"• **Market Timing:** {timing}\n"
+                # Show opportunities if available
+                opportunities = validation.get('opportunities', [])
+                if opportunities:
+                    opportunity = opportunities[0] if opportunities else "Not identified"
+                    response += f"• **Key Opportunity:** {str(opportunity)}\n"
+                
+                red_flags = validation.get('red_flags', [])
+                if red_flags:
+                    risk = red_flags[0] if red_flags else "Not identified" 
+                    response += f"• **Key Risk:** {str(risk)}\n"
+                
+                # Show reality check
+                reality_check = validation.get('reality_check', '')
+                if reality_check:
+                    response += f"• **Reality Check:** {reality_check}\n"
+                
+                response += "\n"
         
         # Critical Assessment
         if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
@@ -318,14 +408,14 @@ class MarketResearchHandler:
                 for key, value in assessment.items():
                     if isinstance(value, str) and len(value) > 50:
                         clean_text = value.replace('"', '').replace("'", "").strip()
-                        # Find a good stopping point (end of sentence)
-                        if len(clean_text) > 400:
+                        # Show more complete text - only truncate if extremely long
+                        if len(clean_text) > 800:
                             # Try to cut at end of sentence
-                            cut_point = clean_text.find('.', 300)
-                            if cut_point > 300:
+                            cut_point = clean_text.find('.', 700)
+                            if cut_point > 700:
                                 clean_text = clean_text[:cut_point + 1]
                             else:
-                                clean_text = clean_text[:400] + "..."
+                                clean_text = clean_text[:800] + "..."
                         meaningful_points.append(clean_text)
                         if len(meaningful_points) >= 2:
                             break
@@ -345,10 +435,10 @@ class MarketResearchHandler:
                 current_length = 0
                 for sentence in sentences:
                     sentence = sentence.strip()
-                    if sentence and len(sentence) > 30 and current_length + len(sentence) < 800:
+                    if sentence and len(sentence) > 30 and current_length + len(sentence) < 1200:  # Increased limit
                         good_sentences.append(sentence)
                         current_length += len(sentence)
-                        if len(good_sentences) >= 3:  # Max 3 sentences
+                        if len(good_sentences) >= 4:  # Max 4 sentences instead of 3
                             break
                 
                 if good_sentences:
