@@ -72,7 +72,7 @@ def root():
     return jsonify({
         "service": "DataRoom Intelligence Bot",
         "status": "running",
-        "version": "2.0.0-phase2b-fixed-v2",
+        "version": "2.0.0-production-ready",
         "platform": "Railway",
         "features": ["Document Analysis", "Market Research", "AI Intelligence"],
         "endpoints": ["/health", "/status"]
@@ -88,7 +88,7 @@ def status():
             "deployment": config.deployment_info(),
             "active_sessions": len(user_sessions),
             "configuration_status": config.validate_configuration(),
-            "phase": "2B - Market Research Agent (Fixed v2)",
+            "phase": "2B - Market Research Agent (Production Ready)",
             "market_research_available": market_research_orchestrator is not None
         })
     except Exception as e:
@@ -204,8 +204,12 @@ def debug_sessions(user_id, channel_id, client):
     # System info
     response += "**🖥️ SYSTEM INFO:**\n"
     response += f"• Process PID: {os.getpid()}\n"
-    response += f"• TEST_MODE: '{os.getenv('TEST_MODE', 'not set')}'\n"
-    response += f"• TEST_MODE Active: {'✅' if os.getenv('TEST_MODE', 'false').lower() == 'true' else '❌'}\n"
+    # Debug shows production mode status
+    PRODUCTION_MODE = True
+    test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'not set')
+    test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
+    response += f"• TEST_MODE: '{test_mode_value}'\n"
+    response += f"• TEST_MODE Active: {'✅' if test_mode_active else '❌ (Production Mode)'}\n"
     response += f"• OpenAI Configured: {'✅' if config.openai_configured else '❌'}\n"
     response += f"• Market Research Available: {'✅' if market_research_orchestrator else '❌'}\n\n"
     
@@ -257,9 +261,10 @@ def debug_sessions(user_id, channel_id, client):
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
-        # FIX: Check TEST_MODE FIRST before anything else
-        test_mode_value = os.getenv('TEST_MODE', 'false')
-        test_mode_check = test_mode_value.lower() == 'true'
+        # PRODUCTION MODE: Force TEST_MODE=false for Railway deployment
+        PRODUCTION_MODE = True  # Set to False for local development
+        test_mode_check = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
+        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
         
         # CRITICAL LOG
         logger.info(f"🔍 ============ ANALYSIS START ============")
@@ -616,9 +621,11 @@ def handle_ask_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE
+        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        if session_data.get('test_mode', False):
+        PRODUCTION_MODE = True  # Force production mode
+        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
+        if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock answer")
             response = f"💡 **Question:** {question}\n\n"
             response += f"**Answer (TEST MODE):**\n"
@@ -684,9 +691,11 @@ def handle_scoring_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE
+        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        if session_data.get('test_mode', False):
+        PRODUCTION_MODE = True  # Force production mode
+        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
+        if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock scoring")
             response = "📊 **DETAILED SCORING BREAKDOWN (TEST MODE)**\n\n"
             response += "🎯 **Overall Score: 7.5/10** (Mock)\n\n"
@@ -766,9 +775,11 @@ def handle_memo_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE
+        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        if session_data.get('test_mode', False):
+        PRODUCTION_MODE = True  # Force production mode
+        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
+        if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock memo")
             response = "📄 **INVESTMENT MEMO (TEST MODE)**\n\n"
             response += "**Executive Summary:**\n"
@@ -830,9 +841,11 @@ def handle_gaps_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE
+        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        if session_data.get('test_mode', False):
+        PRODUCTION_MODE = True  # Force production mode
+        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
+        if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock gaps analysis")
             response = "🔍 **INFORMATION GAPS ANALYSIS (TEST MODE)**\n\n"
             response += "**Missing Information:**\n"
@@ -935,15 +948,17 @@ def handle_health_command(ack, body, client):
         health_response = format_health_response()
 
         # Add Phase 2A status
-        health_response += f"\n🔬 **Phase 2B Status (Fixed v2):**\n"
+        health_response += f"\n🔬 **Phase 2B Status (Production Ready):**\n"
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
         health_response += f"• Market Research Handler: {'✅' if market_research_handler else '❌'}\n"
         health_response += f"• Active Sessions: {len(user_sessions)}\n"
         health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
         
-        # Show TEST_MODE status
-        test_mode_value = os.getenv('TEST_MODE', 'false')
-        health_response += f"• TEST_MODE: '{test_mode_value}' ({'✅ Active' if test_mode_value.lower() == 'true' else '❌ Inactive'})\n"
+        # Show TEST_MODE status (forced in production)
+        PRODUCTION_MODE = True
+        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
+        test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
+        health_response += f"• TEST_MODE: '{test_mode_value}' ({'✅ Active' if test_mode_active else '❌ Inactive (Production)'})\n"
         
         health_response += f"• Available Commands: `/analyze`, `/market-research`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/reset`\n\n"
         health_response += "💡 **Tip:** Use `/analyze debug` to check detailed session info"
@@ -972,11 +987,13 @@ def handle_app_mention(event, client):
         market_status = "✅" if market_research_orchestrator else "⚠️"
         market_note = "Market research available (fixed)" if market_research_orchestrator else "Market research requires OpenAI configuration"
         
-        # Check TEST_MODE
-        test_mode_value = os.getenv('TEST_MODE', 'false')
-        test_mode_status = f"TEST MODE: {'✅ ACTIVE' if test_mode_value.lower() == 'true' else '❌ INACTIVE'}"
+        # Check TEST_MODE (forced in production)
+        PRODUCTION_MODE = True
+        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
+        test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
+        test_mode_status = f"TEST MODE: {'✅ ACTIVE' if test_mode_active else '❌ INACTIVE (Production)'}"
 
-        response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway with Phase 2B Market Research (Fixed v2).\n\n" +\
+        response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway with Phase 2B Market Research (Production Ready).\n\n" +\
                   f"{ai_status} **AI Status:** {ai_note}\n" +\
                   f"{market_status} **Market Research:** {market_note}\n" +\
                   f"🧪 **{test_mode_status}**\n\n" +\
@@ -1032,16 +1049,19 @@ def main():
     """Main application entry point for Railway"""
     try:
         logger.info("🚀 Starting DataRoom Intelligence Bot on Railway...")
-        logger.info("🔬 Phase 2B: Market Research Agent (Fixed v2)")
+        logger.info("🔬 Phase 2B: Market Research Agent (Production Ready)")
         logger.info(f"Environment: {config.ENVIRONMENT}")
         logger.info(f"Debug mode: {config.DEBUG}")
         logger.info(f"Port: {config.PORT}")
         logger.info(f"Process PID: {os.getpid()}")
         
-        # LOG TEST_MODE STATUS AT STARTUP
-        test_mode_value = os.getenv('TEST_MODE', 'false')
+        # LOG TEST_MODE STATUS AT STARTUP (forced in production)
+        PRODUCTION_MODE = True  # Force production mode for Railway deployment
+        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
+        test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
+        logger.info(f"🔧 PRODUCTION_MODE: {'✅ ENABLED - Forcing TEST_MODE=false' if PRODUCTION_MODE else '❌ DISABLED - Using env var'}")
         logger.info(f"🔧 TEST_MODE environment variable: '{test_mode_value}'")
-        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-4 calls' if test_mode_value.lower() == 'true' else '❌ NO - Will use GPT-4'}")
+        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-4 calls' if test_mode_active else '❌ NO - Will use GPT-4 ($$$ Production costs)'}")
 
         # Validate configuration
         config_status = config.validate_configuration()
