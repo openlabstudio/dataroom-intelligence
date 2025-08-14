@@ -205,7 +205,7 @@ def debug_sessions(user_id, channel_id, client):
     response += "**🖥️ SYSTEM INFO:**\n"
     response += f"• Process PID: {os.getpid()}\n"
     # Debug shows production mode status
-    PRODUCTION_MODE = True
+    PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
     test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'not set')
     test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
     response += f"• TEST_MODE: '{test_mode_value}'\n"
@@ -262,7 +262,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
     """Perform the complete data room analysis with AI"""
     try:
         # PRODUCTION MODE: Force TEST_MODE=false for Railway deployment
-        PRODUCTION_MODE = True  # Set to False for local development
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Set to False for local development
         test_mode_check = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
         test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
         
@@ -310,50 +310,79 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
-        # CRITICAL FIX: Check TEST_MODE IMMEDIATELY and handle it FIRST
+        # Check for test mode - create mock analysis but use proper formatting
         if test_mode_check:
-            logger.info("🧪 ========== TEST MODE ACTIVE ==========")
-            logger.info("🧪 Skipping AI analysis completely")
-            logger.info("🧪 Creating mock session data")
+            logger.info("🧪 TEST MODE: Creating mock analysis data")
             
-            # Create mock response
-            mock_response = "✅ **ANALYSIS COMPLETE (TEST MODE)**\n\n"
-            mock_response += "⚠️ **TEST MODE ACTIVE** - No GPT-4 calls made\n\n"
-            mock_response += f"📊 **Processing Summary:**\n"
-            mock_response += f"• **Documents Processed:** {len(processed_documents)}\n"
-            mock_response += f"• **Total Content:** Successfully extracted\n\n"
-            mock_response += "🎯 **Available Commands:**\n"
-            mock_response += "• `/ask [question]` - Ask questions about documents (TEST MODE)\n"
-            mock_response += "• `/scoring` - Get VC scoring (TEST MODE)\n"
-            mock_response += "• `/memo` - Generate investment memo (TEST MODE)\n"
-            mock_response += "• `/gaps` - Analyze information gaps (TEST MODE)\n"
-            mock_response += "• `/market-research` - NEW: Market intelligence (TEST MODE)\n"
-            mock_response += "• `/analyze debug` - Check session status\n"
-            mock_response += "• `/reset` - Clear session\n"
-
+            # Create comprehensive mock analysis result (same structure as real AI analysis)
+            mock_analysis_result = {
+                'overall_score': 7.5,
+                'executive_summary': [
+                    'Strong market opportunity in FinTech/Payments sector with focus on SMB merchants',
+                    'Experienced founding team with relevant industry background',
+                    'Early traction shows promise but needs validation at scale',
+                    'Competition from established players requires clear differentiation strategy'
+                ],
+                'scoring': {
+                    'market_opportunity': {
+                        'score': 8.0,
+                        'justification': 'Large addressable market with growing demand for digital payment solutions'
+                    },
+                    'team': {
+                        'score': 7.5,
+                        'justification': 'Strong technical expertise and industry experience'
+                    },
+                    'product': {
+                        'score': 7.0,
+                        'justification': 'Solid MVP with clear value proposition'
+                    },
+                    'traction': {
+                        'score': 6.5,
+                        'justification': 'Early customer validation but limited scale'
+                    },
+                    'financials': {
+                        'score': 6.0,
+                        'justification': 'Reasonable projections but requires more validation'
+                    }
+                },
+                'red_flags': [
+                    'Limited financial runway without additional funding',
+                    'High customer acquisition costs in competitive market',
+                    'Regulatory compliance requirements may be complex'
+                ],
+                'missing_info': [
+                    'Detailed customer acquisition cost breakdown',
+                    'Competitive analysis and differentiation strategy',
+                    'Technical architecture and scalability plans',
+                    'Regulatory compliance roadmap',
+                    'Financial projections beyond year 2'
+                ],
+                'recommendation': 'INVESTIGATE_FURTHER',
+                'test_mode': True
+            }
+            
+            # Use the standard formatting function (same as production)
+            formatted_response = format_analysis_response(mock_analysis_result, document_summary)
+            
+            # Add TEST MODE indicator
+            formatted_response = "⚠️ **TEST MODE ACTIVE** - Mock data, no GPT-4 calls\n\n" + formatted_response
+            
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
-                text=mock_response
+                text=formatted_response
             )
 
-            # Store mock session data
+            # Store complete session data with mock analysis
             user_sessions[user_id] = {
-                'processed_documents': processed_documents,
+                'analysis_result': mock_analysis_result,
                 'document_summary': document_summary,
+                'processed_documents': processed_documents,
                 'drive_link': drive_link,
-                'test_mode': True,
-                'analysis_timestamp': datetime.now().isoformat()
+                'test_mode': True
             }
-            
-            # DEBUG: Log session storage
-            logger.info(f"✅ TEST MODE - Session stored for user {user_id}")
-            logger.info(f"✅ TEST MODE - Session keys: {list(user_sessions[user_id].keys())}")
-            logger.info(f"✅ TEST MODE - Active sessions: {list(user_sessions.keys())}")
-            logger.info(f"✅ TEST MODE - Process PID: {os.getpid()}")
-            logger.info("🧪 ========== TEST MODE COMPLETE ==========")
 
-            # RETURN HERE - DO NOT CONTINUE TO AI ANALYSIS
+            logger.info(f"✅ TEST MODE analysis completed for user {user_id}")
             return
 
         # Step 3: AI Analysis (ONLY if NOT in test mode)
@@ -623,7 +652,7 @@ def handle_ask_command(ack, body, client):
 
         # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = True  # Force production mode
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
         test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
         if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock answer")
@@ -693,7 +722,7 @@ def handle_scoring_command(ack, body, client):
 
         # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = True  # Force production mode
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
         test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
         if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock scoring")
@@ -777,7 +806,7 @@ def handle_memo_command(ack, body, client):
 
         # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = True  # Force production mode
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
         test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
         if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock memo")
@@ -843,7 +872,7 @@ def handle_gaps_command(ack, body, client):
 
         # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = True  # Force production mode
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
         test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
         if test_mode_active:
             logger.info("🧪 TEST MODE: Returning mock gaps analysis")
@@ -955,7 +984,7 @@ def handle_health_command(ack, body, client):
         health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
         
         # Show TEST_MODE status (forced in production)
-        PRODUCTION_MODE = True
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
         test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
         test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
         health_response += f"• TEST_MODE: '{test_mode_value}' ({'✅ Active' if test_mode_active else '❌ Inactive (Production)'})\n"
@@ -988,7 +1017,7 @@ def handle_app_mention(event, client):
         market_note = "Market research available (fixed)" if market_research_orchestrator else "Market research requires OpenAI configuration"
         
         # Check TEST_MODE (forced in production)
-        PRODUCTION_MODE = True
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
         test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
         test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
         test_mode_status = f"TEST MODE: {'✅ ACTIVE' if test_mode_active else '❌ INACTIVE (Production)'}"
@@ -1056,7 +1085,7 @@ def main():
         logger.info(f"Process PID: {os.getpid()}")
         
         # LOG TEST_MODE STATUS AT STARTUP (forced in production)
-        PRODUCTION_MODE = True  # Force production mode for Railway deployment
+        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode for Railway deployment
         test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
         test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
         logger.info(f"🔧 PRODUCTION_MODE: {'✅ ENABLED - Forcing TEST_MODE=false' if PRODUCTION_MODE else '❌ DISABLED - Using env var'}")

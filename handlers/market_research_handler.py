@@ -77,7 +77,7 @@ class MarketResearchHandler:
             session_data = self.user_sessions[user_id]
             
             # Check if in TEST MODE (forced false in production)
-            PRODUCTION_MODE = True  # Force production mode for Railway deployment
+            PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
             test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
             if test_mode_active:
                 logger.info("🧪 TEST MODE: Performing mock market research")
