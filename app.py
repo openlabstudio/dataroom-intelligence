@@ -371,10 +371,8 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
 
             # Enhanced response to mention market research
             if market_research_orchestrator:
-                formatted_response += "\n\n🎯 **NEW: Market Research Available!**\n"
-                formatted_response += "Use `/market-research` for comprehensive market intelligence analysis."
+                formatted_response += "\n\nUse `/market-research` for comprehensive market intelligence analysis."
             
-            formatted_response += "\n\n💡 **Tip:** Use `/analyze debug` to check session status"
 
             client.chat_update(
                 channel=channel_id,

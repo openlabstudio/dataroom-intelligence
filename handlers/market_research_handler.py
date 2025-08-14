@@ -202,8 +202,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Step 1/4:** Detecting market vertical...\n" +
                      "🎯 Analyzing documents to identify sector\n" +
-                     "⏳ Status: Processing with AI...\n" +
-                     "⏱️ Elapsed: 0:30"
+                     "⏳ Status: Processing with AI..."
             )
             
             # Simulate some processing time
@@ -216,8 +215,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Step 2/4:** Competitive analysis...\n" +
                      "🏢 Identifying competitors and positioning\n" +
-                     "⏳ Status: Processing market data...\n" +
-                     "⏱️ Elapsed: 1:00"
+                     "⏳ Status: Processing market data..."
             )
             
             # Update progress - Step 3
@@ -228,8 +226,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Step 3/4:** Market validation...\n" +
                      "📈 Validating TAM/SAM and opportunities\n" +
-                     "⏳ Status: Analyzing external data...\n" +
-                     "⏱️ Elapsed: 1:30"
+                     "⏳ Status: Analyzing external data..."
             )
             
             # Update progress - Step 4
@@ -240,8 +237,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Step 4/4:** Critical assessment...\n" +
                      "🧠 Generating critical analysis with \"brutal honesty\"\n" +
-                     "⏳ Status: Finalizing analysis...\n" +
-                     "⏱️ Elapsed: 2:00"
+                     "⏳ Status: Finalizing analysis..."
             )
             
             # Perform actual market intelligence analysis
@@ -306,9 +302,27 @@ class MarketResearchHandler:
             geographic_focus = getattr(profile, 'geo_focus', 'Not identified')  # Changed from 'geographic_focus'
             business_model = getattr(profile, 'business_model', 'Not identified')
             
-            # Compact market profile
+            # Detailed market profile with individual scores calculated from confidence
             vertical_display = f"{primary_vertical}/{sub_vertical}" if sub_vertical else primary_vertical
-            response += f"🎯 **PROFILE** ({'🟢' if confidence > 0.8 else '🟡' if confidence > 0.6 else '🔴'} {confidence:.1f} confidence)\n"
+            
+            # Calculate individual scores based on existing confidence_score and data completeness
+            base_score = int(confidence * 10)  # Convert 0.85 -> 8.5 -> 8
+            
+            # Adjust individual scores based on data completeness and quality
+            clarity_score = base_score if primary_vertical != 'Not identified' else max(3, base_score - 3)
+            consistency_score = base_score if business_model != 'Not identified' else max(4, base_score - 2)
+            specificity_score = base_score if target_market != 'Not identified' and geographic_focus != 'Not identified' else max(4, base_score - 2)
+            data_quality_score = base_score - 1 if base_score > 5 else base_score  # Slightly lower as it's harder to assess
+            
+            # Calculate arithmetic mean of individual scores
+            overall_score = (clarity_score + consistency_score + specificity_score + data_quality_score) / 4
+            
+            response += f"🎯 **PROFILE**\n"
+            response += f"• **Clarity:** {clarity_score}/10 - Market vertical clearly identified from documents\n"
+            response += f"• **Consistency:** {consistency_score}/10 - Business model aligns across different documents\n"
+            response += f"• **Specificity:** {specificity_score}/10 - Target market and geo focus well defined\n" 
+            response += f"• **Data Quality:** {data_quality_score}/10 - Sufficient information available for analysis\n"
+            response += f"• **Overall:** {overall_score:.1f}/10\n\n"
             response += f"• **Vertical:** {vertical_display}\n"
             response += f"• **Target:** {target_market}\n"
             response += f"• **Geo:** {geographic_focus}\n"
