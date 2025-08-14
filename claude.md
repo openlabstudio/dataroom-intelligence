@@ -5,7 +5,7 @@
 **Purpose:** AI-powered data room analysis for venture capital firms
 **Current Status:** Phase 2B - Market Research with Chain of Thought agents (60% complete)
 **Branch:** `phase2b-market-research` (stable, working)
-**Stable Commit:** `161a662` - UX improvements for /analyze and /market-research commands - Stable & Functional
+**Stable Commit:** `3bb3393` - Environment-based workflow with professional deployment configuration
 
 ### Core Functionality
 - **Document Processing:** Extracts and analyzes documents from Google Drive folders
@@ -18,14 +18,14 @@
 
 **NEVER modify or break TEST_MODE functionality!** This is your safety net against API costs.
 
-### How TEST MODE Works
+### How TEST MODE Works (Environment-Based)
 ```bash
-# Enable TEST MODE (development)
-export TEST_MODE=true
-python app.py
+# DEFAULT: Enable TEST MODE (development) - AUTOMATIC
+python app.py  # Uses .env: TEST_MODE=true, PRODUCTION_MODE=false
 
-# Disable TEST MODE (production testing - COSTS MONEY!)
+# OVERRIDE: Disable TEST MODE (production testing - COSTS MONEY!)
 export TEST_MODE=false
+export PRODUCTION_MODE=true
 python app.py
 ```
 
@@ -92,7 +92,8 @@ dataroom-intelligence/
 - **Market Detection Agent (Agent 1 of 5)** - ✅ Complete
 - **Competitive Intelligence Agent (Agent 2 of 5)** - ✅ Complete with real analysis
 - **Market Validation Agent (Agent 3 of 5)** - ✅ Complete with TAM/SAM/SOM validation
-- TEST MODE with full mock responses for all agents
+- **Environment-based configuration** - No hardcoded values, professional deployment
+- TEST MODE with full mock responses showing complete analysis details
 - Simplified progress tracking
 - All Slack commands functional
 - Complete documentation (claude.md + TASKS.md)
@@ -140,32 +141,34 @@ OPENAI_API_KEY=sk-...
 # Google Drive (Required for document processing)
 GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
-# Development Settings
-TEST_MODE=true  # ALWAYS true during development
+# Development Settings (DEFAULT for local development)
+TEST_MODE=true  # Automatic TEST MODE for development
+PRODUCTION_MODE=false  # Environment-based configuration
 DEBUG=true
 LOG_LEVEL=INFO
 ```
 
-### Development Cycle
+### Development Cycle (Simplified)
 ```bash
-# 1. Always start in TEST MODE
-export TEST_MODE=true
-
-# 2. Run the application
+# 1. Run the application (TEST MODE automatic via .env)
+source venv/bin/activate
 python app.py
 
-# 3. Test in Slack
+# 2. Test in Slack
 # - Use /analyze with a test Google Drive link
 # - Use /analyze debug to check session
 # - Test /market-research
 
-# 4. Make changes
+# 3. Make changes
 # - Edit files as needed
 # - TEST MODE protects you from API costs
 
-# 5. Test changes
+# 4. Test changes
 # - Restart app.py
 # - Verify nothing breaks in TEST MODE
+
+# 5. Optional: Test with real GPT-4 (COSTS MONEY!)
+export TEST_MODE=false && python app.py
 
 # 6. Commit when stable
 git add .
@@ -329,8 +332,10 @@ export TEST_MODE=true
 
 5. **Deploy to Railway**
    - Automatic deployment from main branch
-   - Set environment variables in Railway dashboard
-   - TEST_MODE=false in production
+   - Set environment variables in Railway dashboard:
+     - PRODUCTION_MODE=true
+     - TEST_MODE=false
+   - No code changes required!
 
 ## 📝 Product Owner Guidelines
 
@@ -377,7 +382,10 @@ As Product Owner, you should:
 
 ### If TEST MODE Breaks
 ```bash
-# Revert to stable commit with UX improvements
+# Revert to stable commit with environment-based workflow
+git checkout 3bb3393
+
+# Or if you need version with UX improvements
 git checkout 161a662
 
 # Or if you need version with TASK-002 complete (before UX improvements)
