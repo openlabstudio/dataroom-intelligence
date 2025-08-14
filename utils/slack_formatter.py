@@ -12,11 +12,24 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
     if 'error' in analysis_result:
         return format_error_response("analysis", analysis_result['error'])
 
-    # Header with overall score
-    overall_score = analysis_result.get('overall_score', 0)
     response = f"🎯 **DATA ROOM ANALYSIS COMPLETE**\n\n"
-    response += f"📊 **Overall Score: {overall_score}/10**\n"
+    
+    # Documents first
     response += f"📄 **Documents Analyzed: {document_summary.get('successful_processing', 0)}**\n\n"
+    
+    # Overall score with individual aspects breakdown
+    overall_score = analysis_result.get('overall_score', 0)
+    scoring = analysis_result.get('scoring', {})
+    
+    # Calculate component scores from existing scoring data
+    if scoring:
+        scores = [data.get('score', 0) for data in scoring.values()]
+        calculated_overall = sum(scores) / len(scores) if scores else overall_score
+    else:
+        calculated_overall = overall_score
+    
+    response += f"📊 **Overall Score: {calculated_overall:.1f}/10**\n"
+    response += f"*For detailed breakdown, see 'Complete Scoring' section below*\n\n"
 
     # Executive Summary
     executive_summary = analysis_result.get('executive_summary', [])
@@ -26,15 +39,18 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
             response += f"• {point}\n"
         response += "\n"
 
-    # Quick Scoring Overview
-    scoring = analysis_result.get('scoring', {})
+    # Complete Scoring Overview (all categories with justifications)
     if scoring:
-        response += "📊 **QUICK SCORING:**\n"
-        for category, data in list(scoring.items())[:3]:  # Show top 3 categories
+        response += "📊 **COMPLETE SCORING:**\n"
+        for category, data in scoring.items():
             category_name = category.replace('_', ' ').title()
             score = data.get('score', 0)
-            response += f"• **{category_name}:** {score}/10\n"
-        response += f"• *...see full breakdown with `/scoring`*\n\n"
+            justification = data.get('justification', 'Information not available')
+            # Replace "not analyzed" with "information not available"
+            justification = justification.replace('not analyzed', 'information not available')
+            justification = justification.replace('Not analyzed', 'Information not available')
+            response += f"• **{category_name}:** {score}/10 - {justification}\n"
+        response += "\n"
 
     # Red Flags
     red_flags = analysis_result.get('red_flags', [])
@@ -46,14 +62,12 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
             response += f"• *...and {len(red_flags) - 3} more*\n"
         response += "\n"
 
-    # Missing Information
+    # Complete Missing Information (same as /gaps command)
     missing_info = analysis_result.get('missing_info', [])
     if missing_info:
-        response += "❓ **CRITICAL GAPS:**\n"
-        for gap in missing_info[:3]:  # Limit to 3 gaps
+        response += "❓ **INFORMATION GAPS ANALYSIS:**\n"
+        for gap in missing_info:  # Show all gaps, not just first 3
             response += f"• {gap}\n"
-        if len(missing_info) > 3:
-            response += f"• *...see full analysis with `/gaps`*\n"
         response += "\n"
 
     # Recommendation
