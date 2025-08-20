@@ -13,6 +13,7 @@ from .base_agent import BaseAgent
 from .market_detection import MarketDetectionAgent, MarketProfile
 from .competitive_intelligence import CompetitiveIntelligenceAgent
 from .market_validation import MarketValidationAgent
+from .funding_benchmarker import FundingBenchmarkerAgent
 from .progress_tracker import ProgressTracker, create_test_progress_tracker
 from utils.logger import get_logger
 
@@ -40,6 +41,8 @@ def get_mock_market_intelligence_result():
     class MockResult:
         market_profile: MockMarketProfile = MockMarketProfile()
         critical_assessment: Dict[str, str] = None
+        funding_benchmarks: Dict[str, Any] = None  # TASK-003: Added funding benchmarks
+        web_intelligence: Dict[str, Any] = None  # TASK-005: Added web search intelligence
         intelligence_summary: str = "Mock analysis completed"
 
         def __post_init__(self):
@@ -48,6 +51,42 @@ def get_mock_market_intelligence_result():
                     "market_reality_check": "The startup's claim of TAM €1.6B seems optimistic but not unreasonable for the water treatment sector. However, the path from €40M SOM to €15M revenue in 5 years requires aggressive market penetration that may face regulatory and adoption challenges.",
                     "competitive_concern": "No mention of major competitors like Veolia, Suez, or emerging cleantech players. The 60% energy reduction claim needs independent validation. Patents pending status creates IP risk if not granted.",
                     "business_model_assessment": "B2B licensing model is sound but requires significant upfront investment in customer education and regulatory compliance. Revenue projections seem aggressive for hardware sales in conservative pharmaceutical industry."
+                }
+            if self.funding_benchmarks is None:
+                self.funding_benchmarks = {
+                    "stage": "Series A",
+                    "amount_raised": "$5M",
+                    "valuation": "$25M",
+                    "industry_benchmarks": {
+                        "typical_raise": "$2M-$15M",
+                        "typical_valuation": "$10M-$50M",
+                        "median_revenue_multiple": "8x",
+                        "median_growth_rate": "150% YoY"
+                    },
+                    "metrics_comparison": {
+                        "valuation_percentile": "35th",
+                        "efficiency_score": "Below Average",
+                        "burn_multiple": "2.5x (High)"
+                    },
+                    "runway_analysis": "10-12 months - fundraising needed"
+                }
+            if self.web_intelligence is None:
+                self.web_intelligence = {
+                    'competitors_found': [
+                        'Veolia Water Technologies (Large incumbent)',
+                        'Suez Water Solutions (Direct competitor)', 
+                        'BioMicrobics (Similar technology)'
+                    ],
+                    'expert_insights': [
+                        'Frost & Sullivan CleanTech 2024: Water treatment market growing 12% CAGR',
+                        'Industry Report: Pharma water compliance becoming stricter in EU',
+                        'Expert opinion: Energy reduction claims require third-party validation'
+                    ],
+                    'sources_count': 6,
+                    'search_terms_used': [
+                        'cleantech water treatment competitors analysis',
+                        'pharmaceutical water treatment expert opinion'
+                    ]
                 }
 
     return MockResult()
@@ -59,6 +98,8 @@ class MarketIntelligenceResult:
         self.market_profile: Optional[MarketProfile] = None
         self.competitive_analysis: Dict[str, Any] = {}
         self.market_validation: Dict[str, Any] = {}
+        self.funding_benchmarks: Dict[str, Any] = {}  # TASK-003: Added funding benchmarks
+        self.web_intelligence: Dict[str, Any] = {}  # TASK-005: Added web search intelligence
         self.critical_assessment: Dict[str, Any] = {}
         self.timestamp = datetime.now().isoformat()
         self.processing_steps: List[str] = []
@@ -69,6 +110,8 @@ class MarketIntelligenceResult:
             'market_profile': self.market_profile.to_dict() if self.market_profile else {},
             'competitive_analysis': self.competitive_analysis,
             'market_validation': self.market_validation,
+            'funding_benchmarks': self.funding_benchmarks,  # TASK-003: Added funding benchmarks
+            'web_intelligence': self.web_intelligence,  # TASK-005: Added web search intelligence
             'critical_assessment': self.critical_assessment,
             'timestamp': self.timestamp,
             'processing_steps': self.processing_steps,
@@ -85,15 +128,17 @@ class MarketResearchOrchestrator(BaseAgent):
         self.competitive_analyzer = CompetitiveIntelligenceAgent()
         # TASK-002: Market Validation Agent  
         self.market_validator = MarketValidationAgent()
+        # TASK-003: Funding Benchmarker Agent
+        self.funding_benchmarker = FundingBenchmarkerAgent()
         # Future agents (Phase 2B.1 continuation)
-        # self.funding_benchmarker = FundingBenchmarker()
         # self.critical_synthesizer = CriticalSynthesizer()
         
         # Progress tracker will be initialized per analysis
         self.progress_tracker = None
 
     def perform_market_intelligence(self, processed_documents: List[Dict[str, Any]],
-                                  document_summary: Dict[str, Any]) -> MarketIntelligenceResult:
+                                  document_summary: Dict[str, Any], 
+                                  analysis_result: Dict[str, Any] = None) -> MarketIntelligenceResult:
         """Orchestrate comprehensive market intelligence analysis with progress tracking"""
         try:
             logger.info("🔍 Starting comprehensive market intelligence analysis...")
@@ -134,11 +179,13 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[1].status = "running"
             self.progress_tracker.phases[1].start_time = datetime.now()
             
-            # Use real competitive intelligence agent
+            # Use real competitive intelligence agent (FASE 2A Enhanced)
             competitive_profile = self.competitive_analyzer.analyze_competitors(
                 market_profile.to_dict(), processed_documents, document_summary
             )
-            result.competitive_analysis = competitive_profile.to_dict()
+            # FASE 2A: Use new structure with independent_analysis
+            competitive_data = competitive_profile.to_dict()
+            result.competitive_analysis = competitive_data.get('independent_analysis', competitive_data)
             
             self.progress_tracker.phases[1].status = "completed"
             self.progress_tracker.phases[1].end_time = datetime.now()
@@ -146,16 +193,18 @@ class MarketResearchOrchestrator(BaseAgent):
             result.processing_steps.append("Phase 2: Competitive Intelligence Analysis")
             logger.info("✅ Phase 2 Complete: Competitive Intelligence")
 
-            # ==== PHASE 3: Market Validation (TASK-002) ====
+            # ==== PHASE 3: Market Validation (FASE 2B Enhanced) ====
             logger.info("📈 PHASE 3/5: TAM/SAM Market Validation")
             self.progress_tracker.phases[2].status = "running"
             self.progress_tracker.phases[2].start_time = datetime.now()
             
-            # Use real market validation agent
+            # Use real market validation agent (FASE 2B Enhanced)
             validation_profile = self.market_validator.validate_market_opportunity(
                 market_profile.to_dict(), processed_documents, document_summary
             )
-            result.market_validation = validation_profile.to_dict()
+            # FASE 2B: Use new structure with independent_analysis
+            validation_data = validation_profile.to_dict()
+            result.market_validation = validation_data.get('independent_analysis', validation_data)
             
             self.progress_tracker.phases[2].status = "completed"
             self.progress_tracker.phases[2].end_time = datetime.now()
@@ -163,19 +212,52 @@ class MarketResearchOrchestrator(BaseAgent):
             result.processing_steps.append("Phase 3: Market Validation Analysis")
             logger.info("✅ Phase 3 Complete: Market Validation")
 
-            # ==== PHASE 4: Funding Benchmarking (Placeholder) ====
-            logger.info("💰 PHASE 4/5: Funding & Metrics Benchmarking (Simulated)")
+            # ==== PHASE 4: Funding Benchmarking (FASE 2C Enhanced) ====
+            logger.info("💰 PHASE 4/5: Funding & Metrics Benchmarking")
             self.progress_tracker.phases[3].status = "running"
             self.progress_tracker.phases[3].start_time = datetime.now()
             
-            time.sleep(0.5)
+            # FASE 2C: Enhanced funding benchmarking with web search
+            funding_profile = self.funding_benchmarker.benchmark_funding(
+                market_profile,
+                processed_documents,
+                result.competitive_analysis,
+                analysis_result  # Pass analysis result from /analyze
+            )
+            # FASE 2C: Use new structure with independent_analysis
+            funding_data = funding_profile.to_dict()
+            result.funding_benchmarks = funding_data.get('independent_analysis', funding_data)
             
-            # Placeholder for future funding analysis
             self.progress_tracker.phases[3].status = "completed"
             self.progress_tracker.phases[3].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 4
-            result.processing_steps.append("Phase 4: Funding Benchmarking (Simulated)")
-            logger.info("✅ Phase 4 Complete (Simulated)")
+            result.processing_steps.append("Phase 4: Funding Benchmarking")
+            logger.info("✅ Phase 4 Complete: Funding Benchmarking")
+
+            # ==== PHASE 4.5: Web Search Intelligence (TASK-005) ====
+            logger.info("🔍 PHASE 4.5/5: Web Search Intelligence")
+            try:
+                # Import web search functionality
+                from utils.web_search import perform_web_search
+                
+                # Perform web search based on extracted value proposition
+                web_intelligence = perform_web_search(
+                    processed_documents,
+                    document_summary,
+                    market_profile
+                )
+                result.web_intelligence = web_intelligence
+                result.processing_steps.append("Phase 4.5: Web Search Intelligence")
+                logger.info(f"✅ Web Search Complete: Found {web_intelligence.get('sources_count', 0)} sources")
+            except Exception as e:
+                logger.warning(f"⚠️ Web search failed (non-critical): {e}")
+                result.web_intelligence = {
+                    'competitors_found': [],
+                    'expert_insights': [],
+                    'sources_count': 0,
+                    'search_terms_used': [],
+                    'error': str(e)
+                }
 
             # ==== PHASE 5: Critical Synthesis (Current Implementation) ====
             logger.info("🧠 PHASE 5/5: Critical Assessment & Synthesis")

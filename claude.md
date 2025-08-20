@@ -217,6 +217,31 @@ except Exception as e:
     return format_error_response("operation", str(e))
 ```
 
+## 🎯 **CRITICAL: /analyze vs /market-research Purpose**
+
+### `/analyze` - Document Analysis
+- **Purpose:** Analyze what the startup says in their dataroom documents
+- **Input:** Documents from dataroom
+- **Output:** Summary of startup claims, consistency check, financial analysis
+- **Perspective:** What does the startup claim?
+
+### `/market-research` - Independent Market Intelligence  
+- **Purpose:** Critical analysis by senior market analyst (independent from startup claims)
+- **Input:** Only vertical/subvertical + geographical area (from market detection)
+- **Output:** External market benchmarks, competitive landscape, independent assessment
+- **Perspective:** What does the market reality look like?
+
+### **Key Principle:** 
+- `/analyze` = "What does the startup say?"
+- `/market-research` = "What does an independent market analyst say about this sector?"
+
+**FUNDING BENCHMARKS in /market-research should:**
+- ✅ Use only vertical + geo from market detection  
+- ✅ Show typical market funding patterns for that sector/geo
+- ✅ Give independent market assessment
+- ❌ NOT use startup's claimed funding amounts
+- ❌ NOT extract from dataroom documents
+
 ## 🚀 Adding New Agents (Phase 2B.1)
 
 ### Template for New Agent

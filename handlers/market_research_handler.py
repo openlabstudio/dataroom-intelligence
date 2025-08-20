@@ -142,35 +142,34 @@ class MarketResearchHandler:
         """Get a test mode response for market research"""
         response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED (TEST MODE)**\n\n"
         
-        response += "🎯 **MARKET PROFILE** (🟢 0.9 confidence)\n"
-        response += "• **Vertical:** FinTech/Payments\n"
-        response += "• **Target:** SMB merchants in LATAM\n"
-        response += "• **Geo:** Mexico, Brazil, Colombia\n"
-        response += "• **Model:** SaaS + Transaction fees\n\n"
+        # COMPACT TEST MODE FORMAT
+        response += "🎯 **PROFILE** (9.0/10)\n"
+        response += "• **FinTech/Payments** | LATAM\n"
+        response += "• **Target:** SMB merchants\n\n"
         
-        # TASK-001: Add Competitive Analysis section
-        response += "🏢 **COMPETITIVE LANDSCAPE** (🟡 MEDIUM threat)\n"
-        response += "• **Direct competitors:** Stripe, MercadoPago, dLocal\n"
-        response += "• **Competitive moat:** Regional expertise and vertical focus\n"
-        response += "• **Threat assessment:** Established players have resources, but vertical specialization provides opportunity\n\n"
+        # FASE 2A: Enhanced Competitive Landscape (TEST MODE)
+        response += "🏢 **COMPETITIVE LANDSCAPE** (High risk - 6 sources)\n"
+        response += "• **Market leaders:** Stripe ($95B valuation), MercadoPago\n"
+        response += "• **Similar play:** FactorX - Failed to raise B\n"
+        response += "• **Key risk:** 3 of 5 similar AI factoring startups failed in 18 months\n\n"
         
-        # TASK-002: Add Market Validation section
-        response += "📈 **MARKET VALIDATION** (📊 7.5/10 score)\n"
-        response += "• **TAM Assessment:** $1.6B claimed - reasonable but optimistic\n"
-        response += "• **Market Timing:** Good - regulatory tailwinds supporting adoption\n"
-        response += "• **Key Risk:** Revenue projections assume rapid adoption curve\n\n"
+        # FASE 2B: Enhanced Market Validation (TEST MODE)
+        response += "📈 **MARKET VALIDATION** (medium confidence - 3 sources)\n"
+        response += "• **Expert:** McKinsey 2024: 48h approval technically feasible but requires regulatory pre-approval\n"
+        response += "• **Precedent:** QuickFactor - Failed - regulatory issues\n"
+        response += "• **Assessment:** Feasible but regulatory-dependent\n\n"
         
-        response += "🔍 **CRITICAL ASSESSMENT:**\n\n"
-        response += "⚠️ **Point 1:** Strong market opportunity with 70% of SMBs lacking digital payment solutions. "
-        response += "However, regulatory complexity varies significantly across target countries.\n\n"
+        # FASE 2C: Enhanced Funding Benchmarks (TEST MODE)
+        response += "💰 **FUNDING BENCHMARKS** (medium confidence - 8 sources)\n"
+        response += "• **Market:** TechCrunch 2024: FinTech Series A rounds averaging $8M, down 30% from 2022\n"
+        response += "• **Recent:** PayFlow - Raised $12M Series A at $60M valuation\n"
+        response += "• **Climate:** Cautious - 25% down from peak\n\n"
         
-        response += "💡 **Point 2:** Competition from established players like MercadoPago poses challenges, "
-        response += "but focus on specific verticals could provide differentiation.\n\n"
         
-        response += "📋 **AVAILABLE COMMANDS:**\n"
-        response += "• `/ask [question]` - Ask specific questions\n"
-        response += "• `/scoring` - Get detailed scoring\n"
-        response += "• `/memo` - Generate investment memo\n\n"
+        response += "🧠 **KEY INSIGHT:**\n"
+        response += "⚠️ Strong market opportunity but regulatory complexity varies significantly across target countries.\n\n"
+        
+        response += "📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`\n\n"
         
         response += "📎 *TEST MODE - No GPT-4 calls made*"
         
@@ -242,10 +241,13 @@ class MarketResearchHandler:
                      "⏳ Status: Finalizing analysis..."
             )
             
+            # Get analysis result from /analyze for funding benchmarking
+            analysis_result = session_data.get('analysis_result', {})
+            
             # Perform actual market intelligence analysis
             logger.info("📊 Calling orchestrator for market intelligence...")
             market_intelligence_result = self.orchestrator.perform_market_intelligence(
-                processed_documents, document_summary
+                processed_documents, document_summary, analysis_result
             )
             logger.info("✅ Market intelligence analysis complete")
             
@@ -293,6 +295,31 @@ class MarketResearchHandler:
         """
         response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED**\n\n"
         
+        # Check if we have any valid data
+        has_data = (
+            (hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile) or
+            (hasattr(market_intelligence_result, 'competitive_analysis') and market_intelligence_result.competitive_analysis) or
+            (hasattr(market_intelligence_result, 'market_validation') and market_intelligence_result.market_validation) or
+            (hasattr(market_intelligence_result, 'funding_benchmarks') and market_intelligence_result.funding_benchmarks) or
+            (hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment)
+        )
+        
+        if not has_data:
+            response += "⚠️ **ANALYSIS INCOMPLETE**\n\n"
+            response += "The market research analysis encountered issues and could not generate complete results. This may happen when:\n"
+            response += "• OpenAI API calls fail or timeout\n"
+            response += "• Documents don't contain sufficient market information\n"
+            response += "• Network connectivity issues\n\n"
+            response += "**Recommendations:**\n"
+            response += "• Try running the analysis again\n"
+            response += "• Ensure documents contain market, competition, and business model information\n"
+            response += "• Check system logs for specific error details\n\n"
+            response += "📋 **AVAILABLE COMMANDS:**\n"
+            response += "• `/analyze [google-drive-link]` - Re-analyze documents\n"
+            response += "• `/ask [question]` - Ask specific questions\n"
+            response += "• `/reset` - Clear session and start over"
+            return response
+        
         # Market Profile - Compact format
         if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
             profile = market_intelligence_result.market_profile            
@@ -319,157 +346,198 @@ class MarketResearchHandler:
             # Calculate arithmetic mean of individual scores
             overall_score = (clarity_score + consistency_score + specificity_score + data_quality_score) / 4
             
-            response += f"🎯 **PROFILE**\n"
-            response += f"• **Clarity:** {clarity_score}/10 - Market vertical clearly identified from documents\n"
-            response += f"• **Consistency:** {consistency_score}/10 - Business model aligns across different documents\n"
-            response += f"• **Specificity:** {specificity_score}/10 - Target market and geo focus well defined\n" 
-            response += f"• **Data Quality:** {data_quality_score}/10 - Sufficient information available for analysis\n"
-            response += f"• **Overall:** {overall_score:.1f}/10\n\n"
-            response += f"• **Vertical:** {vertical_display}\n"
-            response += f"• **Target:** {target_market}\n"
-            response += f"• **Geo:** {geographic_focus}\n"
-            response += f"• **Model:** {business_model}\n\n"
+            # COMPACT FORMAT: Reduced Market Profile
+            response += f"🎯 **PROFILE** ({overall_score:.1f}/10)\n"
+            response += f"• **{vertical_display}** | {geographic_focus}\n"
+            response += f"• **Target:** {target_market}\n\n"
         
-        # TASK-001: Competitive Analysis section
+        # FASE 2A: Enhanced Competitive Landscape section
         if hasattr(market_intelligence_result, 'competitive_analysis') and market_intelligence_result.competitive_analysis:
             comp_analysis = market_intelligence_result.competitive_analysis
             if isinstance(comp_analysis, dict):
-                # Fix attribute names to match CompetitiveProfile structure
-                direct_competitors = comp_analysis.get('direct_competitors', [])
-                market_position = comp_analysis.get('market_position', 'Unknown')
-                competitive_moat = comp_analysis.get('competitive_moat', 'Not analyzed')
-                competitive_risks = comp_analysis.get('competitive_risks', [])
+                # Get threat level and sources count
+                threat_level = comp_analysis.get('threat_level', 'Unknown')
+                sources_count = comp_analysis.get('sources_count', 0)
+                market_position = comp_analysis.get('market_position', 'Unknown market position')
                 
-                response += f"🏢 **COMPETITIVE LANDSCAPE** (🟡 {market_position} position)\n"
-                if direct_competitors:
-                    # Handle case where competitors might be dicts instead of strings
-                    comp_names = []
-                    for comp in direct_competitors[:4]:  # Show first 4
-                        if isinstance(comp, dict):
-                            # Extract name from dict (try common keys)
-                            name = comp.get('name') or comp.get('company') or comp.get('competitor') or str(comp)
-                            comp_names.append(str(name))
+                # Format threat level for display
+                threat_display = threat_level.capitalize() if threat_level else "Unknown"
+                if sources_count > 0:
+                    header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} risk - {sources_count} sources)\n"
+                else:
+                    header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} risk)\n"
+                response += header
+                
+                # Show market leaders
+                market_leaders = comp_analysis.get('market_leaders', [])
+                if market_leaders:
+                    # Format top 2 market leaders compactly
+                    leaders = []
+                    for leader in market_leaders[:2]:
+                        if isinstance(leader, dict):
+                            name = leader.get('name', 'Unknown')
+                            funding = leader.get('funding', '')
+                            if funding and 'valuation' in funding.lower():
+                                leaders.append(f"{name} ({funding})")
+                            else:
+                                leaders.append(name)
                         else:
-                            comp_names.append(str(comp))
-                    comp_list = ', '.join(comp_names)
-                    response += f"• **Direct competitors:** {comp_list}\n"
+                            leaders.append(str(leader))
+                    if leaders:
+                        response += f"• **Market leaders:** {', '.join(leaders)}\n"
                 
-                # Show indirect competitors if available
-                indirect_competitors = comp_analysis.get('indirect_competitors', [])
-                if indirect_competitors:
-                    # Handle case where competitors might be dicts instead of strings
-                    indirect_names = []
-                    for comp in indirect_competitors[:3]:  # Show first 3
-                        if isinstance(comp, dict):
-                            # Extract name from dict (try common keys)
-                            name = comp.get('name') or comp.get('company') or comp.get('competitor') or str(comp)
-                            indirect_names.append(str(name))
-                        else:
-                            indirect_names.append(str(comp))
-                    indirect_list = ', '.join(indirect_names)
-                    response += f"• **Indirect competitors:** {indirect_list}\n"
+                # Show similar propositions with outcomes
+                similar_props = comp_analysis.get('similar_propositions', [])
+                if similar_props:
+                    # Show first similar proposition with outcome
+                    prop = similar_props[0]
+                    if isinstance(prop, dict):
+                        name = prop.get('name', 'Unknown')
+                        outcome = prop.get('outcome', '')
+                        desc = prop.get('description', '')
+                        if outcome:
+                            response += f"• **Similar play:** {name} - {outcome}\n"
+                        elif desc:
+                            response += f"• **Similar play:** {name} - {desc[:50]}\n"
                 
-                response += f"• **Competitive moat:** {competitive_moat}\n"
+                # Show key risk
+                risks = comp_analysis.get('competitive_risks', [])
+                if risks:
+                    # Take first risk, limit length
+                    risk = str(risks[0])[:100] if risks[0] else "Not identified"
+                    response += f"• **Key risk:** {risk}\n"
                 
-                # Show competitive advantages
-                competitive_advantages = comp_analysis.get('competitive_advantages', [])
-                if competitive_advantages:
-                    advantage = competitive_advantages[0] if competitive_advantages else "Not identified"
-                    response += f"• **Key advantage:** {str(advantage)}\n"
-                
-                if competitive_risks:
-                    risk = competitive_risks[0] if competitive_risks else "Not identified"
-                    response += f"• **Key competitive risk:** {str(risk)}\n"
                 response += "\n"
         
-        # TASK-002: Market Validation section  
+        # FASE 2B: Enhanced Market Validation section with integrated web search
         if hasattr(market_intelligence_result, 'market_validation') and market_intelligence_result.market_validation:
             validation = market_intelligence_result.market_validation
             if isinstance(validation, dict):
-                score = validation.get('validation_score', 0)
-                response += f"📈 **MARKET VALIDATION** (📊 {score}/10 score)\n"
-                tam_assessment = validation.get('tam_assessment', {})
-                if isinstance(tam_assessment, dict):
-                    claimed_tam = tam_assessment.get('claimed_tam', 'Unknown')
-                    assessment = tam_assessment.get('assessment', 'Not analyzed')
-                    response += f"• **TAM Assessment:** {claimed_tam} - {assessment}\n"
-                timing = validation.get('market_timing', 'Not analyzed')
-                response += f"• **Market Timing:** {timing}\n"
-                # Show opportunities if available
-                opportunities = validation.get('opportunities', [])
-                if opportunities:
-                    opportunity = opportunities[0] if opportunities else "Not identified"
-                    response += f"• **Key Opportunity:** {str(opportunity)}\n"
+                # Get independent analysis data (new structure)
+                independent = validation.get('independent_analysis', validation)
                 
-                red_flags = validation.get('red_flags', [])
-                if red_flags:
-                    risk = red_flags[0] if red_flags else "Not identified" 
-                    response += f"• **Key Risk:** {str(risk)}\n"
+                # Get confidence level and score
+                confidence_level = independent.get('confidence_level', 'Unknown')
+                score = independent.get('validation_score', validation.get('validation_score', 0))
+                sources_count = len(independent.get('sources', []))
                 
-                # Show reality check
-                reality_check = validation.get('reality_check', '')
-                if reality_check:
-                    response += f"• **Reality Check:** {reality_check}\n"
+                # Format header based on confidence
+                if sources_count > 0:
+                    header = f"📈 **MARKET VALIDATION** ({confidence_level} confidence - {sources_count} sources)\n"
+                else:
+                    header = f"📈 **MARKET VALIDATION** ({confidence_level} confidence)\n"
+                response += header
+                
+                # Show expert consensus (most important)
+                expert_consensus = independent.get('expert_consensus', [])
+                if expert_consensus and len(expert_consensus) > 0:
+                    # Take first expert opinion, limit length
+                    expert = str(expert_consensus[0])[:100] if expert_consensus[0] else ""
+                    if expert:
+                        response += f"• **Expert:** {expert}\n"
+                
+                # Show precedent analysis (similar companies outcomes)
+                precedents = independent.get('precedent_analysis', [])
+                if precedents and len(precedents) > 0:
+                    precedent = precedents[0]
+                    if isinstance(precedent, dict):
+                        company = precedent.get('company', 'Unknown')
+                        outcome = precedent.get('outcome', '')
+                        if outcome:
+                            response += f"• **Precedent:** {company} - {outcome}\n"
+                
+                # Show feasibility assessment or key risk
+                feasibility = independent.get('feasibility_assessment', '')
+                if feasibility and len(feasibility) > 20:
+                    response += f"• **Assessment:** {feasibility[:80]}\n"
+                else:
+                    # Fallback to risks if no feasibility
+                    risks = independent.get('market_risks', validation.get('red_flags', []))
+                    if risks:
+                        risk = str(risks[0])[:80] if risks else "Not identified"
+                        response += f"• **Risk:** {risk}\n"
                 
                 response += "\n"
         
-        # Critical Assessment
+        # FASE 2C: Enhanced Funding Benchmarks section with integrated web search
+        if hasattr(market_intelligence_result, 'funding_benchmarks') and market_intelligence_result.funding_benchmarks:
+            benchmarks = market_intelligence_result.funding_benchmarks
+            if isinstance(benchmarks, dict):
+                # Get independent analysis data (new structure)
+                independent = benchmarks.get('independent_analysis', benchmarks)
+                
+                # Get confidence level and sources
+                confidence_level = independent.get('confidence_level', 'Unknown')
+                sources_count = len(independent.get('sources', []))
+                funding_climate = independent.get('funding_climate', '')
+                
+                # Format header based on confidence
+                if sources_count > 0:
+                    header = f"💰 **FUNDING BENCHMARKS** ({confidence_level} confidence - {sources_count} sources)\n"
+                else:
+                    header = f"💰 **FUNDING BENCHMARKS** ({confidence_level} confidence)\n"
+                response += header
+                
+                # Show market funding pattern (most important)
+                patterns = independent.get('market_funding_patterns', [])
+                if patterns and len(patterns) > 0:
+                    # Take first pattern, limit length
+                    pattern = str(patterns[0])[:100] if patterns[0] else ""
+                    if pattern:
+                        response += f"• **Market:** {pattern}\n"
+                
+                # Show similar deal
+                similar_deals = independent.get('similar_deals', [])
+                if similar_deals and len(similar_deals) > 0:
+                    deal = similar_deals[0]
+                    if isinstance(deal, dict):
+                        company = deal.get('company', 'Unknown')
+                        details = deal.get('details', '')[:50]  # Limit details length
+                        if details:
+                            response += f"• **Recent:** {company} - {details}\n"
+                
+                # Show climate
+                if funding_climate:
+                    response += f"• **Climate:** {funding_climate}\n"
+                
+                response += "\n"
+        
+        
+        # COMPACT FORMAT: Reduced Critical Assessment - Only 1 key point
         if hasattr(market_intelligence_result, 'critical_assessment') and market_intelligence_result.critical_assessment:
             assessment = market_intelligence_result.critical_assessment
             
-            # Handle different data types
+            response += "🧠 **KEY INSIGHT:**\n"
+            
+            # Extract only the most important point
             if isinstance(assessment, dict):
-                # Extract meaningful content from dictionary
-                meaningful_points = []
+                # Find the first meaningful point
                 for key, value in assessment.items():
                     if isinstance(value, str) and len(value) > 50:
                         clean_text = value.replace('"', '').replace("'", "").strip()
-                        # Show more complete text - only truncate if extremely long
-                        if len(clean_text) > 800:
-                            # Try to cut at end of sentence
-                            cut_point = clean_text.find('.', 700)
-                            if cut_point > 700:
+                        # Truncate to max 300 characters for compact format
+                        if len(clean_text) > 300:
+                            cut_point = clean_text.find('.', 250)
+                            if cut_point > 200:
                                 clean_text = clean_text[:cut_point + 1]
                             else:
-                                clean_text = clean_text[:800] + "..."
-                        meaningful_points.append(clean_text)
-                        if len(meaningful_points) >= 2:
-                            break
-                
-                if meaningful_points:
-                    response += "🔍 **CRITICAL ASSESSMENT:**\n\n"
-                    for i, point in enumerate(meaningful_points):
-                        emoji = "⚠️" if i == 0 else "💡"
-                        response += f"{emoji} **Point {i+1}:** {point}\n\n"
+                                clean_text = clean_text[:300] + "..."
+                        response += f"⚠️ {clean_text}\n\n"
+                        break
             else:
-                # Handle string format
+                # Handle string format - take first meaningful sentence
                 assessment_text = str(assessment)
-                # Try to split into meaningful sentences
                 sentences = assessment_text.replace('.', '.|').split('|')
-                good_sentences = []
-                
-                current_length = 0
                 for sentence in sentences:
                     sentence = sentence.strip()
-                    if sentence and len(sentence) > 30 and current_length + len(sentence) < 1200:  # Increased limit
-                        good_sentences.append(sentence)
-                        current_length += len(sentence)
-                        if len(good_sentences) >= 4:  # Max 4 sentences instead of 3
-                            break
-                
-                if good_sentences:
-                    response += "🔍 **CRITICAL ASSESSMENT:**\n\n"
-                    combined_text = '. '.join(good_sentences)
-                    if not combined_text.endswith('.'):
-                        combined_text += '.'
-                    response += f"⚠️ {combined_text}\n\n"
+                    if sentence and len(sentence) > 30:
+                        # Limit to 300 characters
+                        if len(sentence) > 300:
+                            sentence = sentence[:300] + "..."
+                        response += f"⚠️ {sentence}\n\n"
+                        break
         
-        # Available commands
-        response += "📋 **AVAILABLE COMMANDS:**\n"
-        response += "• `/ask [question]` - Ask specific questions\n"
-        response += "• `/scoring` - Get detailed scoring\n"
-        response += "• `/memo` - Generate investment memo\n"
-        response += "• `/gaps` - Analyze information gaps\n"
-        response += "• `/reset` - Clear session and start over"
+        # COMPACT: Available commands
+        response += "📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`"
         
         return response

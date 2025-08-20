@@ -17,34 +17,54 @@ class CompetitiveProfile:
     """Data structure for competitive analysis results"""
 
     def __init__(self):
-        self.direct_competitors: List[Dict[str, str]] = []
-        self.indirect_competitors: List[Dict[str, str]] = []
-        self.competitive_advantages: List[str] = []
-        self.competitive_risks: List[str] = []
-        self.market_position: str = ""
-        self.differentiation_factors: List[str] = []
-        self.competitive_moat: str = ""
+        # FASE 2A: Enhanced structure for independent analysis + startup claims
+        # Independent market analysis
+        self.market_leaders: List[Dict[str, Any]] = []  # Major players with funding info
+        self.similar_propositions: List[Dict[str, Any]] = []  # Similar startups with outcomes
+        self.competitive_risks: List[str] = []  # Key risks from market analysis
+        self.market_opportunities: List[str] = []  # Opportunities identified
+        self.failure_patterns: List[str] = []  # Common failure patterns in similar startups
+        
+        # Startup claims (for PDF comparison later)
+        self.startup_claimed_competitors: List[str] = []  # What startup claims
+        self.startup_claimed_advantages: List[str] = []  # Their claimed differentiators
+        
+        # Analysis metadata
+        self.market_position: str = ""  # Assessment of competitive landscape
         self.threat_level: str = ""  # low, medium, high
+        self.sources: List[Dict[str, str]] = []  # Web search sources
         self.confidence_score: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'direct_competitors': self.direct_competitors,
-            'indirect_competitors': self.indirect_competitors,
-            'competitive_advantages': self.competitive_advantages,
-            'competitive_risks': self.competitive_risks,
-            'market_position': self.market_position,
-            'differentiation_factors': self.differentiation_factors,
-            'competitive_moat': self.competitive_moat,
-            'threat_level': self.threat_level,
-            'confidence_score': self.confidence_score
+            # Independent analysis for Slack
+            'independent_analysis': {
+                'market_leaders': self.market_leaders,
+                'similar_propositions': self.similar_propositions,
+                'competitive_risks': self.competitive_risks,
+                'market_opportunities': self.market_opportunities,
+                'failure_patterns': self.failure_patterns,
+                'market_position': self.market_position,
+                'threat_level': self.threat_level,
+                'sources_count': len(self.sources),
+                'confidence_score': self.confidence_score
+            },
+            # Startup claims for PDF comparison
+            'startup_claims_extracted': {
+                'claimed_competitors': self.startup_claimed_competitors,
+                'claimed_advantages': self.startup_claimed_advantages
+            },
+            # Full sources for PDF
+            'sources': self.sources
         }
 
 class CompetitiveIntelligenceAgent(BaseAgent):
-    """Specialized agent for competitive landscape analysis"""
+    """Specialized agent for competitive landscape analysis with integrated web search"""
 
     def __init__(self):
         super().__init__("Competitive Intelligence")
+        # FASE 2A: Initialize web search engine
+        self.web_search_engine = None  # Will be initialized on first use
         self.competitor_databases = {
             'fintech': ['Stripe', 'Square', 'PayPal', 'Adyen', 'Klarna', 'Revolut'],
             'healthtech': ['Teladoc', 'Babylon Health', 'Oscar Health', 'Ro', 'Hims'],
@@ -52,42 +72,56 @@ class CompetitiveIntelligenceAgent(BaseAgent):
             'cleantech': ['Tesla', 'Sunrun', 'ChargePoint', 'Veolia', 'Suez'],
             'edtech': ['Coursera', 'Udemy', 'Duolingo', 'Chegg', 'Khan Academy']
         }
+    
+    def _init_web_search(self):
+        """Lazy initialize web search engine"""
+        if self.web_search_engine is None:
+            try:
+                from utils.web_search import WebSearchEngine
+                self.web_search_engine = WebSearchEngine(provider='duckduckgo')
+            except ImportError as e:
+                logger.warning(f"Web search not available: {e}")
+                self.web_search_engine = None
 
     def analyze_competitors(self, market_profile: Dict[str, Any],
                           processed_documents: List[Dict[str, Any]],
                           document_summary: Dict[str, Any]) -> CompetitiveProfile:
-        """Main method to analyze competitive landscape"""
+        """Main method to analyze competitive landscape with integrated web search"""
         try:
-            logger.info("🏢 Starting competitive intelligence analysis...")
+            logger.info("🏢 Starting competitive intelligence analysis with web search...")
 
             # Check TEST MODE first
             if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                logger.info("🧪 TEST MODE: Returning mock competitive data")
-                return self._get_mock_competitive_data(market_profile)
+                logger.info("🧪 TEST MODE: Returning enhanced mock competitive data")
+                return self._get_mock_competitive_data_enhanced(market_profile)
 
-            # Real implementation
-            logger.info("🔍 Analyzing competitive landscape from documents...")
+            # FASE 2A: Extract value proposition for targeted web search
+            value_proposition = self._extract_value_proposition(processed_documents, document_summary)
+            logger.info(f"🎯 Value proposition: {value_proposition}")
 
-            # Prepare document context
-            document_context = self._prepare_document_context(processed_documents, max_content_length=12000)
-
-            # Create competitive analysis prompts
-            system_prompt = self._get_competitive_system_prompt()
-            user_prompt = self._get_competitive_user_prompt(market_profile, document_context, document_summary)
-
-            # Call OpenAI for competitive analysis
-            response = self._call_openai(system_prompt, user_prompt, max_tokens=1200, temperature=0.3)
-
-            logger.debug(f"Competitive analysis response: {response[:200]}...")
-
-            # Parse response into CompetitiveProfile
-            competitive_profile = self._parse_competitive_response(response)
+            # Step 1: Extract startup claims from documents
+            startup_claims = self._extract_startup_claims(processed_documents, document_summary)
+            
+            # Step 2: Perform independent web search for competitive intelligence
+            web_intelligence = self._perform_competitive_web_search(value_proposition, market_profile)
+            
+            # Step 3: Analyze with GPT-4 if available (combining both perspectives)
+            gpt4_analysis = None
+            if self._has_openai_key():
+                gpt4_analysis = self._perform_gpt4_competitive_analysis(
+                    market_profile, processed_documents, document_summary
+                )
+            
+            # Step 4: Integrate all sources into comprehensive profile
+            competitive_profile = self._integrate_competitive_intelligence(
+                startup_claims, web_intelligence, gpt4_analysis
+            )
 
             # Log key findings
-            logger.info(f"✅ Found {len(competitive_profile.direct_competitors)} direct competitors")
-            logger.info(f"⚠️ Threat level: {competitive_profile.threat_level}")
-            logger.info(f"🛡️ Competitive moat: {competitive_profile.competitive_moat}")
-            logger.info(f"📊 Confidence: {competitive_profile.confidence_score:.2f}")
+            logger.info(f"✅ Found {len(competitive_profile.market_leaders)} market leaders")
+            logger.info(f"⚠️ Found {len(competitive_profile.similar_propositions)} similar propositions")
+            logger.info(f"📊 Threat level: {competitive_profile.threat_level}")
+            logger.info(f"🔍 Sources analyzed: {len(competitive_profile.sources)}")
 
             return competitive_profile
 
@@ -308,3 +342,325 @@ Provide your analysis in the JSON format specified.
             'results': competitive_profile.to_dict(),
             'status': 'completed' if competitive_profile.confidence_score > 0.5 else 'low_confidence'
         }
+    
+    # ========== FASE 2A: NEW METHODS FOR WEB SEARCH INTEGRATION ==========
+    
+    def _extract_value_proposition(self, documents: List[Dict], document_summary: Dict) -> str:
+        """Extract value proposition for targeted web search"""
+        try:
+            # Initialize web search if needed
+            self._init_web_search()
+            
+            if self.web_search_engine:
+                from utils.web_search import ValuePropositionExtractor
+                extractor = ValuePropositionExtractor()
+                extraction = extractor.extract_simple(documents, document_summary)
+                return extraction.get('value_proposition', 'innovative business solution')
+            else:
+                # Fallback to basic extraction
+                return self._basic_value_prop_extraction(document_summary)
+        except Exception as e:
+            logger.warning(f"Value proposition extraction failed: {e}")
+            return "innovative business solution"
+    
+    def _basic_value_prop_extraction(self, document_summary: Dict) -> str:
+        """Basic fallback extraction without web_search module"""
+        summary_text = str(document_summary.get('summary', '')).lower()
+        
+        # Look for key industry terms
+        if 'fintech' in summary_text or 'payment' in summary_text:
+            return "fintech payment solution"
+        elif 'health' in summary_text or 'medical' in summary_text:
+            return "healthcare technology solution"
+        elif 'clean' in summary_text or 'sustain' in summary_text:
+            return "cleantech sustainability solution"
+        else:
+            return "technology business solution"
+    
+    def _extract_startup_claims(self, documents: List[Dict], document_summary: Dict) -> Dict[str, Any]:
+        """Extract what the startup claims about competitors and advantages"""
+        claimed_competitors = []
+        claimed_advantages = []
+        
+        # Simple extraction from document summary
+        summary_text = str(document_summary.get('summary', ''))
+        
+        # Look for competitor mentions (basic pattern matching)
+        import re
+        competitor_patterns = [
+            r'compete(?:s)? with ([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
+            r'competitors? (?:include|are) ([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
+            r'unlike ([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
+        ]
+        
+        for pattern in competitor_patterns:
+            matches = re.findall(pattern, summary_text)
+            claimed_competitors.extend(matches[:3])  # Limit to 3
+        
+        # Look for advantage claims
+        advantage_keywords = ['unique', 'first', 'only', 'proprietary', 'patented', 'innovative']
+        for keyword in advantage_keywords:
+            if keyword in summary_text.lower():
+                claimed_advantages.append(f"{keyword} solution")
+        
+        return {
+            'claimed_competitors': list(set(claimed_competitors))[:5],
+            'claimed_advantages': claimed_advantages[:5]
+        }
+    
+    def _perform_competitive_web_search(self, value_proposition: str, 
+                                       market_profile: Dict) -> Dict[str, Any]:
+        """Perform web search for competitive intelligence"""
+        try:
+            # Initialize web search if needed
+            self._init_web_search()
+            
+            if not self.web_search_engine:
+                logger.warning("Web search engine not available")
+                return {'sources': [], 'competitors': [], 'insights': []}
+            
+            # Build targeted search queries
+            vertical = market_profile.get('vertical', 'technology')
+            geo = market_profile.get('geo_focus', 'global')
+            
+            queries = [
+                f"{value_proposition} competitors funding analysis",
+                f"{value_proposition} failed startups case studies",
+                f"similar companies {value_proposition} investor sentiment",
+                f"{vertical} {geo} competitive landscape 2024"
+            ]
+            
+            # Execute searches
+            web_results = self.web_search_engine.search_multiple(queries[:3], max_results_per_query=3)
+            
+            # Process results for competitive intelligence
+            return self._process_web_results_for_competition(web_results)
+            
+        except Exception as e:
+            logger.error(f"Web search failed: {e}")
+            return {'sources': [], 'competitors': [], 'insights': []}
+    
+    def _process_web_results_for_competition(self, web_results: Dict) -> Dict[str, Any]:
+        """Process web search results into competitive intelligence"""
+        competitive_intel = {
+            'competitors': [],
+            'failed_startups': [],
+            'market_insights': [],
+            'sources': []
+        }
+        
+        # Extract competitors from search results
+        for competitor in web_results.get('competitors_found', []):
+            if isinstance(competitor, str):
+                # Parse competitor info (e.g., "FactorX (AI invoice factoring)")
+                parts = competitor.split('(')
+                name = parts[0].strip() if parts else competitor
+                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                competitive_intel['competitors'].append({
+                    'name': name,
+                    'description': desc,
+                    'source': 'web search'
+                })
+        
+        # Extract insights
+        for insight in web_results.get('expert_insights', []):
+            if isinstance(insight, str) and len(insight) > 20:
+                competitive_intel['market_insights'].append(insight[:200])
+        
+        # Track sources
+        competitive_intel['sources'] = [{
+            'type': 'web_search',
+            'count': web_results.get('sources_count', 0),
+            'queries': web_results.get('search_terms_used', [])
+        }]
+        
+        return competitive_intel
+    
+    def _perform_gpt4_competitive_analysis(self, market_profile: Dict,
+                                          documents: List[Dict],
+                                          document_summary: Dict) -> Dict[str, Any]:
+        """Perform GPT-4 analysis of competitive landscape"""
+        try:
+            # Prepare document context
+            document_context = self._prepare_document_context(documents, max_content_length=8000)
+            
+            # Use existing prompt methods
+            system_prompt = self._get_competitive_system_prompt()
+            user_prompt = self._get_competitive_user_prompt(market_profile, document_context, document_summary)
+            
+            # Call OpenAI
+            response = self._call_openai(system_prompt, user_prompt, max_tokens=1000, temperature=0.3)
+            
+            # Parse response
+            return self._parse_gpt4_response(response)
+            
+        except Exception as e:
+            logger.error(f"GPT-4 analysis failed: {e}")
+            return {}
+    
+    def _parse_gpt4_response(self, response: str) -> Dict[str, Any]:
+        """Parse GPT-4 response into structured format"""
+        try:
+            # Try to extract JSON from response
+            import json
+            import re
+            
+            # Look for JSON in response
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            else:
+                # Fallback parsing
+                return {'raw_response': response}
+        except Exception as e:
+            logger.warning(f"Failed to parse GPT-4 response: {e}")
+            return {'raw_response': response}
+    
+    def _integrate_competitive_intelligence(self, startup_claims: Dict,
+                                           web_intelligence: Dict,
+                                           gpt4_analysis: Optional[Dict]) -> CompetitiveProfile:
+        """Integrate all sources into comprehensive competitive profile"""
+        profile = CompetitiveProfile()
+        
+        # Store startup claims for PDF comparison
+        profile.startup_claimed_competitors = startup_claims.get('claimed_competitors', [])
+        profile.startup_claimed_advantages = startup_claims.get('claimed_advantages', [])
+        
+        # Build independent analysis from web search
+        for comp in web_intelligence.get('competitors', [])[:5]:
+            if isinstance(comp, dict):
+                profile.market_leaders.append({
+                    'name': comp.get('name', 'Unknown'),
+                    'description': comp.get('description', ''),
+                    'funding': 'Data not available',  # Would come from enhanced search
+                    'status': 'Active'
+                })
+        
+        # Add market insights as risks/opportunities
+        insights = web_intelligence.get('market_insights', [])
+        for insight in insights:
+            if 'fail' in insight.lower() or 'shut' in insight.lower() or 'risk' in insight.lower():
+                profile.competitive_risks.append(insight[:150])
+                profile.failure_patterns.append(insight[:150])
+            else:
+                profile.market_opportunities.append(insight[:150])
+        
+        # Integrate GPT-4 analysis if available
+        if gpt4_analysis:
+            # Add GPT-4 competitors if not already in web results
+            for comp in gpt4_analysis.get('direct_competitors', []):
+                if isinstance(comp, dict):
+                    name = comp.get('name', '')
+                    if not any(ml['name'] == name for ml in profile.market_leaders):
+                        profile.market_leaders.append({
+                            'name': name,
+                            'description': comp.get('description', ''),
+                            'funding': comp.get('market_share', 'Unknown'),
+                            'status': 'Active'
+                        })
+            
+            # Add GPT-4 risks
+            profile.competitive_risks.extend(gpt4_analysis.get('competitive_risks', []))
+            
+            # Set threat level from GPT-4
+            profile.threat_level = gpt4_analysis.get('threat_level', 'medium')
+        else:
+            # Determine threat level from web findings
+            failure_count = len([i for i in insights if 'fail' in i.lower()])
+            if failure_count >= 2:
+                profile.threat_level = 'high'
+            elif failure_count == 1:
+                profile.threat_level = 'medium'
+            else:
+                profile.threat_level = 'low'
+        
+        # Set market position assessment
+        if len(profile.market_leaders) > 5:
+            profile.market_position = "Highly competitive market with established players"
+        elif len(profile.failure_patterns) > 2:
+            profile.market_position = "Challenging market with pattern of failures"
+        else:
+            profile.market_position = "Emerging market with opportunities"
+        
+        # Track sources
+        profile.sources = web_intelligence.get('sources', [])
+        
+        # Set confidence based on data availability
+        data_points = len(profile.market_leaders) + len(profile.competitive_risks) + len(insights)
+        profile.confidence_score = min(0.9, data_points * 0.1)
+        
+        return profile
+    
+    def _has_openai_key(self) -> bool:
+        """Check if OpenAI key is available"""
+        return bool(os.getenv('OPENAI_API_KEY'))
+    
+    def _get_mock_competitive_data_enhanced(self, market_profile: Dict[str, Any]) -> CompetitiveProfile:
+        """Enhanced mock data for TEST MODE with new structure"""
+        profile = CompetitiveProfile()
+        
+        # Market leaders with funding info
+        profile.market_leaders = [
+            {
+                'name': 'Stripe',
+                'description': 'Global payment processing leader',
+                'funding': '$95B valuation, Series I',
+                'status': 'Dominant'
+            },
+            {
+                'name': 'MercadoPago',
+                'description': 'LATAM payment leader',
+                'funding': 'Public ($80B market cap)',
+                'status': 'Regional leader'
+            }
+        ]
+        
+        # Similar propositions with outcomes
+        profile.similar_propositions = [
+            {
+                'name': 'FactorX',
+                'description': 'AI invoice factoring - promised 48h, delivers 72h',
+                'funding': '$15M Series A → Failed to raise B',
+                'outcome': 'Struggling'
+            },
+            {
+                'name': 'QuickFactor',
+                'description': '24h invoice factoring attempt',
+                'funding': '$5M Seed',
+                'outcome': 'Shut down - regulatory issues'
+            }
+        ]
+        
+        # Competitive risks from market analysis
+        profile.competitive_risks = [
+            "3 of 5 similar AI factoring startups failed in 18 months",
+            "Regulatory compliance requires 24-36 months establishment",
+            "Established players have 100x resources and market presence"
+        ]
+        
+        # Market opportunities
+        profile.market_opportunities = [
+            "$2.1B funding gap in SME invoice factoring (Bain 2024)",
+            "LATAM market underserved by global players"
+        ]
+        
+        # Failure patterns
+        profile.failure_patterns = [
+            "Underestimated regulatory complexity",
+            "48h approval claims consistently unachievable",
+            "Customer acquisition cost exceeded LTV"
+        ]
+        
+        # Startup claims (for PDF comparison)
+        profile.startup_claimed_competitors = ["Basic payment processors", "Traditional banks"]
+        profile.startup_claimed_advantages = ["First AI-powered", "48h approval guarantee"]
+        
+        # Analysis metadata
+        profile.market_position = "Highly competitive with pattern of failures"
+        profile.threat_level = "high"
+        profile.sources = [
+            {'type': 'web_search', 'count': 6, 'queries': ['AI invoice factoring competitors', 'failed startups']}
+        ]
+        profile.confidence_score = 0.85
+        
+        return profile
