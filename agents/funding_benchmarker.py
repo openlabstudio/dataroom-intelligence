@@ -140,7 +140,7 @@ class FundingBenchmarkerAgent(BaseAgent):
         if self.web_search_engine is None:
             try:
                 from utils.web_search import WebSearchEngine
-                self.web_search_engine = WebSearchEngine(provider='duckduckgo')
+                self.web_search_engine = WebSearchEngine()  # Uses default (Tavily if available)
             except ImportError as e:
                 logger.warning(f"Web search not available: {e}")
                 self.web_search_engine = None
@@ -171,21 +171,21 @@ class FundingBenchmarkerAgent(BaseAgent):
             return self._get_mock_funding_benchmark_enhanced(market_profile)
         
         try:
-            # FASE 2C: Extract value proposition for targeted web search
-            value_proposition = self._extract_value_proposition(documents, analysis_result)
+            # FASE 2C: Build value proposition from market profile
+            value_proposition = self._build_value_proposition_from_profile(market_profile)
             logger.info(f"🎯 Value proposition: {value_proposition}")
             
             # Step 1: Extract startup claims from documents
             startup_claims = self._extract_startup_funding_claims(documents, analysis_result)
             
-            # Step 2: Perform independent web search for funding intelligence
-            web_intelligence = self._perform_funding_web_search(value_proposition, market_profile)
+            # Step 2: Perform independent 3-level hierarchical web search for funding intelligence
+            web_intelligence = self._perform_multilevel_funding_search(market_profile)
             
-            # Step 3: Analyze with GPT-4 if available (market perspective)
+            # Step 3: Analyze with GPT-4 if available (expert-level with web intelligence)
             gpt4_analysis = None
             if self._has_openai_key():
                 gpt4_analysis = self._perform_gpt4_funding_analysis(
-                    market_profile, documents, analysis_result
+                    market_profile, documents, analysis_result, web_intelligence
                 )
             
             # Step 4: Integrate all sources into comprehensive profile
@@ -653,6 +653,41 @@ class FundingBenchmarkerAgent(BaseAgent):
     
     # ========== FASE 2C: NEW METHODS FOR WEB SEARCH INTEGRATION ==========
     
+    def _build_value_proposition_from_profile(self, market_profile) -> str:
+        """Build value proposition from detected market profile"""
+        try:
+            # Handle both MarketProfile object and dict
+            if hasattr(market_profile, 'solution'):
+                solution = market_profile.solution
+                sub_vertical = market_profile.sub_vertical
+                vertical = market_profile.vertical
+                target_market = market_profile.target_market
+            else:
+                solution = market_profile.get('solution', '')
+                sub_vertical = market_profile.get('sub_vertical', '')
+                vertical = market_profile.get('vertical', '')
+                target_market = market_profile.get('target_market', '')
+            
+            # Build a proper value proposition based on detected market
+            if solution:
+                value_prop = f"{solution}"
+            elif sub_vertical:
+                value_prop = f"{sub_vertical}"
+            elif vertical:
+                value_prop = f"{vertical}"
+            else:
+                value_prop = "innovative technology solution"
+            
+            # Add target market if available
+            if target_market:
+                value_prop = f"{value_prop} for {target_market}"
+            
+            return value_prop
+            
+        except Exception as e:
+            logger.warning(f"Failed to build value proposition from profile: {e}")
+            return "innovative business solution"
+    
     def _extract_value_proposition(self, documents: List[Dict], analysis_result: Optional[Dict]) -> str:
         """Extract value proposition for targeted web search"""
         try:
@@ -728,8 +763,8 @@ class FundingBenchmarkerAgent(BaseAgent):
             'claimed_metrics': claimed_metrics[:5]
         }
     
-    def _perform_funding_web_search(self, value_proposition: str, market_profile: Any) -> Dict[str, Any]:
-        """Perform web search for funding intelligence"""
+    def _perform_multilevel_funding_search(self, market_profile: Any) -> Dict[str, Any]:
+        """MEJORAS CALIDAD: Perform 3-level hierarchical search for funding intelligence"""
         try:
             # Initialize web search if needed
             self._init_web_search()
@@ -738,13 +773,94 @@ class FundingBenchmarkerAgent(BaseAgent):
                 logger.warning("Web search engine not available")
                 return {'sources': [], 'funding_patterns': [], 'deals': []}
             
-            # Build targeted search queries
-            vertical = self._get_industry_vertical(market_profile)
-            geo = self._get_geography(market_profile)
+            # Extract all levels from market profile
+            solution = getattr(market_profile, 'solution', '') if hasattr(market_profile, 'solution') else market_profile.get('solution', '')
+            sub_vertical = getattr(market_profile, 'sub_vertical', '') if hasattr(market_profile, 'sub_vertical') else market_profile.get('sub_vertical', '')
+            vertical = getattr(market_profile, 'vertical', '') if hasattr(market_profile, 'vertical') else market_profile.get('vertical', '')
             
+            # Level 1: Solution-specific funding (most specific)
+            solution_queries = []
+            if solution:
+                solution_queries = [
+                    f"{solution} companies funding rounds valuations",
+                    f"{solution} investment deals 2024",
+                    f"{solution} startup funding metrics"
+                ]
+            
+            # Level 2: Sub-vertical funding (broader)
+            subvertical_queries = []
+            if sub_vertical:
+                subvertical_queries = [
+                    f"{sub_vertical} funding landscape 2024",
+                    f"{sub_vertical} series A B valuations",
+                    f"{sub_vertical} investor sentiment trends"
+                ]
+            
+            # Level 3: Vertical funding (broadest)
+            vertical_queries = []
+            if vertical:
+                vertical_queries = [
+                    f"{vertical} venture capital investment 2024",
+                    f"{vertical} startup valuations benchmarks",
+                    f"{vertical} funding ecosystem analysis"
+                ]
+            
+            logger.info(f"🔍 Executing 3-level funding search:")
+            logger.info(f"   Level 1 (Solution): {solution}")
+            logger.info(f"   Level 2 (Sub-vertical): {sub_vertical}")
+            logger.info(f"   Level 3 (Vertical): {vertical}")
+            
+            # Execute searches at each level
+            all_results = {'expert_insights': [], 'competitors_found': [], 'sources_count': 0}
+            
+            if solution_queries:
+                solution_results = self.web_search_engine.search_multiple(
+                    solution_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(solution_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(solution_results.get('competitors_found', []))
+                all_results['sources_count'] += solution_results.get('sources_count', 0)
+            
+            if subvertical_queries:
+                subvertical_results = self.web_search_engine.search_multiple(
+                    subvertical_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(subvertical_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(subvertical_results.get('competitors_found', []))
+                all_results['sources_count'] += subvertical_results.get('sources_count', 0)
+            
+            if vertical_queries:
+                vertical_results = self.web_search_engine.search_multiple(
+                    vertical_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(vertical_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(vertical_results.get('competitors_found', []))
+                all_results['sources_count'] += vertical_results.get('sources_count', 0)
+            
+            # Process combined results for funding patterns
+            return self._process_web_results_for_funding(all_results)
+            
+        except Exception as e:
+            logger.error(f"Multilevel funding search failed: {e}")
+            return {'sources': [], 'funding_patterns': [], 'deals': []}
+    
+    def _perform_funding_web_search(self, value_proposition: str, market_profile: Any) -> Dict[str, Any]:
+        """Perform web search for funding intelligence - LEGACY METHOD"""
+        try:
+            # Initialize web search if needed
+            self._init_web_search()
+            
+            if not self.web_search_engine:
+                logger.warning("Web search engine not available")
+                return {'sources': [], 'funding_patterns': [], 'deals': []}
+            
+            # Build targeted search queries (NO GEOGRAPHY)
+            vertical = self._get_industry_vertical(market_profile)
+            
+            # SIMPLIFIED: Remove geography for global analysis
             queries = [
                 f"{value_proposition} recent funding rounds 2024",
-                f"{vertical} {geo} funding trends investor sentiment",
+                f"{vertical} funding trends investor sentiment",  # Removed {geo}
                 f"similar companies {value_proposition} series A B valuations",
                 f"{vertical} funding climate 2024 investor priorities"
             ]
@@ -801,30 +917,72 @@ class FundingBenchmarkerAgent(BaseAgent):
         return funding_intel
     
     def _perform_gpt4_funding_analysis(self, market_profile: Any, documents: List[Dict], 
-                                       analysis_result: Optional[Dict]) -> Dict[str, Any]:
-        """Perform GPT-4 analysis of funding landscape"""
+                                       analysis_result: Optional[Dict],
+                                       web_intelligence: Optional[Dict] = None) -> Dict[str, Any]:
+        """Perform expert-level GPT-4 analysis of funding landscape"""
         try:
-            # Prepare context
-            industry = self._get_industry_vertical(market_profile)
-            geography = self._get_geography(market_profile)
-            
-            # Simple prompt for funding analysis
-            system_prompt = f"""You are a senior VC analyst evaluating funding patterns for {industry} in {geography}.
+            # Try to use expert prompts
+            try:
+                from prompts.expert_level_prompts import FUNDING_EXPERT_SYSTEM, get_funding_prompts
+                
+                # Get current stage from analysis if available
+                current_stage = 'Seed'  # Default
+                if analysis_result:
+                    # Try to extract stage from analysis
+                    if 'scoring' in analysis_result:
+                        # Look for stage in scoring or other fields
+                        current_stage = analysis_result.get('scoring', {}).get('stage', 'Seed')
+                
+                if web_intelligence:
+                    prompts = get_funding_prompts(market_profile, web_intelligence, current_stage)
+                    system_prompt = FUNDING_EXPERT_SYSTEM
+                    user_prompt = prompts['user']
+                else:
+                    # Fallback if no web intelligence
+                    industry = self._get_industry_vertical(market_profile)
+                    geography = self._get_geography(market_profile)
+                    system_prompt = FUNDING_EXPERT_SYSTEM
+                    user_prompt = f"""Analyze funding landscape for {industry} in {geography}.
+Provide specific recent deals, active funds, and realistic valuations."""
+            except ImportError:
+                # Original prompts as fallback
+                industry = self._get_industry_vertical(market_profile)
+                geography = self._get_geography(market_profile)
+                system_prompt = f"""You are a senior VC analyst evaluating funding patterns for {industry} in {geography}.
 Provide independent market analysis of funding trends, typical ranges, and investor sentiment.
 Do not compare with startup claims - focus only on market reality."""
-            
-            user_prompt = f"""Analyze current funding landscape for {industry} startups in {geography}.
+                user_prompt = f"""Analyze current funding landscape for {industry} startups in {geography}.
 Focus on: typical funding ranges, investor priorities, success factors, and current climate."""
             
-            # Call OpenAI
-            response = self._call_openai(system_prompt, user_prompt, max_tokens=500, temperature=0.3)
+            # Call OpenAI with expert parameters
+            response = self._call_openai(system_prompt, user_prompt, 
+                                       max_tokens=1500,  # Increased for detailed analysis
+                                       temperature=0.2)  # Lower for more focused output
             
             # Parse response
-            return {'raw_analysis': response}
+            return self._parse_gpt4_funding_response(response)
             
         except Exception as e:
             logger.error(f"GPT-4 funding analysis failed: {e}")
             return {}
+    
+    def _parse_gpt4_funding_response(self, response: str) -> Dict[str, Any]:
+        """Parse GPT-4 response for funding insights"""
+        try:
+            # Try to extract structured data from response
+            import json
+            import re
+            
+            # Look for JSON in response
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            
+            # If no JSON, return raw response
+            return {'raw_analysis': response}
+        except Exception as e:
+            logger.warning(f"Failed to parse GPT-4 funding response: {e}")
+            return {'raw_analysis': response}
     
     def _integrate_funding_intelligence(self, startup_claims: Dict, web_intelligence: Dict,
                                        gpt4_analysis: Optional[Dict], market_profile: Any) -> FundingBenchmarkProfile:

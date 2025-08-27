@@ -78,6 +78,8 @@ class MarketValidationAgent(BaseAgent):
     
     def __init__(self):
         super().__init__("Market Validation")
+        # FASE 2B: Initialize web search engine
+        self.web_search_engine = None  # Will be initialized on first use
         self.market_benchmarks = {
             'fintech': {'tam_typical': '$500B', 'growth_rate': '15%', 'maturity': 'mature'},
             'healthtech': {'tam_typical': '$300B', 'growth_rate': '22%', 'maturity': 'growing'},
@@ -98,21 +100,22 @@ class MarketValidationAgent(BaseAgent):
                 logger.info("🧪 TEST MODE: Returning enhanced mock validation data")
                 return self._get_mock_validation_data_enhanced(market_profile)
             
-            # FASE 2B: Extract value proposition for targeted web search
-            value_proposition = self._extract_value_proposition(processed_documents, document_summary)
+            # FASE 2B: Build value proposition from market profile
+            value_proposition = self._build_value_proposition_from_profile(market_profile)
             logger.info(f"🎯 Value proposition: {value_proposition}")
             
             # Step 1: Extract startup claims from documents
             startup_claims = self._extract_startup_market_claims(processed_documents, document_summary)
             
-            # Step 2: Perform independent web search for market validation
-            web_validation = self._perform_validation_web_search(value_proposition, market_profile)
+            # Step 2: Perform independent 3-level hierarchical web search for market validation
+            web_validation = self._perform_multilevel_validation_search(market_profile)
             
-            # Step 3: Analyze with GPT-4 if available (expert analysis)
+            # Step 3: Analyze with GPT-4 if available (expert analysis with web validation)
             gpt4_validation = None
             if self._has_openai_key():
                 gpt4_validation = self._perform_gpt4_market_validation(
-                    market_profile, processed_documents, document_summary
+                    market_profile, processed_documents, document_summary,
+                    startup_claims, web_validation
                 )
             
             # Step 4: Integrate all sources into comprehensive profile
@@ -192,8 +195,14 @@ class MarketValidationAgent(BaseAgent):
         return profile
     
     def _get_validation_system_prompt(self) -> str:
-        """System prompt for market validation"""
-        return """
+        """Expert-level system prompt for market validation"""
+        # Import expert prompts
+        try:
+            from prompts.expert_level_prompts import VALIDATION_EXPERT_SYSTEM
+            return VALIDATION_EXPERT_SYSTEM
+        except ImportError:
+            # Fallback to original prompt
+            return """
 ROLE: Senior Market Research Analyst at top-tier consulting firm
 TASK: Validate market size claims and opportunity assessment with brutal honesty
 CONTEXT: Investment decisions depend on realistic market assessments
@@ -241,8 +250,20 @@ Respond with JSON format:
     
     def _get_validation_user_prompt(self, market_profile: Dict[str, Any],
                                    document_context: str,
-                                   document_summary: Dict[str, Any]) -> str:
-        """User prompt with market and document context"""
+                                   document_summary: Dict[str, Any],
+                                   startup_claims: Optional[Dict] = None,
+                                   web_validation: Optional[Dict] = None) -> str:
+        """Expert-level user prompt with startup claims and web validation"""
+        # Try to use expert prompt if web validation available
+        if startup_claims and web_validation:
+            try:
+                from prompts.expert_level_prompts import get_validation_prompts
+                prompts = get_validation_prompts(market_profile, startup_claims, web_validation)
+                return prompts['user']
+            except ImportError:
+                pass
+        
+        # Fallback to original prompt format
         return f"""
 Validate the market opportunity claims for this startup:
 
@@ -349,6 +370,45 @@ Provide your validation in the JSON format specified.
     
     # ========== FASE 2B: NEW METHODS FOR WEB SEARCH INTEGRATION ==========
     
+    def _build_value_proposition_from_profile(self, market_profile: Dict[str, Any]) -> str:
+        """Build value proposition from detected market profile"""
+        try:
+            # Use the detected market taxonomy
+            solution = market_profile.get('solution', '')
+            sub_vertical = market_profile.get('sub_vertical', '')
+            vertical = market_profile.get('vertical', '')
+            target_market = market_profile.get('target_market', '')
+            
+            # Build a proper value proposition based on detected market
+            if solution:
+                value_prop = f"{solution}"
+            elif sub_vertical:
+                value_prop = f"{sub_vertical}"
+            elif vertical:
+                value_prop = f"{vertical}"
+            else:
+                value_prop = "innovative technology solution"
+            
+            # Add target market if available
+            if target_market:
+                value_prop = f"{value_prop} for {target_market}"
+            
+            return value_prop
+            
+        except Exception as e:
+            logger.warning(f"Failed to build value proposition from profile: {e}")
+            return "innovative business solution"
+    
+    def _init_web_search(self):
+        """Lazy initialize web search engine"""
+        if self.web_search_engine is None:
+            try:
+                from utils.web_search import WebSearchEngine
+                self.web_search_engine = WebSearchEngine()  # Uses default (Tavily if available)
+            except ImportError as e:
+                logger.warning(f"Web search not available: {e}")
+                self.web_search_engine = None
+    
     def _extract_value_proposition(self, documents: List[Dict], document_summary: Dict) -> str:
         """Extract value proposition for targeted web search"""
         try:
@@ -430,9 +490,8 @@ Provide your validation in the JSON format specified.
             'claimed_differentiators': claimed_differentiators[:5]
         }
     
-    def _perform_validation_web_search(self, value_proposition: str, 
-                                      market_profile: Dict) -> Dict[str, Any]:
-        """Perform web search for market validation intelligence"""
+    def _perform_multilevel_validation_search(self, market_profile: Dict) -> Dict[str, Any]:
+        """MEJORAS CALIDAD: Perform 3-level hierarchical search for market validation"""
         try:
             # Initialize web search if needed
             self._init_web_search()
@@ -441,15 +500,97 @@ Provide your validation in the JSON format specified.
                 logger.warning("Web search engine not available")
                 return {'sources': [], 'expert_opinions': [], 'precedents': []}
             
-            # Build targeted search queries
-            vertical = market_profile.get('vertical', 'technology')
-            geo = market_profile.get('geo_focus', 'global')
+            # Extract all levels from market profile
+            solution = market_profile.get('solution', '')
+            sub_vertical = market_profile.get('sub_vertical', '')
+            vertical = market_profile.get('vertical', '')
             
+            # Level 1: Solution-specific validation (most specific)
+            solution_queries = []
+            if solution:
+                solution_queries = [
+                    f"{solution} market viability expert opinion",
+                    f"{solution} regulatory requirements compliance",
+                    f"{solution} TAM SAM market size analysis"
+                ]
+            
+            # Level 2: Sub-vertical validation (broader)
+            subvertical_queries = []
+            if sub_vertical:
+                subvertical_queries = [
+                    f"{sub_vertical} market growth trends 2024",
+                    f"{sub_vertical} regulatory landscape analysis",
+                    f"{sub_vertical} market opportunity assessment"
+                ]
+            
+            # Level 3: Vertical validation (broadest)
+            vertical_queries = []
+            if vertical:
+                vertical_queries = [
+                    f"{vertical} industry TAM growth forecast",
+                    f"{vertical} market maturity analysis",
+                    f"{vertical} regulatory environment 2024"
+                ]
+            
+            logger.info(f"🔍 Executing 3-level validation search:")
+            logger.info(f"   Level 1 (Solution): {solution}")
+            logger.info(f"   Level 2 (Sub-vertical): {sub_vertical}")
+            logger.info(f"   Level 3 (Vertical): {vertical}")
+            
+            # Execute searches at each level
+            all_results = {'expert_insights': [], 'competitors_found': [], 'sources_count': 0}
+            
+            if solution_queries:
+                solution_results = self.web_search_engine.search_multiple(
+                    solution_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(solution_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(solution_results.get('competitors_found', []))
+                all_results['sources_count'] += solution_results.get('sources_count', 0)
+            
+            if subvertical_queries:
+                subvertical_results = self.web_search_engine.search_multiple(
+                    subvertical_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(subvertical_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(subvertical_results.get('competitors_found', []))
+                all_results['sources_count'] += subvertical_results.get('sources_count', 0)
+            
+            if vertical_queries:
+                vertical_results = self.web_search_engine.search_multiple(
+                    vertical_queries[:2], max_results_per_query=3
+                )
+                all_results['expert_insights'].extend(vertical_results.get('expert_insights', []))
+                all_results['competitors_found'].extend(vertical_results.get('competitors_found', []))
+                all_results['sources_count'] += vertical_results.get('sources_count', 0)
+            
+            # Process combined results
+            return self._process_web_results_for_validation(all_results)
+            
+        except Exception as e:
+            logger.error(f"Multilevel validation search failed: {e}")
+            return {'sources': [], 'expert_opinions': [], 'precedents': []}
+    
+    def _perform_validation_web_search(self, value_proposition: str, 
+                                      market_profile: Dict) -> Dict[str, Any]:
+        """Perform web search for market validation intelligence - LEGACY METHOD"""
+        try:
+            # Initialize web search if needed
+            self._init_web_search()
+            
+            if not self.web_search_engine:
+                logger.warning("Web search engine not available")
+                return {'sources': [], 'expert_opinions': [], 'precedents': []}
+            
+            # Build targeted search queries (NO GEOGRAPHY)
+            vertical = market_profile.get('vertical', 'technology')
+            
+            # SIMPLIFIED: Remove geography for global analysis
             queries = [
                 f"{value_proposition} expert opinion scalability feasibility",
                 f"{value_proposition} regulatory challenges requirements",
                 f"similar companies {value_proposition} success failure case studies",
-                f"{vertical} {geo} market validation expert analysis 2024"
+                f"{vertical} market validation expert analysis 2024"  # Removed {geo}
             ]
             
             # Execute searches
@@ -463,29 +604,73 @@ Provide your validation in the JSON format specified.
             return {'sources': [], 'expert_opinions': [], 'precedents': []}
     
     def _process_web_results_for_validation(self, web_results: Dict) -> Dict[str, Any]:
-        """Process web search results into market validation intelligence"""
+        """Process web search results into market validation intelligence with URLs"""
         validation_intel = {
             'expert_opinions': [],
             'regulatory_insights': [],
             'precedent_cases': [],
             'market_insights': [],
+            'all_sources': [],
             'sources': []
         }
         
-        # Extract expert insights
+        # Extract expert insights with URLs
         for insight in web_results.get('expert_insights', []):
-            if isinstance(insight, str) and len(insight) > 20:
+            if isinstance(insight, dict):  # Enhanced format with URL
+                text = insight.get('insight', '')
+                if any(word in text.lower() for word in ['regulatory', 'compliance', 'legal', 'requirement']):
+                    validation_intel['regulatory_insights'].append({
+                        'text': text[:200],
+                        'url': insight.get('url', ''),
+                        'source': insight.get('source', ''),
+                        'jurisdiction': 'EU' if 'eu' in text.lower() else 'US' if 'us' in text.lower() else 'Unknown'
+                    })
+                elif any(word in text.lower() for word in ['expert', 'analysis', 'study', 'research', 'mckinsey', 'gartner']):
+                    validation_intel['expert_opinions'].append({
+                        'text': text[:200],
+                        'url': insight.get('url', ''),
+                        'source': insight.get('source', ''),
+                        'source_type': insight.get('source_type', 'general')
+                    })
+                else:
+                    validation_intel['market_insights'].append({
+                        'text': text[:200],
+                        'url': insight.get('url', ''),
+                        'source': insight.get('source', '')
+                    })
+            elif isinstance(insight, str) and len(insight) > 20:  # Fallback
                 # Categorize insights
                 if any(word in insight.lower() for word in ['regulatory', 'compliance', 'legal', 'requirement']):
-                    validation_intel['regulatory_insights'].append(insight[:200])
+                    validation_intel['regulatory_insights'].append({'text': insight[:200]})
                 elif any(word in insight.lower() for word in ['expert', 'analysis', 'study', 'research']):
-                    validation_intel['expert_opinions'].append(insight[:200])
+                    validation_intel['expert_opinions'].append({'text': insight[:200]})
                 else:
-                    validation_intel['market_insights'].append(insight[:200])
+                    validation_intel['market_insights'].append({'text': insight[:200]})
         
-        # Extract precedent cases from competitors found
+        # Extract precedent cases from competitors found with URLs
         for competitor in web_results.get('competitors_found', []):
-            if isinstance(competitor, str):
+            if isinstance(competitor, dict):  # Enhanced format with URL
+                name = competitor.get('name', '')
+                description = competitor.get('description', '')
+                mention = competitor.get('mention_context', '')
+                
+                # Determine outcome from context
+                context = f"{description} {mention}".lower()
+                if any(word in context for word in ['failed', 'shut', 'struggled', 'pivoted', 'acquired']):
+                    outcome = 'failure/struggle'
+                elif any(word in context for word in ['raised', 'funding', 'series', 'growth']):
+                    outcome = 'success/operating'
+                else:
+                    outcome = 'operating'
+                
+                validation_intel['precedent_cases'].append({
+                    'company': name,
+                    'outcome': outcome,
+                    'description': description[:100],
+                    'url': competitor.get('url', ''),
+                    'source_domain': competitor.get('source_domain', 'web search')
+                })
+            elif isinstance(competitor, str):  # Fallback
                 # Parse for precedent information
                 if any(word in competitor.lower() for word in ['failed', 'shut', 'struggled', 'acquired']):
                     validation_intel['precedent_cases'].append({
@@ -500,29 +685,38 @@ Provide your validation in the JSON format specified.
                         'source': 'web search'
                     })
         
-        # Track sources
+        # Track all sources with URLs
+        validation_intel['all_sources'] = web_results.get('all_sources', [])
+        
+        # Track sources summary
         validation_intel['sources'] = [{
             'type': 'web_search',
             'count': web_results.get('sources_count', 0),
-            'queries': web_results.get('search_terms_used', [])
+            'queries': web_results.get('search_terms_used', []),
+            'total_unique_sources': len(validation_intel['all_sources'])
         }]
         
         return validation_intel
     
     def _perform_gpt4_market_validation(self, market_profile: Dict,
                                        documents: List[Dict],
-                                       document_summary: Dict) -> Dict[str, Any]:
-        """Perform GPT-4 analysis of market validation"""
+                                       document_summary: Dict,
+                                       startup_claims: Optional[Dict] = None,
+                                       web_validation: Optional[Dict] = None) -> Dict[str, Any]:
+        """Perform expert-level GPT-4 analysis of market validation"""
         try:
             # Prepare document context
             document_context = self._prepare_document_context(documents, max_content_length=8000)
             
-            # Use existing prompt methods
+            # Use expert prompts with web validation
             system_prompt = self._get_validation_system_prompt()
-            user_prompt = self._get_validation_user_prompt(market_profile, document_context, document_summary)
+            user_prompt = self._get_validation_user_prompt(market_profile, document_context, 
+                                                          document_summary, startup_claims, web_validation)
             
-            # Call OpenAI
-            response = self._call_openai(system_prompt, user_prompt, max_tokens=1000, temperature=0.3)
+            # Call OpenAI with expert parameters
+            response = self._call_openai(system_prompt, user_prompt, 
+                                       max_tokens=1500,  # Increased for detailed analysis
+                                       temperature=0.2)  # Lower for more focused output
             
             # Parse response
             return self._parse_gpt4_validation_response(response)
@@ -552,7 +746,7 @@ Provide your validation in the JSON format specified.
     def _integrate_market_validation(self, startup_claims: Dict,
                                     web_validation: Dict,
                                     gpt4_validation: Optional[Dict]) -> MarketValidationProfile:
-        """Integrate all sources into comprehensive validation profile"""
+        """Integrate all sources into comprehensive validation profile with URLs"""
         profile = MarketValidationProfile()
         
         # Store startup claims for PDF comparison
@@ -560,26 +754,65 @@ Provide your validation in the JSON format specified.
         profile.startup_claimed_timeline = startup_claims.get('claimed_timeline', 'Not specified')
         profile.startup_claimed_differentiators = startup_claims.get('claimed_differentiators', [])
         
-        # Build independent analysis from web search
-        profile.expert_consensus = web_validation.get('expert_opinions', [])[:3]
-        profile.regulatory_assessment = web_validation.get('regulatory_insights', [])[:3]
+        # Build independent analysis from web search with URLs
+        # Expert consensus - extract text and preserve URLs
+        for expert_opinion in web_validation.get('expert_opinions', [])[:3]:
+            if isinstance(expert_opinion, dict):
+                text = expert_opinion.get('text', '')
+                url = expert_opinion.get('url', '')
+                source = expert_opinion.get('source', '')
+                # Format for display: include source if available
+                if source and len(source) > 0:
+                    formatted = f"{source}: {text}" if len(source) < 50 else text
+                else:
+                    formatted = text
+                profile.expert_consensus.append(formatted[:200])
+                # Store URL separately for later use
+                if not hasattr(profile, 'expert_urls'):
+                    profile.expert_urls = []
+                profile.expert_urls.append(url)
+            elif isinstance(expert_opinion, str):
+                profile.expert_consensus.append(expert_opinion[:200])
         
-        # Process precedent cases
-        for case in web_validation.get('precedent_cases', [])[:3]:
+        # Regulatory assessment with URLs
+        for reg_insight in web_validation.get('regulatory_insights', [])[:3]:
+            if isinstance(reg_insight, dict):
+                text = reg_insight.get('text', '')
+                jurisdiction = reg_insight.get('jurisdiction', '')
+                if jurisdiction:
+                    formatted = f"[{jurisdiction}] {text}"
+                else:
+                    formatted = text
+                profile.regulatory_assessment.append(formatted[:200])
+            elif isinstance(reg_insight, str):
+                profile.regulatory_assessment.append(reg_insight[:200])
+        
+        # Process precedent cases with URLs
+        for case in web_validation.get('precedent_cases', [])[:5]:  # Increased limit
             if isinstance(case, dict):
                 profile.precedent_analysis.append({
                     'company': case.get('company', 'Unknown'),
                     'outcome': case.get('outcome', 'Unknown'),
+                    'description': case.get('description', ''),
+                    'url': case.get('url', ''),
+                    'source_domain': case.get('source_domain', ''),
                     'relevance': 'Similar business model'
                 })
         
-        # Extract risks and opportunities
+        # Extract risks and opportunities with URLs
         insights = web_validation.get('market_insights', [])
-        for insight in insights:
-            if any(word in insight.lower() for word in ['risk', 'challenge', 'difficult', 'fail']):
-                profile.market_risks.append(insight[:150])
-            else:
-                profile.market_opportunities.append(insight[:150])
+        for insight in insights[:10]:  # Process more insights
+            if isinstance(insight, dict):
+                text = insight.get('text', '')
+                if any(word in text.lower() for word in ['risk', 'challenge', 'difficult', 'fail', 'threat']):
+                    profile.market_risks.append(text[:150])
+                else:
+                    profile.market_opportunities.append(text[:150])
+            elif isinstance(insight, str):
+                if any(word in insight.lower() for word in ['risk', 'challenge', 'difficult', 'fail']):
+                    profile.market_risks.append(insight[:150])
+                else:
+                    profile.market_opportunities.append(insight[:150])
         
         # Integrate GPT-4 validation if available
         if gpt4_validation:
@@ -620,8 +853,10 @@ Provide your validation in the JSON format specified.
         else:
             profile.feasibility_assessment = "Challenging - significant risks identified"
         
-        # Track sources
-        profile.sources = web_validation.get('sources', [])
+        # Track all sources with URLs for citation
+        profile.sources = web_validation.get('all_sources', [])[:15]  # Top 15 sources
+        if not profile.sources:  # Fallback to summary if no detailed sources
+            profile.sources = web_validation.get('sources', [])
         
         # Set confidence based on data availability
         data_points = len(profile.expert_consensus) + len(profile.precedent_analysis) + len(profile.regulatory_assessment)

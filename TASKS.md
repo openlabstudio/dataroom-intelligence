@@ -7,9 +7,10 @@
 ## 📍 Estado Actual
 
 - **Branch activo:** `phase2b-market-research`
-- **Commit estable:** `[PENDING]` - TASK-003 Complete: FundingBenchmarkerAgent implemented and `msg_too_long` resolved
+- **Commit estable:** `[PENDING]` - Mejoras de Calidad parcialmente implementadas (Market Taxonomy + Geography removal)
 - **TEST MODE:** ✅ Funcionando perfectamente
 - **Agentes implementados:** 4 de 5 (Market Detection + Competitive Intelligence + Market Validation + Funding Benchmarker)
+- **Mejoras de Calidad:** 2 de 4 completadas (Market Taxonomy ✅, Geography removal ✅)
 
 ### Commits de referencia
 - `31e7fba` - Base funcional sin documentación
@@ -252,15 +253,15 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 ```
 
 ### **🎯 NUEVOS REQUERIMIENTOS - Mejoras de Calidad Web Search**
-**Estado:** 🚧 **PENDIENTE DE IMPLEMENTAR**
+**Estado:** 🚧 **REDISEÑADO** - Cambio a Tavily API
 **Prioridad:** ⚡ **CRÍTICA** (bloquea calidad del análisis independiente)
-**Basado en:** Resultados TEST_MODE=false con información insuficiente
+**Basado en:** DuckDuckGo Instant Answer API no proporciona búsquedas web reales
 
-#### **📊 CAMBIO 1: Market Taxonomy Section**
+#### **✅ CAMBIO 1: Market Taxonomy Section (COMPLETADO)**
 **Problema:** Sección PROFILE genérica, falta jerarquía clara
 **Solución:** Nueva sección "📊 **MARKET TAXONOMY**" con jerarquía de 4 niveles
 
-**Nueva estructura:**
+**Nueva estructura implementada:**
 ```
 📊 **MARKET TAXONOMY** (8.8/10)
 • **Solution:** Electrochemical wastewater treatment
@@ -269,48 +270,61 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 • **Industry:** Environmental technology
 • **Target:** B2B pharmaceutical and cosmetics industries
 ```
+✅ **Completado:** Implementado en `market_detection.py` y `market_research_handler.py`
 
 #### **📈 CAMBIO 2: Web Search Quality Improvements**
 **Problema:** Búsquedas muy específicas geográficamente, info insuficiente en TEST_MODE=false
 **Solución:** 4 mejoras críticas
 
-**2.1. Eliminar geografía de búsquedas - Analysis global:**
+**✅ 2.1. Eliminar geografía de búsquedas - Analysis global (COMPLETADO):**
 - ❌ Actual: `"cleantech EU funding trends investor sentiment"`
 - ✅ Mejorado: `"cleantech funding trends investor sentiment"` (global)
 - **Razón:** Mayor cobertura de data, geografía muy restrictiva
+- **Implementado en:** Todos los agents (competitive, validation, funding)
 
-**2.2. Jerarquía de búsquedas - Específico → general:**
-- **Nivel 1:** `"electrochemical wastewater treatment competitors"`
-- **Nivel 2:** `"water treatment technology market analysis"`  
-- **Nivel 3:** `"cleantech sustainability funding rounds"`
-- **Nivel 4:** `"environmental technology industry trends"`
+#### **🚨 PROBLEMA RAÍZ IDENTIFICADO: DuckDuckGo API**
+**Descubrimiento crítico:** La API de DuckDuckGo (`https://api.duckduckgo.com/`) NO es para búsquedas web reales:
+- Solo devuelve "Instant Answers" (Wikipedia, calculadora, etc.)
+- NO encuentra competidores ni información de mercado
+- Explica por qué el competitive analysis falló completamente
 
-**2.3. Ampliar competitor databases - Más subsectores:**
-```python
-# Actual (muy básico)
-'cleantech': ['Tesla', 'Sunrun', 'ChargePoint', 'Veolia', 'Suez']
+#### **🎯 NUEVA SOLUCIÓN: Tavily API**
+**Decisión estratégica:** Cambiar completamente a Tavily API porque:
+- ✅ **Búsquedas web reales:** Diseñado específicamente para AI research
+- ✅ **Resultados estructurados:** Mejor calidad para análisis de mercado  
+- ✅ **Fuentes confiables:** Filtradas y verificadas
+- ✅ **API profesional:** 1,000 requests gratis/mes, escalable
 
-# Mejorado (subsectores específicos)
-'cleantech': {
-    'water_treatment': ['Veolia', 'Suez', 'Xylem', 'Pentair', 'Evoqua'],
-    'renewable_energy': ['Tesla', 'Sunrun', 'ChargePoint'],
-    'waste_management': ['Waste Management', 'Republic Services']
-}
+#### **📋 PLAN DE IMPLEMENTACIÓN TAVILY:**
+
+**FASE 1: Setup básico**
+- [ ] Crear cuenta Tavily y obtener API key
+- [ ] Instalar `tavily-python` package
+- [ ] Añadir `TAVILY_API_KEY` a configuración
+- [ ] Crear `TavilyProvider` class
+
+**FASE 2: Integración**
+- [ ] Reemplazar DuckDuckGoProvider con TavilyProvider
+- [ ] Mantener MockProvider para TEST_MODE
+- [ ] Testing básico con búsquedas reales
+
+**FASE 3: Fallback strategy (TRANSPARENCIA TOTAL)**
+- [ ] **Cuando Tavily funciona:** Datos reales + fuentes
+- [ ] **Cuando Tavily falla:** Error transparente al usuario
+- [ ] **NUNCA:** Mock data silencioso en producción
+
+**Ejemplo de error transparente:**
 ```
+⚠️ **EXTERNAL DATA UNAVAILABLE**
+Web search service temporarily unavailable. Analysis limited to document review only.
 
-**2.4. Fallback inteligente con indicators:**
-- **Si encuentra data específica:** Normal display
-- **Si hace fallback:** Añadir indicator del nivel usado
+🏢 **COMPETITIVE LANDSCAPE** 
+❌ External competitor research unavailable
+• **Recommendation:** Manual research required
 
-**Ejemplos de fallback indicators:**
-```
-🏢 **COMPETITIVE LANDSCAPE** (Medium risk - 4 sources | cleantech sector)
-• **Market leaders:** Tesla, Sunrun (cleantech sector)  
-• **Note:** Limited data for water treatment - showing cleantech trends
-
-💰 **FUNDING BENCHMARKS** (high confidence - 8 sources | water treatment)
-• **Market:** Water treatment Series A averaging $12M in 2024
-• **Recent:** AquaTech - Raised $15M Series A
+🧠 **KEY INSIGHT:**
+⚠️ This analysis is incomplete due to external data limitations. 
+Recommend postponing investment decision until full market research available.
 ```
 
 ### **🧠 FASE 2D - Critical Synthesizer Enhanced (TASK-004)**
@@ -498,6 +512,17 @@ timeline without government partnerships.
 
 ## ✅ TAREAS COMPLETADAS
 
+### ✅ TASK-005: Web Search Quality Improvements  
+**Completado:** August 26, 2025  
+**Branch:** phase2b-market-research
+- ✅ **Migración completa a Tavily API** - Reemplazo de DuckDuckGo con búsquedas profesionales
+- ✅ **Búsqueda jerárquica 3 niveles** - Solution → Sub-vertical → Vertical en todos los agents
+- ✅ **Market Taxonomy implementada** - Nueva sección 4-level hierarchy funcionando
+- ✅ **UX mejorada** - Mensajes de progreso actualizados (4 pasos → 5 fases + tiempo estimado)
+- ✅ **3 bugs críticos corregidos** - Value proposition, "insights undefined", fase redundante
+- ✅ **Verificado funcionando** - Test exitoso: 4 competidores vs 0-1 anterior, 6 búsquedas jerárquicas
+- ✅ **Sistema listo para producción** - Todos los agents con web search integrado y funcionando
+
 ### ✅ TASK-003: FundingBenchmarkerAgent  
 **Completado:** August 14, 2025  
 **Commit:** `[PENDING]`
@@ -566,34 +591,96 @@ Phase 2B.2 (Web Search):       ▓▓░░░░░░░░ 20% (FASE 1 ✅, F
 Phase 2B.3 (PDF Reports):      ░░░░░░░░░░ 0% (TASK-006 - después FASE 2E)
 ```
 
-### Progreso TASK-005 por Fases
+### Progreso TASK-005 por Fases (✅ COMPLETADO)
 ```
 FASE 1 (Infrastructure):   ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Web search base funcionando
 FASE 2A (Competitive):     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ CompetitiveIntelligenceAgent refactored 
 FASE 2B (Market Valid):    ▓▓▓▓▓▓▓▓▓▓ 100% ✅ MarketValidationAgent + web search
 FASE 2C (Funding Intel):   ▓▓▓▓▓▓▓▓▓▓ 100% ✅ FundingBenchmarkerAgent + web search
-🎯 MEJORAS CALIDAD:        ▓░░░░░░░░░░ 10% 🚧 Market Taxonomy + Web Search Quality
-FASE 2D (Critical Synth):  ░░░░░░░░░░ 0% 📋 Investment Decision Framework
-FASE 2E (PDF Prep):        ░░░░░░░░░░ 0% 📋 Reality check + sources management
+🎯 MEJORAS CALIDAD:        ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Tavily + Hierarchical Search + UX mejoras
+FASE 2D (Expert Analysis):  ░░░░░░░░░░ 0% 🚧 PRIORITY: Expert-level analysis with sources  
+FASE 2E (Critical Synth):   ░░░░░░░░░░ 0% 📋 Next: Investment Decision Framework
+FASE 2F (PDF Prep):         ░░░░░░░░░░ 0% 📋 Next: Reality check + sources management
 ```
 
-### Progreso Mejoras de Calidad (CRÍTICAS)
+### Progreso Mejoras de Calidad (✅ COMPLETADO CON TAVILY + UX)
 ```
-Market Taxonomy Section:    ░░░░░░░░░░ 0% 📋 Nueva sección "📊 MARKET TAXONOMY"
-Remove Geo from Search:     ░░░░░░░░░░ 0% 📋 Global analysis instead of geo-specific  
-Search Hierarchy:           ░░░░░░░░░░ 0% 📋 4-level fallback (solution → industry)
-Expanded Databases:         ░░░░░░░░░░ 0% 📋 Subsector-specific competitor data
-Fallback Indicators:        ░░░░░░░░░░ 0% 📋 Show which level provided the data
+Market Taxonomy Section:    ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Nueva sección "📊 MARKET TAXONOMY"
+Remove Geo from Search:     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Global analysis instead of geo-specific  
+Tavily API Setup:           ▓▓▓▓▓▓▓▓▓▓ 100% ✅ API key configurada (pay-as-you-go)
+Tavily Integration:         ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Reemplazo completo de DuckDuckGo
+Transparent Fallback:       ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Error handling transparente implementado
+Bug Fixes:                  ▓▓▓▓▓▓▓▓▓▓ 100% ✅ 3 bugs críticos corregidos
+Hierarchical Search:        ▓▓▓▓▓▓▓▓▓▓ 100% ✅ 3-level search activated (Solution→Sub-vertical→Vertical)
+Progress Messages:          ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Updated to 5 phases with time estimates
 ```
 
-### Timeline Actualizado (15-18 días total)
+### ⭐ **FASE 2D: Expert-Level Analysis & Source Integration**
+**Estado:** 🚧 **ALTA PRIORIDAD** - Iniciando desarrollo  
+**Objetivo:** Transformar output de "básico" a "nivel analista experto VC"  
+**Problema identificado:** Output actual no aporta valor real a analista VC
+
+#### 📋 **REQUERIMIENTOS ESPECÍFICOS:**
+```
+🎯 CALIDAD DE INFORMACIÓN
+├── Mínimo 10 fuentes verificables con URLs clicables
+├── Mínimo 5 competidores específicos con links directos  
+├── Análisis regulatorio obligatorio (EU/US mercados principales)
+├── Separación clara: Oportunidades vs Riesgos
+└── Contexto experto sectorial (prompts especializados)
+
+📱 FORMATO SLACK (~3500 chars con links)
+├── Competitive landscape con URLs a competidores
+├── Market validation con fuentes expertas citadas
+├── Funding benchmarks con links a deals/reports
+├── Regulatory analysis con links a directivas/marcos
+└── Investment recommendation con métricas específicas
+```
+
+#### 🗓️ **SPRINT PLAN (8-11 días):**
+```
+SPRINT 1 (3-4 días): Enhanced Tavily Extraction
+├── ✅ Extraer URLs, títulos, fechas de publicación
+├── ✅ Filtrar fuentes calidad (academic, industry, crunchbase)
+├── ✅ Procesar contenido completo (no solo snippets)
+└── ✅ Configurar min_sources=10, min_competitors=5
+
+SPRINT 2 (3-4 días): Expert-Level Processing  
+├── ✅ Prompts especializados por vertical (CleanTech pilot)
+├── ✅ Separación automática Oportunidades/Riesgos
+├── ✅ Análisis regulatorio EU/US con URLs
+└── ✅ Extracción inteligente competidores con metadata
+
+SPRINT 3 (2-3 días): Integration & Testing
+├── ✅ Slack format optimizado ~3500 chars + links
+├── ✅ Validación casos reales (water treatment, fintech)
+├── ✅ Error handling robusto + configuración flexible
+└── ✅ Testing end-to-end
+```
+
+#### 🎯 **CRITERIOS DE ÉXITO:**
+- [ ] Output incluye ≥10 fuentes con URLs válidas
+- [ ] Identifica ≥5 competidores relevantes con links  
+- [ ] Análisis regulatorio específico por mercado
+- [ ] Separación clara oportunidades/riesgos
+- [ ] Formato Slack <3500 chars con links clicables
+- [ ] Test con analista VC confirma valor agregado
+
+#### 🚨 **IMPACTO ESPERADO:**
+```
+ANTES: "No aporta nada a un analista de VC"
+DESPUÉS: "Nivel junior analyst especializado con fuentes verificables"
+```
+
+### Timeline Actualizado (23-29 días total)
 ```
 ✅ FASE 2A: 3 días (Competitive Intelligence template) - COMPLETADO
 ✅ FASE 2B: 3 días (Market Validation integration) - COMPLETADO  
 ✅ FASE 2C: 3 días (Funding Intelligence integration) - COMPLETADO
-🚧 MEJORAS CALIDAD: 2-3 días (Market Taxonomy + Web Search Quality) - EN CURSO
-📋 FASE 2D: 3-4 días (Critical Synthesizer + Investment Decision)
-📋 FASE 2E: 2-3 días (PDF foundation + Reality Check section)
+✅ MEJORAS CALIDAD: 3 días (Market Taxonomy + Tavily + Hierarchical + UX) - COMPLETADO
+🚧 FASE 2D: 8-11 días (Expert-Level Analysis + Source Integration) - EN DESARROLLO
+📋 FASE 2E: 3-4 días (Critical Synthesizer + Investment Decision)  
+📋 FASE 2F: 2-3 días (PDF foundation + Reality Check section)
 ```
 
 ---
@@ -681,6 +768,11 @@ Muéstrame el código primero, no lo implementes hasta que lo apruebe"
 - **2025-08-20 18:30:** TASK-005 redefinido con enfoque por fases - FASE 1 (MVP 2-3 días) + FASE 2 (Optimización). Prioridad funcionalidad básica para desbloquear TASK-004
 - **2025-08-20 19:15:** TASK-005 FASE 1 completada exitosamente. Web search infrastructure funcionando con mock data. Redefinido approach: análisis independiente por agent (no comparativas con claims). Timeline expandido a 5 fases (2A-2E) para refactor completo de agents con web search integrado
 - **2025-08-20 23:45:** TASK-005 FASES 2A, 2B, 2C completadas exitosamente. Template de análisis independiente replicado en los 3 agents principales. Identificado problema crítico de calidad: web search con TEST_MODE=false encuentra info insuficiente. Añadidos nuevos requerimientos críticos: Market Taxonomy section + Web Search Quality improvements (eliminar geo, jerarquía de búsquedas, databases expandidos, fallback inteligente)
+- **2025-08-21 00:30:** Mejoras de Calidad parcialmente implementadas: ✅ Market Taxonomy section funcionando, ✅ Geografía eliminada de búsquedas web (análisis global). Pendiente: Jerarquía de búsquedas y fallback indicators.
+- **2025-08-21 01:00:** 🚨 PROBLEMA RAÍZ IDENTIFICADO: DuckDuckGo API solo devuelve "Instant Answers", NO búsquedas web reales. Decisión estratégica: Cambiar completamente a Tavily API para búsquedas profesionales de mercado. Plan de implementación en 3 fases con fallback transparente (nunca mock data en producción).
+- **2025-08-26 18:00:** ✅ TASK-005 COMPLETADO EXITOSAMENTE. Migración completa a Tavily API funcionando. Bugs críticos corregidos: (1) value proposition usando market profile, (2) error "insights is not defined", (3) eliminada fase 4.5 redundante. Verificado con tests reales: búsquedas correctas para water treatment, no healthtech. Confidence scores funcionando correctamente.
+- **2025-08-26 18:30:** ✅ FINALIZADAS MEJORAS UX Y BÚSQUEDA JERÁRQUICA. Implementada búsqueda de 3 niveles en todos los agents (Solution→Sub-vertical→Vertical). Actualizados mensajes de progreso de 4 pasos a 5 fases con estimaciones de tiempo para Phase 5 (GPT-4). Verificado funcionamiento: 4 competidores encontrados vs 0-1 anterior, 6 búsquedas ejecutadas correctamente. Sistema listo para producción completa.
+- **2025-08-26 19:00:** 🚨 PROBLEMA CRÍTICO IDENTIFICADO: Output actual no aporta valor real a analista VC. Feedback usuario: falta información específica, fuentes verificables, competidores con links, análisis regulatorio. DECISIÓN: Priorizar FASE 2D Expert-Level Analysis antes que Critical Synthesizer. Nuevos requerimientos: min 10 fuentes + URLs, min 5 competidores + links, análisis regulatorio obligatorio EU/US, separación oportunidades/riesgos, formato ~3500 chars Slack. Plan: 3 sprints (8-11 días) para transformar de "básico" a "nivel analista experto".
 
 ---
 

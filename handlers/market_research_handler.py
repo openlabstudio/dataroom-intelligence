@@ -142,10 +142,13 @@ class MarketResearchHandler:
         """Get a test mode response for market research"""
         response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED (TEST MODE)**\n\n"
         
-        # COMPACT TEST MODE FORMAT
-        response += "🎯 **PROFILE** (9.0/10)\n"
-        response += "• **FinTech/Payments** | LATAM\n"
-        response += "• **Target:** SMB merchants\n\n"
+        # MEJORAS CALIDAD: Market Taxonomy TEST MODE
+        response += "📊 **MARKET TAXONOMY** (9.0/10)\n"
+        response += "• **Solution:** AI-powered invoice factoring platform\n"
+        response += "• **Sub-vertical:** Invoice financing\n"
+        response += "• **Vertical:** FinTech\n"
+        response += "• **Industry:** Financial technology\n"
+        response += "• **Target:** SMB merchants in LATAM\n\n"
         
         # FASE 2A: Enhanced Competitive Landscape (TEST MODE)
         response += "🏢 **COMPETITIVE LANDSCAPE** (High risk - 6 sources)\n"
@@ -196,49 +199,60 @@ class MarketResearchHandler:
             # Small delay to ensure message is sent
             time.sleep(0.5)
             
-            # Update progress - Step 1
+            # Update progress - Phase 1 of 5
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Step 1/4:** Detecting market vertical...\n" +
-                     "🎯 Analyzing documents to identify sector\n" +
-                     "⏳ Status: Processing with AI..."
+                     "📊 **Phase 1/5:** Market Detection & Taxonomy...\n" +
+                     "🎯 Identifying 4-level hierarchy (Solution → Sub-vertical → Vertical → Industry)\n" +
+                     "⏳ Status: Processing documents with GPT-4..."
             )
             
             # Simulate some processing time
             time.sleep(1)
             
-            # Update progress - Step 2
+            # Update progress - Phase 2 of 5
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Step 2/4:** Competitive analysis...\n" +
-                     "🏢 Identifying competitors and positioning\n" +
-                     "⏳ Status: Processing market data..."
+                     "📊 **Phase 2/5:** Competitive Intelligence...\n" +
+                     "🏢 Executing 3-level hierarchical search via Tavily API\n" +
+                     "⏳ Status: Searching across Solution, Sub-vertical & Vertical levels..."
             )
             
-            # Update progress - Step 3
+            # Update progress - Phase 3 of 5
             time.sleep(1)
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Step 3/4:** Market validation...\n" +
-                     "📈 Validating TAM/SAM and opportunities\n" +
-                     "⏳ Status: Analyzing external data..."
+                     "📊 **Phase 3/5:** Market Validation (TAM/SAM/SOM)...\n" +
+                     "📈 Validating market size with 3-level analysis\n" +
+                     "⏳ Status: Gathering expert opinions & precedents..."
             )
             
-            # Update progress - Step 4
+            # Update progress - Phase 4 of 5
             time.sleep(1)
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Step 4/4:** Critical assessment...\n" +
-                     "🧠 Generating critical analysis with \"brutal honesty\"\n" +
-                     "⏳ Status: Finalizing analysis..."
+                     "📊 **Phase 4/5:** Funding & Metrics Benchmarking...\n" +
+                     "💰 Analyzing funding patterns across 3 market levels\n" +
+                     "⏳ Status: Benchmarking valuations and metrics..."
+            )
+            
+            # Update progress - Phase 5 of 5 (Critical Assessment - takes longer)
+            time.sleep(1.5)
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text="🔍 **Market Research Analysis in Progress**\n\n" +
+                     "📊 **Phase 5/5:** Critical Assessment & Investment Decision...\n" +
+                     "🧠 Generating brutal honest analysis with GPT-4\n" +
+                     "⏳ **Note:** This phase may take 1-2 minutes - synthesizing all intelligence..."
             )
             
             # Get analysis result from /analyze for funding benchmarking
@@ -285,7 +299,7 @@ class MarketResearchHandler:
     
     def _format_response(self, market_intelligence_result) -> str:
         """
-        Format the market research response for Slack
+        Format the market research response for Slack with expert-level insights and URLs
         
         Args:
             market_intelligence_result: Result from orchestrator
@@ -293,6 +307,14 @@ class MarketResearchHandler:
         Returns:
             Formatted string for Slack message
         """
+        # Try to use expert formatter if available
+        try:
+            from utils.expert_formatter import format_expert_market_research
+            return format_expert_market_research(market_intelligence_result)
+        except ImportError:
+            # Fallback to original formatter
+            pass
+        
         response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED**\n\n"
         
         # Check if we have any valid data
@@ -320,35 +342,26 @@ class MarketResearchHandler:
             response += "• `/reset` - Clear session and start over"
             return response
         
-        # Market Profile - Compact format
+        # MEJORAS CALIDAD: Market Taxonomy section
         if hasattr(market_intelligence_result, 'market_profile') and market_intelligence_result.market_profile:
             profile = market_intelligence_result.market_profile            
-            # Fix attribute names to match MarketProfile structure
-            primary_vertical = getattr(profile, 'vertical', 'Not identified')  # Changed from 'primary_vertical'
-            sub_vertical = getattr(profile, 'sub_vertical', '')
-            confidence = getattr(profile, 'confidence_score', 0)
+            # Extract taxonomy fields
+            solution = getattr(profile, 'solution', 'Not identified')
+            sub_vertical = getattr(profile, 'sub_vertical', 'Not identified')
+            vertical = getattr(profile, 'vertical', 'Not identified')
+            industry = getattr(profile, 'industry', 'technology')
             target_market = getattr(profile, 'target_market', 'Not identified')
-            geographic_focus = getattr(profile, 'geo_focus', 'Not identified')  # Changed from 'geographic_focus'
-            business_model = getattr(profile, 'business_model', 'Not identified')
+            confidence = getattr(profile, 'confidence_score', 0)
             
-            # Detailed market profile with individual scores calculated from confidence
-            vertical_display = f"{primary_vertical}/{sub_vertical}" if sub_vertical else primary_vertical
+            # Calculate overall score from confidence
+            overall_score = confidence * 10
             
-            # Calculate individual scores based on existing confidence_score and data completeness
-            base_score = int(confidence * 10)  # Convert 0.85 -> 8.5 -> 8
-            
-            # Adjust individual scores based on data completeness and quality
-            clarity_score = base_score if primary_vertical != 'Not identified' else max(3, base_score - 3)
-            consistency_score = base_score if business_model != 'Not identified' else max(4, base_score - 2)
-            specificity_score = base_score if target_market != 'Not identified' and geographic_focus != 'Not identified' else max(4, base_score - 2)
-            data_quality_score = base_score - 1 if base_score > 5 else base_score  # Slightly lower as it's harder to assess
-            
-            # Calculate arithmetic mean of individual scores
-            overall_score = (clarity_score + consistency_score + specificity_score + data_quality_score) / 4
-            
-            # COMPACT FORMAT: Reduced Market Profile
-            response += f"🎯 **PROFILE** ({overall_score:.1f}/10)\n"
-            response += f"• **{vertical_display}** | {geographic_focus}\n"
+            # New Market Taxonomy format
+            response += f"📊 **MARKET TAXONOMY** ({overall_score:.1f}/10)\n"
+            response += f"• **Solution:** {solution}\n"
+            response += f"• **Sub-vertical:** {sub_vertical}\n"
+            response += f"• **Vertical:** {vertical}\n"
+            response += f"• **Industry:** {industry}\n"
             response += f"• **Target:** {target_market}\n\n"
         
         # FASE 2A: Enhanced Competitive Landscape section

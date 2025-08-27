@@ -17,37 +17,59 @@ class CompetitiveProfile:
     """Data structure for competitive analysis results"""
 
     def __init__(self):
-        # FASE 2A: Enhanced structure for independent analysis + startup claims
-        # Independent market analysis
+        # MEJORAS CALIDAD: 3-level competitive analysis
+        # Level 1: Solution competitors
+        self.solution_competitors: List[Dict[str, Any]] = []
+        # Level 2: Sub-vertical competitors
+        self.subvertical_competitors: List[Dict[str, Any]] = []
+        # Level 3: Vertical competitors
+        self.vertical_competitors: List[Dict[str, Any]] = []
+        
+        # Legacy fields for backward compatibility
         self.market_leaders: List[Dict[str, Any]] = []  # Major players with funding info
         self.similar_propositions: List[Dict[str, Any]] = []  # Similar startups with outcomes
-        self.competitive_risks: List[str] = []  # Key risks from market analysis
-        self.market_opportunities: List[str] = []  # Opportunities identified
+        
+        # Insights and risks with source tracking
+        self.competitive_risks: List[Any] = []  # Key risks with URLs
+        self.market_opportunities: List[Any] = []  # Opportunities with URLs
         self.failure_patterns: List[str] = []  # Common failure patterns in similar startups
+        self.regulatory_insights: List[Dict[str, Any]] = []  # Regulatory requirements with URLs
         
         # Startup claims (for PDF comparison later)
         self.startup_claimed_competitors: List[str] = []  # What startup claims
         self.startup_claimed_advantages: List[str] = []  # Their claimed differentiators
         
+        # Level data for display
+        self.levels_data: Dict[str, str] = {}  # solution, sub_vertical, vertical names
+        
         # Analysis metadata
         self.market_position: str = ""  # Assessment of competitive landscape
         self.threat_level: str = ""  # low, medium, high
-        self.sources: List[Dict[str, str]] = []  # Web search sources
+        self.sources: List[Dict[str, Any]] = []  # Summary of sources by level
+        self.all_sources: List[Dict[str, Any]] = []  # All sources with URLs (top 15)
         self.confidence_score: float = 0.0
+        self.meets_requirements: Dict[str, Any] = {}  # Track if min requirements are met
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            # Independent analysis for Slack
+            # MEJORAS CALIDAD: 3-level competitive analysis
             'independent_analysis': {
-                'market_leaders': self.market_leaders,
+                'solution_competitors': self.solution_competitors,
+                'subvertical_competitors': self.subvertical_competitors,
+                'vertical_competitors': self.vertical_competitors,
+                'levels_data': self.levels_data,
+                # Legacy fields
+                'market_leaders': self.market_leaders or self.solution_competitors,
                 'similar_propositions': self.similar_propositions,
                 'competitive_risks': self.competitive_risks,
                 'market_opportunities': self.market_opportunities,
                 'failure_patterns': self.failure_patterns,
+                'regulatory_insights': self.regulatory_insights,
                 'market_position': self.market_position,
                 'threat_level': self.threat_level,
-                'sources_count': len(self.sources),
-                'confidence_score': self.confidence_score
+                'sources_count': len(self.all_sources),
+                'confidence_score': self.confidence_score,
+                'meets_requirements': self.meets_requirements
             },
             # Startup claims for PDF comparison
             'startup_claims_extracted': {
@@ -55,7 +77,8 @@ class CompetitiveProfile:
                 'claimed_advantages': self.startup_claimed_advantages
             },
             # Full sources for PDF
-            'sources': self.sources
+            'sources_summary': self.sources,
+            'all_sources': self.all_sources
         }
 
 class CompetitiveIntelligenceAgent(BaseAgent):
@@ -78,7 +101,7 @@ class CompetitiveIntelligenceAgent(BaseAgent):
         if self.web_search_engine is None:
             try:
                 from utils.web_search import WebSearchEngine
-                self.web_search_engine = WebSearchEngine(provider='duckduckgo')
+                self.web_search_engine = WebSearchEngine()  # Uses default (Tavily if available)
             except ImportError as e:
                 logger.warning(f"Web search not available: {e}")
                 self.web_search_engine = None
@@ -95,21 +118,22 @@ class CompetitiveIntelligenceAgent(BaseAgent):
                 logger.info("🧪 TEST MODE: Returning enhanced mock competitive data")
                 return self._get_mock_competitive_data_enhanced(market_profile)
 
-            # FASE 2A: Extract value proposition for targeted web search
-            value_proposition = self._extract_value_proposition(processed_documents, document_summary)
+            # FASE 2A: Build value proposition from market profile
+            # Use detected market profile instead of extracting incorrectly
+            value_proposition = self._build_value_proposition_from_profile(market_profile, document_summary)
             logger.info(f"🎯 Value proposition: {value_proposition}")
 
             # Step 1: Extract startup claims from documents
             startup_claims = self._extract_startup_claims(processed_documents, document_summary)
             
-            # Step 2: Perform independent web search for competitive intelligence
-            web_intelligence = self._perform_competitive_web_search(value_proposition, market_profile)
+            # Step 2: Perform independent 3-level hierarchical web search for competitive intelligence
+            web_intelligence = self._perform_multilevel_competitive_search(market_profile)
             
-            # Step 3: Analyze with GPT-4 if available (combining both perspectives)
+            # Step 3: Analyze with GPT-4 if available (expert-level analysis with web intelligence)
             gpt4_analysis = None
             if self._has_openai_key():
                 gpt4_analysis = self._perform_gpt4_competitive_analysis(
-                    market_profile, processed_documents, document_summary
+                    market_profile, processed_documents, document_summary, web_intelligence
                 )
             
             # Step 4: Integrate all sources into comprehensive profile
@@ -193,8 +217,14 @@ class CompetitiveIntelligenceAgent(BaseAgent):
         return profile
 
     def _get_competitive_system_prompt(self) -> str:
-        """System prompt for competitive analysis"""
-        return """
+        """Expert-level system prompt for competitive analysis"""
+        # Import expert prompts
+        try:
+            from prompts.expert_level_prompts import COMPETITIVE_EXPERT_SYSTEM
+            return COMPETITIVE_EXPERT_SYSTEM
+        except ImportError:
+            # Fallback to original prompt
+            return """
 ROLE: Senior Competitive Intelligence Analyst at top-tier VC fund
 TASK: Analyze competitive landscape and identify threats/opportunities
 CONTEXT: Investment decisions require brutal honesty about competition
@@ -233,8 +263,19 @@ Respond with JSON format:
 
     def _get_competitive_user_prompt(self, market_profile: Dict[str, Any],
                                     document_context: str,
-                                    document_summary: Dict[str, Any]) -> str:
-        """User prompt with market and document context"""
+                                    document_summary: Dict[str, Any],
+                                    web_intelligence: Optional[Dict] = None) -> str:
+        """Expert-level user prompt with market context and web intelligence"""
+        # Try to use expert prompt if web intelligence available
+        if web_intelligence:
+            try:
+                from prompts.expert_level_prompts import get_competitive_prompts
+                prompts = get_competitive_prompts(market_profile, web_intelligence)
+                return prompts['user']
+            except ImportError:
+                pass
+        
+        # Fallback to original prompt format
         return f"""
 Analyze the competitive landscape for this startup:
 
@@ -345,6 +386,39 @@ Provide your analysis in the JSON format specified.
     
     # ========== FASE 2A: NEW METHODS FOR WEB SEARCH INTEGRATION ==========
     
+    def _build_value_proposition_from_profile(self, market_profile: Dict[str, Any], document_summary: Dict) -> str:
+        """Build value proposition from detected market profile"""
+        try:
+            # Use the detected market taxonomy
+            solution = market_profile.get('solution', '')
+            sub_vertical = market_profile.get('sub_vertical', '')
+            vertical = market_profile.get('vertical', '')
+            target_market = market_profile.get('target_market', '')
+            
+            # Build a proper value proposition based on detected market
+            if solution:
+                # Use the most specific solution if available
+                value_prop = f"{solution}"
+            elif sub_vertical:
+                # Fall back to sub-vertical
+                value_prop = f"{sub_vertical}"
+            elif vertical:
+                # Fall back to vertical
+                value_prop = f"{vertical}"
+            else:
+                # Last resort fallback
+                value_prop = "innovative technology solution"
+            
+            # Add target market if available
+            if target_market:
+                value_prop = f"{value_prop} for {target_market}"
+            
+            return value_prop
+            
+        except Exception as e:
+            logger.warning(f"Failed to build value proposition from profile: {e}")
+            return "innovative business solution"
+    
     def _extract_value_proposition(self, documents: List[Dict], document_summary: Dict) -> str:
         """Extract value proposition for targeted web search"""
         try:
@@ -408,9 +482,8 @@ Provide your analysis in the JSON format specified.
             'claimed_advantages': claimed_advantages[:5]
         }
     
-    def _perform_competitive_web_search(self, value_proposition: str, 
-                                       market_profile: Dict) -> Dict[str, Any]:
-        """Perform web search for competitive intelligence"""
+    def _perform_multilevel_competitive_search(self, market_profile: Dict) -> Dict[str, Any]:
+        """MEJORAS CALIDAD: Perform 3-level hierarchical search for comprehensive competitive intelligence"""
         try:
             # Initialize web search if needed
             self._init_web_search()
@@ -419,77 +492,311 @@ Provide your analysis in the JSON format specified.
                 logger.warning("Web search engine not available")
                 return {'sources': [], 'competitors': [], 'insights': []}
             
-            # Build targeted search queries
-            vertical = market_profile.get('vertical', 'technology')
-            geo = market_profile.get('geo_focus', 'global')
+            # Extract all levels from market profile
+            solution = market_profile.get('solution', '')
+            sub_vertical = market_profile.get('sub_vertical', '')
+            vertical = market_profile.get('vertical', '')
+            target_market = market_profile.get('target_market', '')
             
+            # Level 1: Solution-specific search (most specific)
+            solution_queries = []
+            if solution:
+                solution_queries = [
+                    f"{solution} competitors market analysis",
+                    f"{solution} companies funding",
+                    f"{solution} failed startups"
+                ]
+            
+            # Level 2: Sub-vertical search (broader)
+            subvertical_queries = []
+            if sub_vertical:
+                subvertical_queries = [
+                    f"{sub_vertical} market leaders 2024",
+                    f"{sub_vertical} competitive landscape",
+                    f"{sub_vertical} investment trends"
+                ]
+            
+            # Level 3: Vertical search (broadest)
+            vertical_queries = []
+            if vertical:
+                vertical_queries = [
+                    f"{vertical} industry analysis 2024",
+                    f"{vertical} major players market share",
+                    f"{vertical} funding ecosystem"
+                ]
+            
+            logger.info(f"🔍 Executing 3-level hierarchical search:")
+            logger.info(f"   Level 1 (Solution): {solution}")
+            logger.info(f"   Level 2 (Sub-vertical): {sub_vertical}")
+            logger.info(f"   Level 3 (Vertical): {vertical}")
+            
+            # Execute searches at each level
+            solution_results = {}
+            subvertical_results = {}
+            vertical_results = {}
+            
+            if solution_queries:
+                solution_results = self.web_search_engine.search_multiple(
+                    solution_queries[:2], max_results_per_query=3
+                )
+            
+            if subvertical_queries:
+                subvertical_results = self.web_search_engine.search_multiple(
+                    subvertical_queries[:2], max_results_per_query=3
+                )
+            
+            if vertical_queries:
+                vertical_results = self.web_search_engine.search_multiple(
+                    vertical_queries[:2], max_results_per_query=3
+                )
+            
+            # Process multi-level results
+            return self._process_multilevel_competition_results(
+                solution_results, subvertical_results, vertical_results,
+                solution, sub_vertical, vertical
+            )
+            
+        except Exception as e:
+            logger.error(f"Multilevel web search failed: {e}")
+            return {'sources': [], 'competitors': [], 'insights': []}
+    
+    def _perform_competitive_web_search(self, value_proposition: str, 
+                                       market_profile: Dict) -> Dict[str, Any]:
+        """Perform web search for competitive intelligence (geography-free) - LEGACY METHOD"""
+        try:
+            # Initialize web search if needed
+            self._init_web_search()
+            
+            if not self.web_search_engine:
+                logger.warning("Web search engine not available")
+                return {'sources': [], 'competitors': [], 'insights': []}
+            
+            # Build targeted search queries (NO GEOGRAPHY)
+            vertical = market_profile.get('vertical', 'technology')
+            
+            # SIMPLIFIED: Just remove geography from existing queries
             queries = [
                 f"{value_proposition} competitors funding analysis",
                 f"{value_proposition} failed startups case studies",
                 f"similar companies {value_proposition} investor sentiment",
-                f"{vertical} {geo} competitive landscape 2024"
+                f"{vertical} competitive landscape 2024"  # Removed {geo}
             ]
             
             # Execute searches
             web_results = self.web_search_engine.search_multiple(queries[:3], max_results_per_query=3)
             
             # Process results for competitive intelligence
-            return self._process_web_results_for_competition(web_results)
+            competitive_intel = {
+                'competitors': [],
+                'failed_startups': [],
+                'market_insights': [],
+                'sources': []
+            }
+            
+            # Extract competitors from search results
+            for competitor in web_results.get('competitors_found', []):
+                if isinstance(competitor, str):
+                    # Parse competitor info (e.g., "FactorX (AI invoice factoring)")
+                    parts = competitor.split('(')
+                    name = parts[0].strip() if parts else competitor
+                    desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                    competitive_intel['competitors'].append({
+                        'name': name,
+                        'description': desc,
+                        'source': 'web search'
+                    })
+            
+            # Extract insights
+            for insight in web_results.get('expert_insights', []):
+                if isinstance(insight, str) and len(insight) > 20:
+                    competitive_intel['market_insights'].append(insight[:200])
+            
+            # Track sources
+            competitive_intel['sources'] = [{
+                'type': 'web_search',
+                'count': web_results.get('sources_count', 0),
+                'queries': web_results.get('search_terms_used', [])
+            }]
+            
+            return competitive_intel
             
         except Exception as e:
             logger.error(f"Web search failed: {e}")
             return {'sources': [], 'competitors': [], 'insights': []}
     
-    def _process_web_results_for_competition(self, web_results: Dict) -> Dict[str, Any]:
-        """Process web search results into competitive intelligence"""
+    def _process_multilevel_competition_results(self, solution_results: Dict, 
+                                                subvertical_results: Dict,
+                                                vertical_results: Dict,
+                                                solution: str, sub_vertical: str, 
+                                                vertical: str) -> Dict[str, Any]:
+        """MEJORAS CALIDAD: Process 3-level search results separately with URLs"""
         competitive_intel = {
-            'competitors': [],
-            'failed_startups': [],
-            'market_insights': [],
-            'sources': []
+            'solution_competitors': [],
+            'subvertical_competitors': [],
+            'vertical_competitors': [],
+            'solution_insights': [],
+            'subvertical_insights': [],
+            'vertical_insights': [],
+            'regulatory_insights': [],
+            'all_sources': [],
+            'levels_data': {
+                'solution': solution,
+                'sub_vertical': sub_vertical,
+                'vertical': vertical
+            }
         }
         
-        # Extract competitors from search results
-        for competitor in web_results.get('competitors_found', []):
-            if isinstance(competitor, str):
-                # Parse competitor info (e.g., "FactorX (AI invoice factoring)")
+        # Process Level 1: Solution results
+        for competitor in solution_results.get('competitors_found', []):
+            if isinstance(competitor, dict):  # Now expecting dict with URL
+                competitive_intel['solution_competitors'].append({
+                    'name': competitor.get('name', 'Unknown'),
+                    'description': competitor.get('description', ''),
+                    'url': competitor.get('url', ''),
+                    'source_domain': competitor.get('source_domain', ''),
+                    'level': 'solution'
+                })
+            elif isinstance(competitor, str):  # Fallback for string format
                 parts = competitor.split('(')
                 name = parts[0].strip() if parts else competitor
                 desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
-                competitive_intel['competitors'].append({
+                competitive_intel['solution_competitors'].append({
                     'name': name,
                     'description': desc,
-                    'source': 'web search'
+                    'level': 'solution'
                 })
         
-        # Extract insights
-        for insight in web_results.get('expert_insights', []):
-            if isinstance(insight, str) and len(insight) > 20:
-                competitive_intel['market_insights'].append(insight[:200])
+        for insight in solution_results.get('expert_insights', []):
+            if isinstance(insight, dict):  # Now expecting dict with URL
+                competitive_intel['solution_insights'].append({
+                    'text': insight.get('insight', ''),
+                    'source': insight.get('source', ''),
+                    'url': insight.get('url', ''),
+                    'source_type': insight.get('source_type', 'general')
+                })
+            elif isinstance(insight, str) and len(insight) > 20:  # Fallback
+                competitive_intel['solution_insights'].append({'text': insight[:200]})
         
-        # Track sources
-        competitive_intel['sources'] = [{
-            'type': 'web_search',
-            'count': web_results.get('sources_count', 0),
-            'queries': web_results.get('search_terms_used', [])
-        }]
+        # Process Level 2: Sub-vertical results
+        for competitor in subvertical_results.get('competitors_found', []):
+            if isinstance(competitor, dict):  # Now expecting dict with URL
+                competitive_intel['subvertical_competitors'].append({
+                    'name': competitor.get('name', 'Unknown'),
+                    'description': competitor.get('description', ''),
+                    'url': competitor.get('url', ''),
+                    'source_domain': competitor.get('source_domain', ''),
+                    'level': 'sub_vertical'
+                })
+            elif isinstance(competitor, str):  # Fallback
+                parts = competitor.split('(')
+                name = parts[0].strip() if parts else competitor
+                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                competitive_intel['subvertical_competitors'].append({
+                    'name': name,
+                    'description': desc,
+                    'level': 'sub_vertical'
+                })
+        
+        for insight in subvertical_results.get('expert_insights', []):
+            if isinstance(insight, dict):  # Now expecting dict with URL
+                competitive_intel['subvertical_insights'].append({
+                    'text': insight.get('insight', ''),
+                    'source': insight.get('source', ''),
+                    'url': insight.get('url', ''),
+                    'source_type': insight.get('source_type', 'general')
+                })
+            elif isinstance(insight, str) and len(insight) > 20:  # Fallback
+                competitive_intel['subvertical_insights'].append({'text': insight[:200]})
+        
+        # Process Level 3: Vertical results
+        for competitor in vertical_results.get('competitors_found', []):
+            if isinstance(competitor, dict):  # Now expecting dict with URL
+                competitive_intel['vertical_competitors'].append({
+                    'name': competitor.get('name', 'Unknown'),
+                    'description': competitor.get('description', ''),
+                    'url': competitor.get('url', ''),
+                    'source_domain': competitor.get('source_domain', ''),
+                    'level': 'vertical'
+                })
+            elif isinstance(competitor, str):  # Fallback
+                parts = competitor.split('(')
+                name = parts[0].strip() if parts else competitor
+                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                competitive_intel['vertical_competitors'].append({
+                    'name': name,
+                    'description': desc,
+                    'level': 'vertical'
+                })
+        
+        for insight in vertical_results.get('expert_insights', []):
+            if isinstance(insight, dict):  # Now expecting dict with URL
+                competitive_intel['vertical_insights'].append({
+                    'text': insight.get('insight', ''),
+                    'source': insight.get('source', ''),
+                    'url': insight.get('url', ''),
+                    'source_type': insight.get('source_type', 'general')
+                })
+            elif isinstance(insight, str) and len(insight) > 20:  # Fallback
+                competitive_intel['vertical_insights'].append({'text': insight[:200]})
+        
+        # Add regulatory insights if available
+        for reg_insight in solution_results.get('regulatory_insights', []):
+            if isinstance(reg_insight, dict):
+                competitive_intel['regulatory_insights'].append(reg_insight)
+        for reg_insight in subvertical_results.get('regulatory_insights', []):
+            if isinstance(reg_insight, dict):
+                competitive_intel['regulatory_insights'].append(reg_insight)
+        
+        # Collect all sources with URLs
+        all_sources_collected = []
+        for source in solution_results.get('all_sources', []):
+            all_sources_collected.append(source)
+        for source in subvertical_results.get('all_sources', []):
+            all_sources_collected.append(source)
+        for source in vertical_results.get('all_sources', []):
+            all_sources_collected.append(source)
+        
+        # Deduplicate and sort by relevance
+        seen_urls = set()
+        unique_sources = []
+        for source in all_sources_collected:
+            url = source.get('url', '')
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_sources.append(source)
+        
+        # Sort by relevance score and limit
+        unique_sources.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+        competitive_intel['all_sources'] = unique_sources[:15]
+        
+        # Track sources count
+        competitive_intel['sources_summary'] = [
+            {'level': 'solution', 'count': solution_results.get('sources_count', 0)},
+            {'level': 'sub_vertical', 'count': subvertical_results.get('sources_count', 0)},
+            {'level': 'vertical', 'count': vertical_results.get('sources_count', 0)},
+            {'total_unique_sources': len(competitive_intel['all_sources'])}
+        ]
         
         return competitive_intel
     
     def _perform_gpt4_competitive_analysis(self, market_profile: Dict,
                                           documents: List[Dict],
-                                          document_summary: Dict) -> Dict[str, Any]:
-        """Perform GPT-4 analysis of competitive landscape"""
+                                          document_summary: Dict,
+                                          web_intelligence: Optional[Dict] = None) -> Dict[str, Any]:
+        """Perform expert-level GPT-4 analysis of competitive landscape"""
         try:
             # Prepare document context
             document_context = self._prepare_document_context(documents, max_content_length=8000)
             
-            # Use existing prompt methods
+            # Use expert prompts with web intelligence
             system_prompt = self._get_competitive_system_prompt()
-            user_prompt = self._get_competitive_user_prompt(market_profile, document_context, document_summary)
+            user_prompt = self._get_competitive_user_prompt(market_profile, document_context, 
+                                                           document_summary, web_intelligence)
             
-            # Call OpenAI
-            response = self._call_openai(system_prompt, user_prompt, max_tokens=1000, temperature=0.3)
+            # Call OpenAI with expert parameters
+            response = self._call_openai(system_prompt, user_prompt, 
+                                       max_tokens=1500,  # Increased for detailed analysis
+                                       temperature=0.2)  # Lower for more focused output
             
             # Parse response
             return self._parse_gpt4_response(response)
@@ -519,31 +826,96 @@ Provide your analysis in the JSON format specified.
     def _integrate_competitive_intelligence(self, startup_claims: Dict,
                                            web_intelligence: Dict,
                                            gpt4_analysis: Optional[Dict]) -> CompetitiveProfile:
-        """Integrate all sources into comprehensive competitive profile"""
+        """MEJORAS CALIDAD: Integrate 3-level search results"""
         profile = CompetitiveProfile()
         
         # Store startup claims for PDF comparison
         profile.startup_claimed_competitors = startup_claims.get('claimed_competitors', [])
         profile.startup_claimed_advantages = startup_claims.get('claimed_advantages', [])
         
-        # Build independent analysis from web search
-        for comp in web_intelligence.get('competitors', [])[:5]:
+        # MEJORAS CALIDAD: Store level data for display
+        profile.levels_data = web_intelligence.get('levels_data', {})
+        
+        # Process solution competitors (Level 1) with URLs
+        profile.solution_competitors = []
+        for comp in web_intelligence.get('solution_competitors', [])[:5]:  # Increased limit
             if isinstance(comp, dict):
-                profile.market_leaders.append({
+                profile.solution_competitors.append({
                     'name': comp.get('name', 'Unknown'),
                     'description': comp.get('description', ''),
-                    'funding': 'Data not available',  # Would come from enhanced search
+                    'url': comp.get('url', ''),  # Add URL
+                    'source_domain': comp.get('source_domain', ''),
                     'status': 'Active'
                 })
         
-        # Add market insights as risks/opportunities
-        insights = web_intelligence.get('market_insights', [])
-        for insight in insights:
-            if 'fail' in insight.lower() or 'shut' in insight.lower() or 'risk' in insight.lower():
-                profile.competitive_risks.append(insight[:150])
-                profile.failure_patterns.append(insight[:150])
+        # Process sub-vertical competitors (Level 2) with URLs
+        profile.subvertical_competitors = []
+        for comp in web_intelligence.get('subvertical_competitors', [])[:5]:  # Increased limit
+            if isinstance(comp, dict):
+                profile.subvertical_competitors.append({
+                    'name': comp.get('name', 'Unknown'),
+                    'description': comp.get('description', ''),
+                    'url': comp.get('url', ''),  # Add URL
+                    'source_domain': comp.get('source_domain', ''),
+                    'status': 'Active'
+                })
+        
+        # Process vertical competitors (Level 3) with URLs
+        profile.vertical_competitors = []
+        for comp in web_intelligence.get('vertical_competitors', [])[:5]:  # Increased limit
+            if isinstance(comp, dict):
+                profile.vertical_competitors.append({
+                    'name': comp.get('name', 'Unknown'),
+                    'description': comp.get('description', ''),
+                    'url': comp.get('url', ''),  # Add URL
+                    'source_domain': comp.get('source_domain', ''),
+                    'status': 'Active'
+                })
+        
+        # Process insights by level with URLs
+        solution_insights = web_intelligence.get('solution_insights', [])
+        subvertical_insights = web_intelligence.get('subvertical_insights', [])
+        vertical_insights = web_intelligence.get('vertical_insights', [])
+        regulatory_insights = web_intelligence.get('regulatory_insights', [])
+        
+        # Combine all insights with source tracking
+        all_insights_with_sources = []
+        for insight in solution_insights[:5]:
+            if isinstance(insight, dict):
+                all_insights_with_sources.append(insight)
             else:
-                profile.market_opportunities.append(insight[:150])
+                all_insights_with_sources.append({'text': str(insight)[:200]})
+        
+        for insight in subvertical_insights[:5]:
+            if isinstance(insight, dict):
+                all_insights_with_sources.append(insight)
+            else:
+                all_insights_with_sources.append({'text': str(insight)[:200]})
+        
+        for insight in vertical_insights[:5]:
+            if isinstance(insight, dict):
+                all_insights_with_sources.append(insight)
+            else:
+                all_insights_with_sources.append({'text': str(insight)[:200]})
+        
+        # Process regulatory insights separately
+        profile.regulatory_insights = regulatory_insights[:5]
+        
+        # Categorize insights and preserve URLs
+        for insight_obj in all_insights_with_sources:
+            text = insight_obj.get('text', '')
+            if any(word in text.lower() for word in ['fail', 'shut', 'risk', 'challenge', 'difficult']):
+                profile.competitive_risks.append({
+                    'text': text[:150],
+                    'url': insight_obj.get('url', ''),
+                    'source': insight_obj.get('source', '')
+                })
+            else:
+                profile.market_opportunities.append({
+                    'text': text[:150],
+                    'url': insight_obj.get('url', ''),
+                    'source': insight_obj.get('source', '')
+                })
         
         # Integrate GPT-4 analysis if available
         if gpt4_analysis:
@@ -566,7 +938,9 @@ Provide your analysis in the JSON format specified.
             profile.threat_level = gpt4_analysis.get('threat_level', 'medium')
         else:
             # Determine threat level from web findings
-            failure_count = len([i for i in insights if 'fail' in i.lower()])
+            # Combine all insights for analysis
+            all_insights = solution_insights + subvertical_insights + vertical_insights
+            failure_count = len([i for i in all_insights if 'fail' in i.lower()])
             if failure_count >= 2:
                 profile.threat_level = 'high'
             elif failure_count == 1:
@@ -582,12 +956,32 @@ Provide your analysis in the JSON format specified.
         else:
             profile.market_position = "Emerging market with opportunities"
         
-        # Track sources
-        profile.sources = web_intelligence.get('sources', [])
+        # Track all sources with URLs
+        profile.all_sources = web_intelligence.get('all_sources', [])[:15]
+        profile.sources = web_intelligence.get('sources_summary', [])
         
-        # Set confidence based on data availability
-        data_points = len(profile.market_leaders) + len(profile.competitive_risks) + len(insights)
-        profile.confidence_score = min(0.9, data_points * 0.1)
+        # Set confidence based on data availability and source quality
+        total_competitors = len(profile.solution_competitors) + len(profile.subvertical_competitors) + len(profile.vertical_competitors)
+        total_insights = len(all_insights_with_sources) + len(regulatory_insights)
+        total_sources = len(profile.all_sources)
+        
+        # Check minimum requirements
+        meets_min_sources = total_sources >= 10
+        meets_min_competitors = total_competitors >= 5
+        
+        # Calculate confidence score
+        base_score = 0.5
+        if meets_min_sources:
+            base_score += 0.2
+        if meets_min_competitors:
+            base_score += 0.2
+        base_score += min(0.1, total_insights * 0.01)
+        
+        profile.confidence_score = min(0.9, base_score)
+        profile.meets_requirements = {
+            'sources': {'required': 10, 'found': total_sources, 'met': meets_min_sources},
+            'competitors': {'required': 5, 'found': total_competitors, 'met': meets_min_competitors}
+        }
         
         return profile
     

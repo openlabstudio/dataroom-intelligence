@@ -108,6 +108,118 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
 
+class TavilyProvider(SearchProvider):
+    """Tavily search provider - Professional AI-focused search"""
+    
+    def __init__(self):
+        self.api_key = os.getenv('TAVILY_API_KEY')
+        if not self.api_key:
+            logger.warning("TAVILY_API_KEY not found in environment variables")
+            
+    def _categorize_source(self, domain: str) -> str:
+        """Categorize source type based on domain"""
+        domain = domain.lower()
+        
+        # Academic/Research
+        if any(term in domain for term in ['nature.com', 'sciencedirect', 'springer', 'ieee', 'arxiv', '.edu']):
+            return 'academic'
+        
+        # Industry Reports/Analysis
+        elif any(term in domain for term in ['mckinsey', 'gartner', 'forrester', 'frost', 'idc']):
+            return 'industry_report'
+        
+        # Financial Data
+        elif any(term in domain for term in ['crunchbase', 'pitchbook', 'cbinsights', 'bloomberg', 'reuters']):
+            return 'financial'
+        
+        # Regulatory/Government
+        elif any(term in domain for term in ['.gov', '.eu', 'europa.eu', 'eur-lex']):
+            return 'regulatory'
+        
+        # Tech News
+        elif any(term in domain for term in ['techcrunch', 'venturebeat', 'wired', 'arstechnica']):
+            return 'tech_news'
+        
+        # Business News
+        elif any(term in domain for term in ['ft.com', 'wsj.com', 'economist', 'businessinsider']):
+            return 'business_news'
+        
+        else:
+            return 'general'
+    
+    def search(self, query: str, max_results: int = 5, include_raw: bool = False) -> List[Dict[str, Any]]:
+        """
+        Execute enhanced Tavily search with metadata extraction
+        
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+            include_raw: Include raw content for deeper analysis
+            
+        Returns:
+            List of search results with enhanced metadata
+        """
+        if not self.api_key:
+            logger.error("Tavily API key not configured")
+            return []
+        
+        try:
+            from tavily import TavilyClient
+            
+            # Initialize Tavily client
+            client = TavilyClient(api_key=self.api_key)
+            
+            # Perform search with enhanced parameters for expert analysis
+            response = client.search(
+                query=query,
+                search_depth="advanced",  # More comprehensive results
+                max_results=max_results * 2,  # Get more results for filtering
+                include_answer=False,  # We want raw results, not AI summary
+                include_raw_content=include_raw,  # For deep analysis when needed
+                include_images=False,
+                include_domains=[  # Prioritize quality sources
+                    "nature.com", "sciencedirect.com", "crunchbase.com",
+                    "techcrunch.com", "reuters.com", "bloomberg.com",
+                    "pitchbook.com", "cbinsights.com", "ft.com",
+                    "eur-lex.europa.eu", "fda.gov", "epa.gov"
+                ] if "regulatory" in query.lower() or "competitor" in query.lower() else None
+            )
+            
+            # Extract enhanced metadata from results
+            results = []
+            for result in response.get('results', [])[:max_results]:
+                # Extract domain for source quality assessment
+                from urllib.parse import urlparse
+                domain = urlparse(result.get('url', '')).netloc
+                
+                enhanced_result = {
+                    'title': result.get('title', ''),
+                    'url': result.get('url', ''),
+                    'snippet': result.get('content', '')[:500],
+                    'full_content': result.get('content', '') if include_raw else None,
+                    'published_date': result.get('published_date'),
+                    'domain': domain,
+                    'score': result.get('score', 0),  # Relevance score from Tavily
+                    'source_type': self._categorize_source(domain)
+                }
+                results.append(enhanced_result)
+            
+            # Sort by relevance score
+            results.sort(key=lambda x: x.get('score', 0), reverse=True)
+            
+            logger.info(f"Enhanced Tavily search for '{query}' returned {len(results)} results with metadata")
+            return results
+            
+        except ImportError as e:
+            logger.error(f"Tavily library not installed: {e}")
+            logger.error("Please run: pip install tavily")
+            return []
+        except Exception as e:
+            logger.error(f"Tavily search failed: {e}")
+            # Return empty list for transparent error handling
+            return []
+
+
 class MockSearchProvider(SearchProvider):
     """Mock search provider for TEST_MODE"""
     
@@ -167,12 +279,16 @@ class MockSearchProvider(SearchProvider):
 class WebSearchEngine:
     """Main web search engine with provider flexibility"""
     
-    def __init__(self, provider: str = 'duckduckgo'):
+    # FASE 2D: Expert-level configuration
+    MIN_SOURCES_REQUIRED = 10
+    MIN_COMPETITORS_REQUIRED = 5
+    
+    def __init__(self, provider: str = 'tavily'):
         """
         Initialize web search engine
         
         Args:
-            provider: Search provider to use ('duckduckgo', 'mock', 'tavily')
+            provider: Search provider to use ('tavily', 'duckduckgo', 'mock')
         """
         self.provider_name = provider
         
@@ -181,14 +297,28 @@ class WebSearchEngine:
             logger.info("🧪 TEST MODE: Using mock search provider")
             self.provider = MockSearchProvider()
         else:
-            if provider == 'duckduckgo':
+            # Production mode - use real search provider
+            if provider == 'tavily':
+                # Check if Tavily API key is available
+                if os.getenv('TAVILY_API_KEY'):
+                    logger.info("🔍 Using Tavily search provider")
+                    self.provider = TavilyProvider()
+                else:
+                    logger.warning("TAVILY_API_KEY not found, falling back to DuckDuckGo")
+                    self.provider = DuckDuckGoProvider()
+            elif provider == 'duckduckgo':
+                logger.info("🦆 Using DuckDuckGo search provider")
                 self.provider = DuckDuckGoProvider()
             elif provider == 'mock':
                 self.provider = MockSearchProvider()
             else:
-                # Default to DuckDuckGo for unknown providers
-                logger.warning(f"Unknown provider {provider}, defaulting to DuckDuckGo")
-                self.provider = DuckDuckGoProvider()
+                # Default to Tavily if available, otherwise DuckDuckGo
+                if os.getenv('TAVILY_API_KEY'):
+                    logger.info(f"Unknown provider {provider}, defaulting to Tavily")
+                    self.provider = TavilyProvider()
+                else:
+                    logger.warning(f"Unknown provider {provider}, defaulting to DuckDuckGo")
+                    self.provider = DuckDuckGoProvider()
     
     def search_multiple(self, queries: List[str], max_results_per_query: int = 3) -> Dict[str, Any]:
         """
@@ -226,43 +356,100 @@ class WebSearchEngine:
     
     def _process_results(self, results: List[Dict], search_terms: List[str]) -> Dict[str, Any]:
         """
-        Process raw search results into structured intelligence
+        Process raw search results into structured intelligence with URLs and metadata
         
-        FASE 1: Basic processing without GPT-4
+        FASE 2D: Enhanced processing with source tracking
         """
         competitors = []
         expert_insights = []
+        regulatory_insights = []
+        all_sources = []
         
         for result in results:
             snippet = result.get('snippet', '').lower()
             title = result.get('title', '').lower()
+            url = result.get('url', '')
+            source_type = result.get('source_type', 'general')
+            domain = result.get('domain', '')
             
-            # Simple pattern matching for competitors
+            # Track all sources for citation
+            source_entry = {
+                'title': result.get('title', ''),
+                'url': url,
+                'domain': domain,
+                'type': source_type,
+                'published_date': result.get('published_date'),
+                'relevance_score': result.get('score', 0)
+            }
+            all_sources.append(source_entry)
+            
+            # Enhanced competitor extraction with URLs
             if any(term in snippet or term in title for term in ['competitor', 'raises', 'series', 'funding', 'platform']):
-                # Extract potential competitor names (capitalized words near keywords)
+                # Extract potential competitor names
                 competitor_patterns = re.findall(r'([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)', result.get('snippet', ''))
-                for comp in competitor_patterns[:2]:  # Take first 2 potential names
-                    if len(comp) > 3 and comp not in ['Series', 'The', 'This', 'That']:
-                        competitors.append(f"{comp} ({result.get('title', '')[:50]})")
+                for comp in competitor_patterns[:2]:
+                    if len(comp) > 3 and comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis']:
+                        # Check if it's a company name (heuristic: contains funding info or is mentioned as company)
+                        if any(indicator in snippet for indicator in ['raised', 'funding', 'valuation', 'startup', 'company']):
+                            competitors.append({
+                                'name': comp,
+                                'description': result.get('title', '')[:100],
+                                'url': url,
+                                'source_domain': domain,
+                                'mention_context': result.get('snippet', '')[:200]
+                            })
             
-            # Simple pattern matching for expert insights
-            if any(term in snippet or term in title for term in ['analysis', 'report', 'expert', 'study', 'research']):
-                # Extract key insight from snippet
+            # Enhanced expert insights with source attribution
+            if source_type in ['academic', 'industry_report'] or any(term in snippet or term in title for term in ['analysis', 'report', 'expert', 'study', 'research']):
                 sentences = result.get('snippet', '').split('.')
                 for sentence in sentences:
-                    if any(term in sentence.lower() for term in ['hour', 'approval', 'regulatory', 'market', 'standard']):
-                        expert_insights.append(f"{result.get('title', '')[:50]}: {sentence.strip()[:150]}")
+                    if any(term in sentence.lower() for term in ['market', 'growth', 'trend', 'forecast', 'cagr', 'billion']):
+                        expert_insights.append({
+                            'insight': sentence.strip()[:200],
+                            'source': result.get('title', '')[:50],
+                            'url': url,
+                            'source_type': source_type,
+                            'date': result.get('published_date')
+                        })
+                        break
+            
+            # Regulatory insights extraction with URLs
+            if source_type == 'regulatory' or any(term in snippet or term in title for term in ['regulation', 'compliance', 'directive', 'fda', 'epa', 'eu', 'requirement']):
+                sentences = result.get('snippet', '').split('.')
+                for sentence in sentences:
+                    if any(term in sentence.lower() for term in ['require', 'must', 'mandate', 'compliance', 'certification', 'approval']):
+                        regulatory_insights.append({
+                            'regulation': sentence.strip()[:200],
+                            'source': result.get('title', '')[:50],
+                            'url': url,
+                            'jurisdiction': 'EU' if 'eu' in domain.lower() else 'US' if '.gov' in domain else 'Unknown'
+                        })
                         break
         
-        # Remove duplicates and limit results
-        competitors = list(dict.fromkeys(competitors))[:5]
-        expert_insights = list(dict.fromkeys(expert_insights))[:5]
+        # Deduplicate and limit results
+        seen_competitors = set()
+        unique_competitors = []
+        for comp in competitors:
+            if comp['name'] not in seen_competitors:
+                seen_competitors.add(comp['name'])
+                unique_competitors.append(comp)
+        
+        # Sort sources by relevance score
+        all_sources.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
         
         return {
-            'competitors_found': competitors or ['No specific competitors identified in search results'],
-            'expert_insights': expert_insights or ['No specific expert insights found in search results'],
+            'competitors_found': unique_competitors[:10],  # Increased limit for expert analysis
+            'expert_insights': expert_insights[:10],
+            'regulatory_insights': regulatory_insights[:5],
+            'all_sources': all_sources[:15],  # Keep top 15 sources for citation
             'sources_count': len(results),
-            'search_terms_used': search_terms
+            'search_terms_used': search_terms,
+            'source_quality_breakdown': {
+                'academic': len([s for s in all_sources if s['type'] == 'academic']),
+                'industry_report': len([s for s in all_sources if s['type'] == 'industry_report']),
+                'financial': len([s for s in all_sources if s['type'] == 'financial']),
+                'regulatory': len([s for s in all_sources if s['type'] == 'regulatory'])
+            }
         }
 
 
