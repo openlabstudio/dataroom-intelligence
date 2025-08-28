@@ -383,16 +383,25 @@ class WebSearchEngine:
             }
             all_sources.append(source_entry)
             
-            # Enhanced competitor extraction with URLs
-            if any(term in snippet or term in title for term in ['competitor', 'raises', 'series', 'funding', 'platform']):
-                # Extract potential competitor names
+            # Enhanced competitor extraction with URLs - IMPROVED for academic sources
+            if any(term in snippet or term in title for term in ['competitor', 'raises', 'series', 'funding', 'platform', 'supplier', 'manufacturer', 'company', 'technology', 'treatment', 'system']):
+                # Extract potential competitor names - Enhanced patterns
                 competitor_patterns = re.findall(r'([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)', result.get('snippet', ''))
-                for comp in competitor_patterns[:2]:
-                    if len(comp) > 3 and comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis']:
-                        # Check if it's a company name (heuristic: contains funding info or is mentioned as company)
-                        if any(indicator in snippet for indicator in ['raised', 'funding', 'valuation', 'startup', 'company']):
+                for comp in competitor_patterns[:3]:  # Increased to 3
+                    if len(comp) > 2 and comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis', 'Another', 'Find', 'Water', 'Treatment']:
+                        # Relaxed company detection for academic sources
+                        if any(indicator in snippet for indicator in ['raised', 'funding', 'valuation', 'startup', 'company', 'supplier', 'manufacturer', 'Ltd', 'Inc', 'Corp', 'GmbH', 'AG']):
                             competitors.append({
                                 'name': comp,
+                                'description': result.get('title', '')[:100],
+                                'url': url,
+                                'source_domain': domain,
+                                'mention_context': result.get('snippet', '')[:200]
+                            })
+                        # Special case for academic papers mentioning companies
+                        elif any(term in snippet.lower() for term in ['manufacturers', 'suppliers', 'companies', 'providers']) and len(comp) > 4:
+                            competitors.append({
+                                'name': comp + ' (Industry)',
                                 'description': result.get('title', '')[:100],
                                 'url': url,
                                 'source_domain': domain,
@@ -624,8 +633,8 @@ def perform_web_search(documents: List[Dict], document_summary: Dict,
         if len(differentiators) > 1:
             queries.append(f"companies similar to {value_prop} success failure")
         
-        # Execute searches
-        search_engine = WebSearchEngine(provider='duckduckgo')
+        # Execute searches - Use tavily for better competitor analysis
+        search_engine = WebSearchEngine(provider='tavily')
         web_intelligence = search_engine.search_multiple(queries)
         
         # Add extraction info to results

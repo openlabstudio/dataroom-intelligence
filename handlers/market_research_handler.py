@@ -299,7 +299,7 @@ class MarketResearchHandler:
     
     def _format_response(self, market_intelligence_result) -> str:
         """
-        Format the market research response for Slack with expert-level insights and URLs
+        Format the market research response for Slack with analyst-focused clarity
         
         Args:
             market_intelligence_result: Result from orchestrator
@@ -307,12 +307,13 @@ class MarketResearchHandler:
         Returns:
             Formatted string for Slack message
         """
-        # Try to use expert formatter if available
+        # Use new analyst formatter for clarity and actionability
         try:
-            from utils.expert_formatter import format_expert_market_research
-            return format_expert_market_research(market_intelligence_result)
+            from utils.analyst_formatter import format_analyst_market_research
+            return format_analyst_market_research(market_intelligence_result)
         except ImportError:
-            # Fallback to original formatter
+            logger.warning("Analyst formatter not available, using fallback")
+            # Simple fallback if new formatter fails
             pass
         
         response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED**\n\n"
