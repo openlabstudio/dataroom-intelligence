@@ -234,30 +234,14 @@ class MarketResearchOrchestrator(BaseAgent):
             result.processing_steps.append("Phase 4: Funding Benchmarking")
             logger.info("✅ Phase 4 Complete: Funding Benchmarking")
 
-            # ==== PHASE 4.5: Web Search Intelligence (TASK-005) ====
-            logger.info("🔍 PHASE 4.5/5: Web Search Intelligence")
-            try:
-                # Import web search functionality
-                from utils.web_search import perform_web_search
-                
-                # Perform web search based on extracted value proposition
-                web_intelligence = perform_web_search(
-                    processed_documents,
-                    document_summary,
-                    market_profile
-                )
-                result.web_intelligence = web_intelligence
-                result.processing_steps.append("Phase 4.5: Web Search Intelligence")
-                logger.info(f"✅ Web Search Complete: Found {web_intelligence.get('sources_count', 0)} sources")
-            except Exception as e:
-                logger.warning(f"⚠️ Web search failed (non-critical): {e}")
-                result.web_intelligence = {
-                    'competitors_found': [],
-                    'expert_insights': [],
-                    'sources_count': 0,
-                    'search_terms_used': [],
-                    'error': str(e)
-                }
+            # ==== PHASE 4.5: Web Search Intelligence (REMOVED - Integrated into agents) ====
+            # Web search is now integrated directly into each agent (FASE 2A/2B/2C)
+            # No need for separate DuckDuckGo phase
+            result.web_intelligence = {
+                'note': 'Web search integrated into agents',
+                'sources_count': 0  # Count is in each agent's results
+            }
+            logger.info("✅ Web search now integrated into individual agents")
 
             # ==== PHASE 5: Critical Synthesis (Current Implementation) ====
             logger.info("🧠 PHASE 5/5: Critical Assessment & Synthesis")
