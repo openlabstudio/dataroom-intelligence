@@ -91,7 +91,8 @@ def _format_competitive_landscape(result) -> str:
             comp_dict = comp_data.to_dict()
             independent = comp_dict.get('independent_analysis', {})
         else:
-            independent = comp_data
+            # comp_data is already a dict - extract independent_analysis
+            independent = comp_data.get('independent_analysis', {})
         
         section = "🏢 **COMPETITIVE LANDSCAPE**\n\n"
         
