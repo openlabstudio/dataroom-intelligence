@@ -39,8 +39,35 @@ python app.py
 - ❌ **When TEST_MODE=false:**
   - REAL GPT-4 API calls ($$$ costs)
   - Actual AI analysis
-  - Processing takes 30-60 seconds
+  - Processing takes 30-60 seconds (basic) or 5-10 minutes (enhanced intelligence)
   - Only use for final testing
+
+### 🚨 CRITICAL: Enhanced Intelligence Development Workflow
+
+**For features requiring 5-10 minute analysis (Enhanced Intelligence, multi-query research):**
+
+#### **MANDATORY Development Process:**
+```bash
+# PHASE 1: Development (REQUIRED)
+export TEST_MODE=true
+python app.py
+# → Mock data, instant responses, unlimited iterations
+# → NEVER proceed to PHASE 2 until this works 100%
+
+# PHASE 2: Integration Validation (LIMITED)
+export TEST_MODE=false  
+python app.py
+# → 1-2 tests maximum to verify real API integration
+# → Accept 5-10 minutes only for final verification
+
+# PHASE 3: Production Ready
+# → Deploy with confidence knowing TEST_MODE validated everything
+```
+
+#### **Enhanced Intelligence Mock Strategy:**
+- **Mock data must simulate real complexity:** 8-10 competitors, detailed insights, realistic confidence scores
+- **Include simulated processing time:** "8.3 minutes (simulated)" to test UX
+- **Quality gate:** If TEST_MODE analysis looks valuable → Production will too
 
 ## 📁 Repository Structure
 
@@ -221,6 +248,31 @@ Claude: "Let me analyze this first. Here are the pros/cons/risks...
 User: "Good points. Let's go with approach Z instead."  
 Claude: "Perfect! Now I'll implement approach Z..."
 ```
+
+## 🚨 **CRITICAL: CODE MODIFICATION WORKFLOW**
+
+**MANDATORY RULE: Never modify code without explicit approval**
+
+### Required Process for ALL Code Changes:
+1. **🔍 Analyze Problem** - Understand issue thoroughly without touching code
+2. **💡 Propose Solutions** - Present 2-3 options with pros/cons/risks
+3. **🤔 Discuss & Refine** - Challenge proposals, explore alternatives, ask critical questions
+4. **⏸️ WAIT for explicit OK** - User must say "OK", "proceed", "go ahead", or "yes"
+5. **✅ ONLY THEN implement** - Make changes after clear approval
+
+### Examples:
+❌ **Wrong:** "I see the issue, let me fix it..." [starts coding immediately]
+✅ **Correct:** "I see the issue. Here are 3 solutions: A) Quick fix with X risk, B) Robust solution taking Y time, C) Alternative approach with Z tradeoff. Which do you prefer?"
+
+### Why This Workflow is Critical:
+- Prevents breaking working code
+- Ensures user maintains control over all changes  
+- Forces thoughtful solution design vs reactive coding
+- Avoids unnecessary modifications that add complexity
+- Allows user to prioritize and guide development direction
+
+### Enforcement:
+This rule applies to ALL code modifications, no matter how small or obvious the fix seems. When in doubt, always propose first, implement second.
 
 ### 1. NEVER Break TEST MODE
 ```python

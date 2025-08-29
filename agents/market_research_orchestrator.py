@@ -183,9 +183,9 @@ class MarketResearchOrchestrator(BaseAgent):
             competitive_profile = self.competitive_analyzer.analyze_competitors(
                 market_profile.to_dict(), processed_documents, document_summary
             )
-            # FASE 2A: Use new structure with independent_analysis
+            # FASE 2A: Use complete competitive data (includes all_sources)
             competitive_data = competitive_profile.to_dict()
-            result.competitive_analysis = competitive_data.get('independent_analysis', competitive_data)
+            result.competitive_analysis = competitive_data  # Keep full data including all_sources
             
             self.progress_tracker.phases[1].status = "completed"
             self.progress_tracker.phases[1].end_time = datetime.now()

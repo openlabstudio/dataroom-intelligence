@@ -406,6 +406,13 @@ Recommend deeper due diligence on regulatory partnerships.
 
 ### **📊 Criterios de Aceptación por Fase**
 
+**🚨 MANDATORY TEST_MODE Requirements (ALL PHASES):**
+- **TEST_MODE=true MUST work 100% before any TEST_MODE=false testing**
+- **Mock data must simulate real complexity** (8-10 competitors, realistic insights)
+- **Include simulated processing time** for long analysis (5-10 min features)
+- **Quality gate:** If TEST_MODE analysis valuable → Production will be too
+- **Cost control:** Maximum 1-2 production tests per feature for integration validation
+
 **✅ FASE 1 (Completada):**
 - ✅ TEST_MODE retorna mock web intelligence data
 - ✅ No rompe comandos existentes
@@ -415,23 +422,30 @@ Recommend deeper due diligence on regulatory partnerships.
 **FASE 2A (Competitive Intelligence):**
 - [ ] Agent integra web search internamente
 - [ ] Display actualizado: "🏢 COMPETITIVE LANDSCAPE"
-- [ ] Mock data contextual para TEST_MODE
+- [ ] **TEST_MODE:** Mock data contextual con 8-10 competitors realistas
 - [ ] Template replicable para otros agents
+- [ ] **PRODUCTION TEST:** Maximum 1 test de 5-10 min para validación
 
 **FASE 2B-2C (Market Validation + Funding):**
 - [ ] Cada agent tiene web search integrado
 - [ ] Display format consistent
 - [ ] Independent analysis focus (no comparativas)
+- [ ] **TEST_MODE:** Mock insights realistas con confidence scores
+- [ ] **PRODUCTION TEST:** Validación de integración limitada
 
-**FASE 2D (Critical Synthesizer):**
+**FASE 2D (Critical Synthesizer - Enhanced Intelligence):**
 - [ ] Investment decision framework
-- [ ] GO/NO-GO recommendation clara
+- [ ] GO/NO-GO recommendation clara  
 - [ ] Slack conciso + PDF data prep
+- [ ] **TEST_MODE:** Mock synthesis de todos los agents (simulated 8-10 min)
+- [ ] **PRODUCTION TEST:** 1-2 tests máximo para validar GPT-4 synthesis
+- [ ] **Enhanced Intelligence:** 12-query mock data realista
 
 **FASE 2E (PDF Prep):**
 - [ ] Reality check vs startup claims section preparada
 - [ ] Full sources con links y quotes
 - [ ] Data structures para PDF generation
+- [ ] **TEST_MODE:** Mock PDF data structures completas
 
 #### TASK-006: PDF Report Generation + Slack Integration con Links
 **Estado:** 📋 Backlog  

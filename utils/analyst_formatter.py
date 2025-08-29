@@ -28,7 +28,9 @@ def format_analyst_market_research(market_intelligence_result) -> str:
         Clean, analyst-friendly formatted string
     """
     try:
-        logger.info("🎯 Formatting market research for analyst consumption")
+        logger.info("🎯 FORMATTING STARTING - Analyst market research formatter called")
+        logger.info(f"🎯 INPUT TYPE: {type(market_intelligence_result)}")
+        logger.info(f"🎯 INPUT ATTRIBUTES: {dir(market_intelligence_result)}")
         
         response = "✅ **MARKET RESEARCH COMPLETED**\n\n"
         
@@ -204,13 +206,38 @@ def _format_key_sources(result) -> str:
         
         sources = []
         
-        # Collect sources from all analysis components
+        # AGGRESSIVE DEBUG: Log everything
+        logger.info(f"🚨 SOURCES DEBUG START")
+        logger.info(f"🚨 Result type: {type(result)}")
+        logger.info(f"🚨 Result has competitive_analysis: {hasattr(result, 'competitive_analysis')}")
+        
+# Removed fake sources - testing complete
+        
+        # Handle both object and dict formats for competitive_analysis
         if hasattr(result, 'competitive_analysis'):
             comp_data = result.competitive_analysis
+            logger.info(f"🚨 Competitive analysis exists, type: {type(comp_data)}")
+            
+            # Case 1: Object with to_dict method (CompetitiveProfile)
             if hasattr(comp_data, 'to_dict'):
                 comp_dict = comp_data.to_dict()
                 comp_sources = comp_dict.get('all_sources', [])
+                logger.info(f"🚨 Object format: Found {len(comp_sources)} sources via to_dict()")
+            # Case 2: Already a dict (from orchestrator)
+            elif isinstance(comp_data, dict):
+                comp_sources = comp_data.get('all_sources', [])
+                logger.info(f"🚨 Dict format: Found {len(comp_sources)} sources directly")
+            else:
+                comp_sources = []
+                logger.warning(f"🚨 Unknown competitive_analysis format: {type(comp_data)}")
+            
+            if comp_sources:
+                logger.info(f"🚨 First real source: {comp_sources[0]}")
                 sources.extend(comp_sources[:5])  # Top 5 from competitive
+            else:
+                logger.warning(f"🚨 No sources found in competitive_analysis")
+        else:
+            logger.error(f"🚨 NO competitive_analysis found in result!")
         
         # Filter and rank sources by credibility
         credible_sources = []
@@ -220,14 +247,24 @@ def _format_key_sources(result) -> str:
             title = source.get('title', 'Unknown')
             url = source.get('url', '')
             
-            # Prioritize credible sources
+            # Prioritize credible sources - EXPANDED to include market research sources
             if any(term in domain.lower() for term in [
+                # Premium financial/startup sources
                 'crunchbase', 'techcrunch', 'reuters', 'bloomberg', 
-                'nature.com', 'mckinsey', 'bcg.com', 'deloitte',
-                'pitchbook', 'cbinsights'
+                'pitchbook', 'cbinsights', 'ft.com', 'wsj.com',
+                # Consulting & Industry Reports
+                'mckinsey', 'bcg.com', 'deloitte', 'pwc.com', 'kpmg',
+                # Academic/Research
+                'nature.com', 'sciencedirect', 'springer', '.edu'
             ]):
                 credibility_score = 3
-            elif source_type in ['industry_report', 'financial']:
+            elif any(term in domain.lower() for term in [
+                # Market Research firms
+                'tracxn', 'stratview', 'grandview', 'precedence', 'market.us',
+                'startus-insights', 'mordorintelligence', 'researchandmarkets',
+                # Industry databases
+                'statista', 'ibisworld', 'euromonitor', 'frost.com'
+            ]) or source_type in ['industry_report', 'financial']:
                 credibility_score = 2
             else:
                 credibility_score = 1
@@ -239,18 +276,32 @@ def _format_key_sources(result) -> str:
                 'domain': domain
             })
         
-        # Sort by credibility and take top 3
+        # Sort by credibility and take top 4 (increased for more coverage)
         credible_sources.sort(key=lambda x: x['credibility'], reverse=True)
-        top_sources = credible_sources[:3]
+        
+        # Be more flexible - show sources even with credibility 1 if that's all we have
+        top_sources = credible_sources[:4]
         
         if top_sources:
-            for i, source in enumerate(top_sources, 1):
+            # Group by credibility for better display
+            high_cred = [s for s in top_sources if s['credibility'] >= 2]
+            other_sources = [s for s in top_sources if s['credibility'] == 1]
+            
+            # Show high credibility sources first
+            for i, source in enumerate(high_cred, 1):
                 section += f"{i}. {source['title']}... ({source['domain']})\n"
                 section += f"   {source['url']}\n"
+            
+            # Show other sources if we have space and need more
+            remaining_slots = 4 - len(high_cred)
+            for i, source in enumerate(other_sources[:remaining_slots], len(high_cred) + 1):
+                section += f"{i}. {source['title']}... ({source['domain']})\n"
+                section += f"   {source['url']}\n"
+                
         else:
-            section += "⚠️ **No credible sources identified**\n"
-            section += "• Sources may require manual verification\n"
-            section += "• Consider industry databases or expert contacts\n"
+            section += "⚠️ **No sources available**\n"
+            section += "• Web search may have failed\n"
+            section += "• Try running analysis again\n"
         
         section += "\n"
         return section

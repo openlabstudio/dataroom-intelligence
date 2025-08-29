@@ -956,8 +956,12 @@ Provide your analysis in the JSON format specified.
         else:
             profile.market_position = "Emerging market with opportunities"
         
-        # Track all sources with URLs
-        profile.all_sources = web_intelligence.get('all_sources', [])[:15]
+        # Track all sources with URLs - DEBUG
+        all_sources_raw = web_intelligence.get('all_sources', [])
+        logger.info(f"🔍 Web intelligence returned {len(all_sources_raw)} sources")
+        logger.info(f"🔍 Web intelligence keys: {list(web_intelligence.keys())}")
+        
+        profile.all_sources = all_sources_raw[:15]
         profile.sources = web_intelligence.get('sources_summary', [])
         
         # Set confidence based on data availability and source quality
