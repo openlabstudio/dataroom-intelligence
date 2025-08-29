@@ -3,6 +3,13 @@ Competitive Intelligence Agent for DataRoom Intelligence
 Analyzes competitive landscape, identifies key competitors, and assesses market positioning
 
 Phase 2B.1 - TASK-001: Competitive Intelligence Implementation
+
+🔧 TEMPORARY FIX APPLIED: Enhanced search queries for niche markets (lines 504-590)
+⚠️  IMPORTANT: This fix will be replaced by Enhanced Intelligence System
+    - Enhanced queries with alternative terms (vendors, providers, players)
+    - Quoted searches for exact technology terms
+    - Multiple search variations for B2B niches
+    - TODO: Replace with systematic 12-query expansion in Enhanced Intelligence System
 """
 
 import os
@@ -501,28 +508,34 @@ Provide your analysis in the JSON format specified.
             # Level 1: Solution-specific search (most specific)
             solution_queries = []
             if solution:
+                # 🔧 TEMPORARY FIX: Enhanced queries for niche markets (will be replaced by Enhanced Intelligence System)
                 solution_queries = [
                     f"{solution} competitors market analysis",
-                    f"{solution} companies funding",
-                    f"{solution} failed startups"
+                    f"{solution} companies vendors providers",  # More specific terms for B2B niches
+                    f'"{solution}" startup companies funding',  # Quoted search for exact technology terms
+                    f"{solution} alternative solutions providers"  # Catch indirect competitors
                 ]
             
             # Level 2: Sub-vertical search (broader)
             subvertical_queries = []
             if sub_vertical:
+                # 🔧 TEMPORARY FIX: Enhanced sub-vertical queries for better competitor discovery
                 subvertical_queries = [
-                    f"{sub_vertical} market leaders 2024",
-                    f"{sub_vertical} competitive landscape",
-                    f"{sub_vertical} investment trends"
+                    f"{sub_vertical} market leaders companies 2024",
+                    f"{sub_vertical} competitive landscape analysis",
+                    f"{sub_vertical} players vendors solutions",  # Alternative terms for B2B markets
+                    f'"{sub_vertical}" industry companies list'  # Quoted search for specific industries
                 ]
             
             # Level 3: Vertical search (broadest)
             vertical_queries = []
             if vertical:
+                # 🔧 TEMPORARY FIX: Enhanced vertical queries for comprehensive market discovery
                 vertical_queries = [
-                    f"{vertical} industry analysis 2024",
-                    f"{vertical} major players market share",
-                    f"{vertical} funding ecosystem"
+                    f"{vertical} industry companies directory 2024",
+                    f"{vertical} major players market leaders",
+                    f"{vertical} established companies incumbents",  # Catch established players
+                    f'"{vertical}" sector competitive analysis'  # Quoted search for specific sectors
                 ]
             
             logger.info(f"🔍 Executing 3-level hierarchical search:")
@@ -574,12 +587,13 @@ Provide your analysis in the JSON format specified.
             # Build targeted search queries (NO GEOGRAPHY)
             vertical = market_profile.get('vertical', 'technology')
             
-            # SIMPLIFIED: Just remove geography from existing queries
+            # 🔧 TEMPORARY FIX: Enhanced fallback queries for better competitor discovery
             queries = [
-                f"{value_proposition} competitors funding analysis",
-                f"{value_proposition} failed startups case studies",
-                f"similar companies {value_proposition} investor sentiment",
-                f"{vertical} competitive landscape 2024"  # Removed {geo}
+                f"{value_proposition} competitors companies providers",  # Multiple terms for B2B
+                f'"{value_proposition}" startup companies funding',  # Quoted exact match
+                f"{value_proposition} alternative solutions vendors",  # Indirect competitors
+                f"{vertical} competitive landscape players 2024",  # Enhanced vertical search
+                f"similar companies {value_proposition} market analysis"  # Broader discovery
             ]
             
             # Execute searches
