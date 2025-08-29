@@ -74,9 +74,9 @@ class ProgressTracker:
             ),
             AgentPhase(
                 id="critical_synthesis",
-                name="Critical Assessment & Report",
-                description="Synthesizing findings into investment-grade analysis",
-                estimated_duration_minutes=2
+                name="Investment Decision Synthesis",
+                description="AI-powered GO/CAUTION/NO-GO investment recommendation",
+                estimated_duration_minutes=3
             )
         ]
 

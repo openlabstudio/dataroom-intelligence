@@ -14,6 +14,7 @@ from .market_detection import MarketDetectionAgent, MarketProfile
 from .competitive_intelligence import CompetitiveIntelligenceAgent
 from .market_validation import MarketValidationAgent
 from .funding_benchmarker import FundingBenchmarkerAgent
+from .critical_synthesizer import CriticalSynthesizerAgent
 from .progress_tracker import ProgressTracker, create_test_progress_tracker
 from utils.logger import get_logger
 
@@ -100,7 +101,8 @@ class MarketIntelligenceResult:
         self.market_validation: Dict[str, Any] = {}
         self.funding_benchmarks: Dict[str, Any] = {}  # TASK-003: Added funding benchmarks
         self.web_intelligence: Dict[str, Any] = {}  # TASK-005: Added web search intelligence
-        self.critical_assessment: Dict[str, Any] = {}
+        self.critical_assessment: Dict[str, Any] = {}  # Legacy - replaced by investment_decision
+        self.investment_decision: Dict[str, Any] = {}  # TASK-005 FASE 2D: Critical Synthesizer
         self.timestamp = datetime.now().isoformat()
         self.processing_steps: List[str] = []
         self.confidence_score: float = 0.0
@@ -112,7 +114,8 @@ class MarketIntelligenceResult:
             'market_validation': self.market_validation,
             'funding_benchmarks': self.funding_benchmarks,  # TASK-003: Added funding benchmarks
             'web_intelligence': self.web_intelligence,  # TASK-005: Added web search intelligence
-            'critical_assessment': self.critical_assessment,
+            'critical_assessment': self.critical_assessment,  # Legacy
+            'investment_decision': self.investment_decision,  # TASK-005 FASE 2D: Critical Synthesizer
             'timestamp': self.timestamp,
             'processing_steps': self.processing_steps,
             'confidence_score': self.confidence_score
@@ -130,8 +133,8 @@ class MarketResearchOrchestrator(BaseAgent):
         self.market_validator = MarketValidationAgent()
         # TASK-003: Funding Benchmarker Agent
         self.funding_benchmarker = FundingBenchmarkerAgent()
-        # Future agents (Phase 2B.1 continuation)
-        # self.critical_synthesizer = CriticalSynthesizer()
+        # TASK-005 FASE 2D: Critical Synthesizer Agent
+        self.critical_synthesizer = CriticalSynthesizerAgent()
         
         # Progress tracker will be initialized per analysis
         self.progress_tracker = None
@@ -243,19 +246,27 @@ class MarketResearchOrchestrator(BaseAgent):
             }
             logger.info("✅ Web search now integrated into individual agents")
 
-            # ==== PHASE 5: Critical Synthesis (Current Implementation) ====
-            logger.info("🧠 PHASE 5/5: Critical Assessment & Synthesis")
+            # ==== PHASE 5: Investment Decision Synthesis (TASK-005 FASE 2D) ====
+            logger.info("🧠 PHASE 5/5: Investment Decision Synthesis")
             self.progress_tracker.phases[4].status = "running"
             self.progress_tracker.phases[4].start_time = datetime.now()
             
-            critical_assessment = self._generate_critical_assessment(market_profile, processed_documents)
-            result.critical_assessment = critical_assessment
+            # Use Critical Synthesizer Agent for investment decision
+            investment_decision = self.critical_synthesizer.synthesize_investment_decision(result)
+            result.investment_decision = investment_decision.to_dict()
+            
+            # Legacy critical assessment (for backward compatibility)
+            result.critical_assessment = {
+                'decision': investment_decision.decision,
+                'summary': investment_decision.executive_summary,
+                'confidence': investment_decision.confidence_level
+            }
             
             self.progress_tracker.phases[4].status = "completed"
             self.progress_tracker.phases[4].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 5
-            result.processing_steps.append("Phase 5: Critical Assessment Generated")
-            logger.info("✅ Phase 5 Complete: Critical Synthesis")
+            result.processing_steps.append("Phase 5: Investment Decision Synthesis")
+            logger.info(f"✅ Phase 5 Complete: Investment Decision = {investment_decision.decision}")
 
             # Calculate overall confidence
             result.confidence_score = self._calculate_overall_confidence(result)

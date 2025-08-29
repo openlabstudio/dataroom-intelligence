@@ -43,10 +43,13 @@ def format_analyst_market_research(market_intelligence_result) -> str:
         # 3. MARKET INSIGHTS (Opportunities & Risks)
         response += _format_market_insights(market_intelligence_result)
         
-        # 4. KEY SOURCES (Only the most relevant)
+        # 4. INVESTMENT DECISION (Critical Synthesizer output)
+        response += _format_investment_decision(market_intelligence_result)
+        
+        # 5. KEY SOURCES (Only the most relevant)
         response += _format_key_sources(market_intelligence_result)
         
-        # 5. COMMANDS (Keep user engagement)
+        # 6. COMMANDS (Keep user engagement)
         response += "\n📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`"
         
         logger.info(f"✅ Analyst format completed. Length: {len(response)} chars")
@@ -198,6 +201,74 @@ def _format_market_insights(result) -> str:
     except Exception as e:
         logger.error(f"❌ Market insights formatting failed: {e}")
         return "**Market Insights:**\n⚠️ Insights analysis error\n\n"
+
+def _format_investment_decision(result) -> str:
+    """Format investment decision from Critical Synthesizer Agent"""
+    try:
+        # Check if investment decision is available
+        if not hasattr(result, 'investment_decision') or not result.investment_decision:
+            return ""  # No investment decision available
+        
+        decision_data = result.investment_decision
+        decision = decision_data.get('decision', 'CAUTION')
+        
+        # Decision icon mapping
+        decision_icons = {
+            'GO': '🟢',
+            'CAUTION': '🟡', 
+            'NO-GO': '🔴'
+        }
+        
+        section = f"\n{decision_icons.get(decision, '🟡')} **INVESTMENT DECISION: {decision}**\n\n"
+        
+        # Executive Summary
+        executive_summary = decision_data.get('executive_summary', '')
+        if executive_summary:
+            section += f"📋 {executive_summary}\n\n"
+        
+        # Rationale  
+        rationale = decision_data.get('key_rationale', [])
+        if rationale:
+            section += "⚖️ **RATIONALE:**\n"
+            for reason in rationale:
+                section += f"• {reason}\n"
+            section += "\n"
+        
+        # Key Risks
+        risks = decision_data.get('key_risks', [])
+        if risks:
+            section += "🚨 **KEY RISKS:**\n"
+            for risk in risks:
+                section += f"• {risk}\n"
+            section += "\n"
+        
+        # Market Opportunity
+        opportunity = decision_data.get('market_opportunity', '')
+        if opportunity:
+            section += f"💰 **OPPORTUNITY:** {opportunity}\n\n"
+        
+        # Confidence Level
+        confidence = decision_data.get('confidence_level', 'Medium')
+        confidence_reason = decision_data.get('confidence_reason', '')
+        section += f"📊 **CONFIDENCE:** {confidence}"
+        if confidence_reason:
+            section += f" - {confidence_reason}"
+        section += "\n"
+        
+        # Red Flags (if any)
+        red_flags = decision_data.get('red_flags', [])
+        if red_flags:
+            section += "\n🔍 **RED FLAGS:**\n"
+            for flag in red_flags:
+                severity_icon = "🚨" if flag.get('severity') == 'high' else "⚠️"
+                section += f"• {severity_icon} {flag.get('reason', 'Unknown risk')}\n"
+        
+        section += "\n"
+        return section
+        
+    except Exception as e:
+        logger.error(f"❌ Investment decision formatting failed: {e}")
+        return "\n🟡 **INVESTMENT DECISION: CAUTION**\n📋 Decision analysis unavailable - manual review required\n\n"
 
 def _format_key_sources(result) -> str:
     """Format only the most relevant and credible sources"""
