@@ -100,9 +100,9 @@ def _format_competitive_landscape(result) -> str:
         solution_competitors = independent.get('solution_competitors', [])
         if solution_competitors:
             section += "**Direct Competitors (Solution Level):**\n"
-            for i, comp in enumerate(solution_competitors[:4], 1):  # Max 4 to save space
+            for i, comp in enumerate(solution_competitors[:3], 1):  # Max 3 for Slack limit
                 name = comp.get('name', 'Unknown')
-                description = comp.get('description', comp.get('mention_context', ''))[:60]
+                description = comp.get('description', comp.get('mention_context', ''))[:40]  # Shorter desc
                 url = comp.get('url', '')
                 
                 section += f"{i}. {name}"
@@ -120,9 +120,9 @@ def _format_competitive_landscape(result) -> str:
         
         if unique_subvertical:
             section += "**Sub-vertical Competitors:**\n"
-            for i, comp in enumerate(unique_subvertical[:3], len(solution_competitors) + 1):
+            for i, comp in enumerate(unique_subvertical[:2], len(solution_competitors) + 1):  # Max 2 sub-vertical
                 name = comp.get('name', 'Unknown')
-                description = comp.get('description', comp.get('mention_context', ''))[:60]
+                description = comp.get('description', comp.get('mention_context', ''))[:40]  # Shorter desc
                 url = comp.get('url', '')
                 
                 section += f"{i}. {name}"
@@ -342,7 +342,7 @@ def _format_key_sources(result) -> str:
                 credibility_score = 1
             
             credible_sources.append({
-                'title': title[:50],  # Truncate long titles
+                'title': title[:40],  # Shorter titles for Slack limit
                 'url': url,
                 'credibility': credibility_score,
                 'domain': domain
@@ -351,8 +351,8 @@ def _format_key_sources(result) -> str:
         # Sort by credibility and take top 4 (increased for more coverage)
         credible_sources.sort(key=lambda x: x['credibility'], reverse=True)
         
-        # Be more flexible - show sources even with credibility 1 if that's all we have
-        top_sources = credible_sources[:4]
+        # Limit sources for Slack message length
+        top_sources = credible_sources[:3]  # Reduced from 4 to 3
         
         if top_sources:
             # Group by credibility for better display
@@ -365,7 +365,7 @@ def _format_key_sources(result) -> str:
                 section += f"   {source['url']}\n"
             
             # Show other sources if we have space and need more
-            remaining_slots = 4 - len(high_cred)
+            remaining_slots = 3 - len(high_cred)  # Match total of 3 sources
             for i, source in enumerate(other_sources[:remaining_slots], len(high_cred) + 1):
                 section += f"{i}. {source['title']}... ({source['domain']})\n"
                 section += f"   {source['url']}\n"
