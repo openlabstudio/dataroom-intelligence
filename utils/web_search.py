@@ -388,23 +388,24 @@ class WebSearchEngine:
             }
             all_sources.append(source_entry)
             
-            # Enhanced competitor extraction with URLs - SIMPLIFIED AND FIXED
-            if any(term in snippet.lower() or term in title.lower() for term in ['competitor', 'raised', 'raises', 'series', 'funding', 'platform', 'startup', 'company']):
+            # Enhanced competitor extraction with URLs - EXPANDED TRIGGER WORDS
+            if any(term in snippet.lower() or term in title.lower() for term in ['competitor', 'raised', 'raises', 'series', 'funding', 'platform', 'startup', 'company', 'vendor', 'provider', 'player', 'solution', 'leader', 'market']):
                 
-                # Simplified but effective extraction patterns
+                # Enhanced extraction patterns with case-insensitive matching
                 company_patterns = [
-                    r'(?:startup|Startup)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
-                    r'(?:company|Company)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
-                    r'([A-Z][a-zA-Z]+)\s+(?:Inc|Ltd|Corp|Technologies|Solutions|Systems)',
+                    r'(?i)(?:startup|company|vendor|provider)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
+                    r'([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\s+(?:Inc|Ltd|Corp|Technologies|Solutions|Systems|Group)',
+                    r'([A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]{2,})*)\s+(?:is|was|has|offers|provides)',  # Context-based extraction
+                    r'(?i)leading\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',  # "leading CompanyName"
                 ]
                 
                 for pattern in company_patterns:
                     matches = re.findall(pattern, snippet)
                     for comp in matches[:1]:  # Only one per source to avoid noise
                         comp = comp.strip()
-                        # Simple but effective filtering
-                        if (len(comp) > 3 and 
-                            comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis', 'Find', 'Water', 'Treatment', 'There', 'These', 'Founded', 'Location', 'Advanced', 'Pharmaceutical']):
+                        # More focused filtering - allow industry terms, focus on generic words
+                        if (len(comp) > 2 and 
+                            comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis', 'Find', 'There', 'These', 'Founded', 'Location', 'Market', 'Industry', 'Global']):
                             
                             competitors.append({
                                 'name': comp,
