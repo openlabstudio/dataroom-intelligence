@@ -403,9 +403,11 @@ class WebSearchEngine:
                     matches = re.findall(pattern, snippet)
                     for comp in matches[:1]:  # Only one per source to avoid noise
                         comp = comp.strip()
-                        # More focused filtering - allow industry terms, focus on generic words
-                        if (len(comp) > 2 and 
-                            comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis', 'Find', 'There', 'These', 'Founded', 'Location', 'Market', 'Industry', 'Global']):
+                        # Enhanced filtering - block incomplete fragments and generic terms
+                        if (len(comp) > 3 and 
+                            not comp.startswith(('of ', 'and ', 'the ', 'with ', 'for ', 'in ', 'on ', 'at ')) and
+                            not comp.lower().startswith(('provides ', 'offers ', 'leading ', 'top ', 'first ')) and
+                            comp not in ['Series', 'The', 'This', 'That', 'Report', 'Analysis', 'Find', 'There', 'These', 'Founded', 'Location', 'Market', 'Industry', 'Global', 'Company', 'Solutions', 'Technologies', 'Systems']):
                             
                             competitors.append({
                                 'name': comp,

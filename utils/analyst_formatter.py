@@ -7,8 +7,80 @@ Focus: Clarity over complexity, actionable insights over generic data
 
 from typing import Dict, Any, List
 from utils.logger import get_logger
+import re
 
 logger = get_logger(__name__)
+
+def smart_truncate_message(sections_dict: Dict[str, str], max_chars: int = 3500) -> str:
+    """
+    Clean section-based truncation for coherent Slack messages
+    
+    Strategy: Remove entire sections if needed, never truncate mid-section
+    Priority: header > investment_decision > competitive_landscape > market_taxonomy > market_insights > key_sources > commands
+    
+    Args:
+        sections_dict: Dictionary of section_name -> content  
+        max_chars: Maximum characters allowed (Slack safe limit)
+        
+    Returns:
+        Clean, coherent message that fits within character limit
+    """
+    # Define section priority (higher number = higher priority, always included)
+    SECTION_PRIORITY = {
+        'header': 100,  # Always include
+        'investment_decision': 90,  # Critical for VC decision
+        'competitive_landscape': 80,  # Core market intelligence
+        'market_taxonomy': 70,  # Essential classification
+        'market_insights': 60,  # Important but can be cut
+        'key_sources': 50,  # Reference material
+        'commands': 40   # Useful but lowest priority
+    }
+    
+    # Calculate current total length
+    total_length = sum(len(content) for content in sections_dict.values())
+    
+    # If under limit, return as-is
+    if total_length <= max_chars:
+        logger.info(f"📏 Message length: {total_length} chars (within {max_chars} limit)")
+        return ''.join(sections_dict.values())
+    
+    logger.info(f"📏 Message too long: {total_length} chars. Applying clean section removal...")
+    
+    # Sort sections by priority (highest first)
+    sections_by_priority = sorted(
+        sections_dict.items(), 
+        key=lambda x: SECTION_PRIORITY.get(x[0], 0), 
+        reverse=True
+    )
+    
+    # Build message by adding sections in priority order until we hit limit
+    final_sections = {}
+    running_length = 0
+    
+    for section_name, content in sections_by_priority:
+        if not content:  # Skip empty sections
+            continue
+            
+        # Check if adding this section would exceed limit
+        if running_length + len(content) <= max_chars:
+            final_sections[section_name] = content
+            running_length += len(content)
+        else:
+            logger.info(f"📏 Excluding section '{section_name}' ({len(content)} chars) to stay within limit")
+    
+    # Rebuild in original order (only including selected sections)
+    result_parts = []
+    for section_name in sections_dict.keys():
+        if section_name in final_sections:
+            result_parts.append(final_sections[section_name])
+    
+    final_message = ''.join(result_parts)
+    final_length = len(final_message)
+    
+    logger.info(f"📏 Clean truncation applied: {final_length} chars (target: {max_chars})")
+    logger.info(f"📏 Sections included: {list(final_sections.keys())}")
+    
+    return final_message
 
 def format_analyst_market_research(market_intelligence_result) -> str:
     """
@@ -32,27 +104,21 @@ def format_analyst_market_research(market_intelligence_result) -> str:
         logger.info(f"🎯 INPUT TYPE: {type(market_intelligence_result)}")
         logger.info(f"🎯 INPUT ATTRIBUTES: {dir(market_intelligence_result)}")
         
-        response = "✅ **MARKET RESEARCH COMPLETED**\n\n"
+        # Build sections separately for smart truncation
+        sections = {
+            'header': "✅ **MARKET RESEARCH COMPLETED**\n\n",
+            'market_taxonomy': _format_market_taxonomy(market_intelligence_result),
+            'competitive_landscape': _format_competitive_landscape(market_intelligence_result),
+            'market_insights': _format_market_insights(market_intelligence_result),
+            'investment_decision': _format_investment_decision(market_intelligence_result),
+            'key_sources': _format_key_sources(market_intelligence_result),
+            'commands': "\n📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`"
+        }
         
-        # 1. MARKET TAXONOMY (Simple, no score)
-        response += _format_market_taxonomy(market_intelligence_result)
+        # Apply smart truncation algorithm
+        response = smart_truncate_message(sections, max_chars=3500)
         
-        # 2. COMPETITIVE LANDSCAPE (Clear hierarchy)
-        response += _format_competitive_landscape(market_intelligence_result)
-        
-        # 3. MARKET INSIGHTS (Opportunities & Risks)
-        response += _format_market_insights(market_intelligence_result)
-        
-        # 4. INVESTMENT DECISION (Critical Synthesizer output)
-        response += _format_investment_decision(market_intelligence_result)
-        
-        # 5. KEY SOURCES (Only the most relevant)
-        response += _format_key_sources(market_intelligence_result)
-        
-        # 6. COMMANDS (Keep user engagement)
-        response += "\n📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`"
-        
-        logger.info(f"✅ Analyst format completed. Length: {len(response)} chars")
+        logger.info(f"✅ Analyst format completed with smart truncation")
         return response
         
     except Exception as e:
@@ -80,7 +146,13 @@ def _format_market_taxonomy(result) -> str:
         return "📊 **MARKET TAXONOMY**\n⚠️ Classification data unavailable\n\n"
 
 def _format_competitive_landscape(result) -> str:
-    """Format competitive landscape with clear hierarchy"""
+    """
+    Format competitive landscape with clear hierarchy
+    
+    CURRENT: Slack-optimized display (limited competitors)
+    FUTURE: When PDF implemented, add mode parameter for full competitor list
+    DATA: All competitors preserved in result.competitive_analysis for PDF use
+    """
     try:
         if not hasattr(result, 'competitive_analysis') or not result.competitive_analysis:
             return "🏢 **COMPETITIVE LANDSCAPE**\n⚠️ Competitive data not available\n\n"
@@ -102,12 +174,21 @@ def _format_competitive_landscape(result) -> str:
             section += "**Direct Competitors (Solution Level):**\n"
             for i, comp in enumerate(solution_competitors[:3], 1):  # Max 3 for Slack limit
                 name = comp.get('name', 'Unknown')
-                description = comp.get('description', comp.get('mention_context', ''))[:40]  # Shorter desc
+                description = comp.get('description', comp.get('mention_context', ''))
                 url = comp.get('url', '')
                 
                 section += f"{i}. {name}"
-                if description and description != name:
-                    section += f" - {description}..."
+                # Only add description if it's meaningful and different from name
+                if description and description != name and len(description.strip()) > 10:
+                    # Clean truncation at word boundaries
+                    if len(description) > 35:
+                        truncated = description[:35]
+                        last_space = truncated.rfind(' ')
+                        if last_space > 20:  # Only truncate at word boundary if reasonable
+                            description = truncated[:last_space]
+                        else:
+                            description = truncated
+                    section += f" - {description}"
                 section += f"\n   {url}\n"
             section += "\n"
         
@@ -122,14 +203,25 @@ def _format_competitive_landscape(result) -> str:
             section += "**Sub-vertical Competitors:**\n"
             for i, comp in enumerate(unique_subvertical[:2], len(solution_competitors) + 1):  # Max 2 sub-vertical
                 name = comp.get('name', 'Unknown')
-                description = comp.get('description', comp.get('mention_context', ''))[:40]  # Shorter desc
+                description = comp.get('description', comp.get('mention_context', ''))
                 url = comp.get('url', '')
                 
                 section += f"{i}. {name}"
-                if description and description != name:
-                    section += f" - {description}..."
+                # Only add description if it's meaningful and different from name
+                if description and description != name and len(description.strip()) > 10:
+                    # Clean truncation at word boundaries
+                    if len(description) > 35:
+                        truncated = description[:35]
+                        last_space = truncated.rfind(' ')
+                        if last_space > 20:  # Only truncate at word boundary if reasonable
+                            description = truncated[:last_space]
+                        else:
+                            description = truncated
+                    section += f" - {description}"
                 section += f"\n   {url}\n"
             section += "\n"
+        
+        # Clean ending - no confusing competitor count messages
         
         # If no competitors found
         if not solution_competitors and not unique_subvertical:
