@@ -261,14 +261,32 @@ def get_validation_prompts(market_profile, startup_claims, web_validation):
 
 def get_funding_prompts(market_profile, web_intelligence, current_stage='Seed'):
     """Generate funding benchmark prompts with actual data"""
+    
+    # Safe extraction from market_profile (could be object or dict)
+    if hasattr(market_profile, 'solution'):
+        solution = getattr(market_profile, 'solution', 'Unknown')
+        vertical = getattr(market_profile, 'vertical', 'Unknown')
+        sub_vertical = getattr(market_profile, 'sub_vertical', 'Unknown')
+        geo_focus = getattr(market_profile, 'geo_focus', 'Global')
+    elif hasattr(market_profile, 'get'):
+        solution = market_profile.get('solution', 'Unknown')
+        vertical = market_profile.get('vertical', 'Unknown')
+        sub_vertical = market_profile.get('sub_vertical', 'Unknown')
+        geo_focus = market_profile.get('geo_focus', 'Global')
+    else:
+        solution = 'Unknown'
+        vertical = 'Unknown'  
+        sub_vertical = 'Unknown'
+        geo_focus = 'Global'
+    
     return {
         'system': FUNDING_EXPERT_SYSTEM,
         'user': FUNDING_EXPERT_USER.format(
-            solution=market_profile.get('solution', 'Unknown'),
-            vertical=market_profile.get('vertical', 'Unknown'),
-            sub_vertical=market_profile.get('sub_vertical', 'Unknown'),
+            solution=solution,
+            vertical=vertical,
+            sub_vertical=sub_vertical,
             current_stage=current_stage,
-            geo_focus=market_profile.get('geo_focus', 'Global'),
+            geo_focus=geo_focus,
             similar_deals=_format_deals(web_intelligence.get('similar_deals', [])),
             market_funding_patterns=_format_patterns(web_intelligence.get('market_funding_patterns', [])),
             funding_climate=web_intelligence.get('funding_climate', 'Unknown')

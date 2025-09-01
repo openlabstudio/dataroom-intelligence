@@ -309,8 +309,9 @@ class MarketResearchHandler:
         """
         # Use new analyst formatter for clarity and actionability
         try:
-            from utils.analyst_formatter import format_analyst_market_research
-            return format_analyst_market_research(market_intelligence_result)
+            # MVP DEMO: Use expert formatter for GPT-4 enhanced output
+            from utils.expert_formatter import format_expert_market_research
+            return format_expert_market_research(market_intelligence_result)
         except ImportError:
             logger.warning("Analyst formatter not available, using fallback")
             # Simple fallback if new formatter fails

@@ -663,10 +663,17 @@ class FundingBenchmarkerAgent(BaseAgent):
                 vertical = market_profile.vertical
                 target_market = market_profile.target_market
             else:
-                solution = market_profile.get('solution', '')
-                sub_vertical = market_profile.get('sub_vertical', '')
-                vertical = market_profile.get('vertical', '')
-                target_market = market_profile.get('target_market', '')
+                # Handle dict-like access
+                if hasattr(market_profile, 'get'):
+                    solution = market_profile.get('solution', '')
+                    sub_vertical = market_profile.get('sub_vertical', '')
+                    vertical = market_profile.get('vertical', '')
+                    target_market = market_profile.get('target_market', '')
+                else:
+                    solution = getattr(market_profile, 'solution', '')
+                    sub_vertical = getattr(market_profile, 'sub_vertical', '')
+                    vertical = getattr(market_profile, 'vertical', '')
+                    target_market = getattr(market_profile, 'target_market', '')
             
             # Build a proper value proposition based on detected market
             if solution:
@@ -774,9 +781,18 @@ class FundingBenchmarkerAgent(BaseAgent):
                 return {'sources': [], 'funding_patterns': [], 'deals': []}
             
             # Extract all levels from market profile
-            solution = getattr(market_profile, 'solution', '') if hasattr(market_profile, 'solution') else market_profile.get('solution', '')
-            sub_vertical = getattr(market_profile, 'sub_vertical', '') if hasattr(market_profile, 'sub_vertical') else market_profile.get('sub_vertical', '')
-            vertical = getattr(market_profile, 'vertical', '') if hasattr(market_profile, 'vertical') else market_profile.get('vertical', '')
+            if hasattr(market_profile, 'solution'):
+                solution = getattr(market_profile, 'solution', '')
+                sub_vertical = getattr(market_profile, 'sub_vertical', '')
+                vertical = getattr(market_profile, 'vertical', '')
+            elif hasattr(market_profile, 'get'):
+                solution = market_profile.get('solution', '')
+                sub_vertical = market_profile.get('sub_vertical', '')
+                vertical = market_profile.get('vertical', '')
+            else:
+                solution = ''
+                sub_vertical = ''
+                vertical = ''
             
             # Level 1: Solution-specific funding (most specific)
             solution_queries = []

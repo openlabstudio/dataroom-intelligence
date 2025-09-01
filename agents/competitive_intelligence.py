@@ -102,6 +102,43 @@ class CompetitiveIntelligenceAgent(BaseAgent):
             'cleantech': ['Tesla', 'Sunrun', 'ChargePoint', 'Veolia', 'Suez'],
             'edtech': ['Coursera', 'Udemy', 'Duolingo', 'Chegg', 'Khan Academy']
         }
+        
+        # MVP DEMO: GPT-4 Competitive Extraction Prompt
+        self.COMPETITIVE_EXTRACTION_PROMPT = """
+You are a senior VC analyst extracting competitor information from web search results.
+
+TASK: Extract exact company names, valuations, and key details from the following search results.
+
+RULES:
+1. Extract only real company names (not descriptions like "provider of electrochemical")
+2. Consolidate parent companies and subsidiaries - don't list separately (e.g., "Veralto" and "Axine Water Technologies" → "Veralto - Axine Water Technologies")
+3. Avoid duplicates - if a subsidiary is mentioned, only list the consolidated form
+4. Include funding amount and date if mentioned  
+5. Include URL if available
+6. Maximum 8 competitors
+7. Focus on direct competitors, not suppliers/customers
+8. Return empty array if no clear competitors found
+
+CRITICAL: Respond with ONLY valid JSON. No explanation, no additional text, no markdown formatting.
+
+Web search results:
+{web_search_results}
+
+Respond with ONLY this JSON structure:
+{{
+  "competitors": [
+    {{
+      "name": "Company Name",
+      "funding": "Amount Series, Year", 
+      "description": "Brief description",
+      "url": "https://company.com",
+      "relevance_score": 0.95
+    }}
+  ],
+  "market_assessment": "Brief market assessment",
+  "confidence": 0.8
+}}
+"""
     
     def _init_web_search(self):
         """Lazy initialize web search engine"""
@@ -112,6 +149,253 @@ class CompetitiveIntelligenceAgent(BaseAgent):
             except ImportError as e:
                 logger.warning(f"Web search not available: {e}")
                 self.web_search_engine = None
+
+    def _extract_competitors_with_gpt4(self, web_results: Dict) -> Dict[str, Any]:
+        """MVP DEMO: Use GPT-4 to extract clean competitor names from web search results"""
+        import json
+        import re
+        
+        try:
+            logger.info("🤖 Using GPT-4 to extract competitor names...")
+            
+            # Initialize OpenAI client if not available
+            if not hasattr(self, 'client'):
+                try:
+                    from openai import OpenAI
+                    self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+                    logger.info("✅ OpenAI client initialized for GPT-4 enhancement")
+                except ImportError:
+                    logger.error("❌ OpenAI library not available")
+                    return self._fallback_regex_extraction(web_results)
+                except Exception as e:
+                    logger.error(f"❌ Failed to initialize OpenAI client: {e}")
+                    return self._fallback_regex_extraction(web_results)
+            
+            # Format web search results for GPT-4
+            formatted_results = self._format_web_results_for_gpt4(web_results)
+            
+            if not formatted_results.strip():
+                logger.warning("No web results to process with GPT-4")
+                return {"competitors": [], "market_assessment": "No data available", "confidence": 0.0}
+            
+            # Create GPT-4 prompt
+            user_prompt = self.COMPETITIVE_EXTRACTION_PROMPT.format(
+                web_search_results=formatted_results
+            )
+            
+            # Call GPT-4 with competitive extraction prompt
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a senior VC analyst specializing in competitive intelligence extraction."},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+            
+            # Parse JSON response
+            response_text = response.choices[0].message.content.strip()
+            logger.info(f"🤖 GPT-4 competitive extraction response: {len(response_text)} characters")
+            
+            # Extract JSON from response with improved parsing
+            
+            logger.info(f"🔍 GPT-4 raw response (first 200 chars): {response_text[:200]}...")
+            logger.info(f"🔍 GPT-4 raw response (full): {repr(response_text)}")
+            
+            # Clean response to remove common GPT-4 formatting issues
+            cleaned_response = response_text
+            # Remove markdown code blocks if present
+            cleaned_response = re.sub(r'```json\s*', '', cleaned_response)
+            cleaned_response = re.sub(r'```\s*$', '', cleaned_response)
+            # Remove any leading/trailing explanation text that might be outside JSON
+            cleaned_response = cleaned_response.strip()
+            
+            if cleaned_response != response_text:
+                logger.info(f"🧹 Cleaned response: {repr(cleaned_response)}")
+            
+            # Try multiple JSON extraction methods
+            extracted_data = None
+            
+            # Method 1: Try to parse the cleaned response directly as JSON
+            try:
+                extracted_data = json.loads(cleaned_response)
+                competitors_count = len(extracted_data.get('competitors', [])) if isinstance(extracted_data, dict) else 0
+                logger.info(f"✅ GPT-4 extracted {competitors_count} competitors (direct parse)")
+            except json.JSONDecodeError as direct_error:
+                logger.warning(f"Direct JSON parse failed: {direct_error}")
+                
+                # Method 2: Look for complete JSON blocks
+                json_patterns = [
+                    r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}',  # Better nested JSON matching
+                    r'\{.*?\}',  # Non-greedy match
+                    r'\{.*\}',   # Original greedy match as fallback
+                ]
+                
+                for pattern in json_patterns:
+                    json_match = re.search(pattern, cleaned_response, re.DOTALL)
+                    if json_match:
+                        try:
+                            json_text = json_match.group()
+                            logger.info(f"🔍 Attempting to parse JSON: {json_text[:100]}...")
+                            extracted_data = json.loads(json_text)
+                            competitors_count = len(extracted_data.get('competitors', [])) if isinstance(extracted_data, dict) else 0
+                            logger.info(f"✅ GPT-4 extracted {competitors_count} competitors")
+                            break
+                        except json.JSONDecodeError as je:
+                            logger.warning(f"JSON parsing failed for pattern {pattern}: {je}")
+                            continue
+            
+            if extracted_data:
+                # Post-processing: Remove duplicates and consolidate parent/subsidiary companies
+                cleaned_data = self._clean_competitor_duplicates(extracted_data)
+                return cleaned_data
+            else:
+                logger.warning("No valid JSON found in GPT-4 response, trying line-by-line extraction")
+                # Fallback: Try to extract JSON from each line
+                for line in response_text.split('\n'):
+                    if line.strip().startswith('{') and line.strip().endswith('}'):
+                        try:
+                            extracted_data = json.loads(line.strip())
+                            competitors_count = len(extracted_data.get('competitors', [])) if isinstance(extracted_data, dict) else 0
+                            logger.info(f"✅ GPT-4 extracted from line: {competitors_count} competitors")
+                            return extracted_data
+                        except json.JSONDecodeError:
+                            continue
+                
+                return {"competitors": [], "market_assessment": "GPT-4 parsing failed", "confidence": 0.0}
+                
+        except json.JSONDecodeError as je:
+            logger.error(f"❌ GPT-4 JSON parsing failed: {je}")
+            logger.error(f"❌ Raw JSON string that failed: {repr(je.doc)}")
+            # Fallback to regex extraction
+            logger.info("🔄 Falling back to regex extraction...")
+            return self._fallback_regex_extraction(web_results)
+        except Exception as e:
+            logger.error(f"❌ GPT-4 competitor extraction failed: {e}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            # Fallback to regex extraction
+            logger.info("🔄 Falling back to regex extraction...")
+            return self._fallback_regex_extraction(web_results)
+    
+    def _clean_competitor_duplicates(self, extracted_data: Dict) -> Dict:
+        """Clean up duplicate competitors and consolidate parent/subsidiary companies"""
+        if 'competitors' not in extracted_data:
+            return extracted_data
+        
+        competitors = extracted_data['competitors']
+        cleaned_competitors = []
+        seen_companies = set()
+        
+        for comp in competitors:
+            name = comp.get('name', '').strip()
+            
+            # Skip if we've already seen this exact name
+            if name.lower() in seen_companies:
+                continue
+            
+            # Check for parent/subsidiary relationships
+            is_duplicate = False
+            for existing in cleaned_competitors:
+                existing_name = existing.get('name', '').strip()
+                
+                # Case 1: Current is parent, existing is subsidiary
+                # e.g., name="Veralto", existing="Veralto - Axine Water Technologies"
+                if name in existing_name and existing_name != name:
+                    is_duplicate = True
+                    break
+                
+                # Case 2: Current is subsidiary, existing is parent  
+                # e.g., name="Veralto - Axine Water Technologies", existing="Veralto"
+                if existing_name in name and existing_name != name:
+                    # Replace the parent with the more specific subsidiary
+                    cleaned_competitors.remove(existing)
+                    seen_companies.discard(existing_name.lower())
+                    break
+            
+            if not is_duplicate:
+                cleaned_competitors.append(comp)
+                seen_companies.add(name.lower())
+        
+        # Update the extracted data with cleaned competitors
+        extracted_data['competitors'] = cleaned_competitors
+        logger.info(f"🧹 Cleaned competitors: {len(competitors)} → {len(cleaned_competitors)}")
+        
+        return extracted_data
+    
+    def _format_web_results_for_gpt4(self, web_results: Dict) -> str:
+        """Format web search results for GPT-4 processing"""
+        formatted_text = ""
+        
+        # Add competitors found by web search
+        competitors = web_results.get('competitors_found', [])
+        if competitors:
+            formatted_text += "COMPETITORS FOUND:\n"
+            for i, comp in enumerate(competitors[:10], 1):  # Limit to avoid token limit
+                if isinstance(comp, dict):
+                    formatted_text += f"{i}. {comp.get('name', 'Unknown')} - {comp.get('description', '')}"
+                    if comp.get('url'):
+                        formatted_text += f" (URL: {comp.get('url')})"
+                    formatted_text += "\n"
+                elif isinstance(comp, str):
+                    formatted_text += f"{i}. {comp}\n"
+        
+        # Add expert insights
+        insights = web_results.get('expert_insights', [])
+        if insights:
+            formatted_text += "\nEXPERT INSIGHTS:\n"
+            for i, insight in enumerate(insights[:5], 1):  # Limit to avoid token limit
+                if isinstance(insight, dict):
+                    formatted_text += f"{i}. {insight.get('text', insight.get('insight', ''))}"
+                    if insight.get('url'):
+                        formatted_text += f" (Source: {insight.get('url')})"
+                    formatted_text += "\n"
+                elif isinstance(insight, str):
+                    formatted_text += f"{i}. {insight[:200]}...\n"
+        
+        # Add sources summary
+        sources = web_results.get('all_sources', [])
+        if sources:
+            formatted_text += f"\nSOURCES: {len(sources)} sources analyzed\n"
+            for source in sources[:3]:  # Show top 3 sources
+                if isinstance(source, dict):
+                    formatted_text += f"- {source.get('title', 'Unknown')} ({source.get('url', 'No URL')})\n"
+        
+        return formatted_text[:8000]  # Limit to stay within GPT-4 context window
+    
+    def _fallback_regex_extraction(self, web_results: Dict) -> Dict[str, Any]:
+        """Fallback to regex extraction if GPT-4 fails"""
+        logger.info("🔄 Using fallback regex extraction...")
+        
+        competitors = []
+        for comp in web_results.get('competitors_found', [])[:8]:
+            if isinstance(comp, dict):
+                competitors.append({
+                    "name": comp.get('name', 'Unknown'),
+                    "funding": comp.get('funding', 'Unknown'),
+                    "description": comp.get('description', ''),
+                    "url": comp.get('url', ''),
+                    "relevance_score": 0.7  # Lower confidence for regex
+                })
+            elif isinstance(comp, str):
+                # Parse string format "Company Name (description)"
+                parts = comp.split('(')
+                name = parts[0].strip() if parts else comp
+                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                
+                competitors.append({
+                    "name": name,
+                    "funding": "Unknown",
+                    "description": desc,
+                    "url": "",
+                    "relevance_score": 0.6  # Even lower for string parsing
+                })
+        
+        return {
+            "competitors": competitors,
+            "market_assessment": "Regex extraction fallback",
+            "confidence": 0.6
+        }
 
     def analyze_competitors(self, market_profile: Dict[str, Any],
                           processed_documents: List[Dict[str, Any]],
@@ -643,7 +927,7 @@ Provide your analysis in the JSON format specified.
                                                 vertical_results: Dict,
                                                 solution: str, sub_vertical: str, 
                                                 vertical: str) -> Dict[str, Any]:
-        """MEJORAS CALIDAD: Process 3-level search results separately with URLs"""
+        """MEJORAS CALIDAD: Process 3-level search results separately with URLs + GPT-4 extraction"""
         competitive_intel = {
             'solution_competitors': [],
             'subvertical_competitors': [],
@@ -660,25 +944,66 @@ Provide your analysis in the JSON format specified.
             }
         }
         
-        # Process Level 1: Solution results
-        for competitor in solution_results.get('competitors_found', []):
-            if isinstance(competitor, dict):  # Now expecting dict with URL
+        # MVP DEMO: Use GPT-4 to enhance competitor extraction from each level
+        gpt4_enhanced_results = {}
+        
+        # Only use GPT-4 in production mode and if OpenAI is available
+        if os.getenv('TEST_MODE', 'false').lower() != 'true' and self._has_openai_key():
+            try:
+                logger.info("🤖 Using GPT-4 to enhance competitive intelligence...")
+                
+                # Process each level with GPT-4 (prioritize solution level)
+                if solution_results.get('competitors_found') or solution_results.get('expert_insights'):
+                    logger.info("🔬 GPT-4 processing solution-level competitors...")
+                    gpt4_enhanced_results['solution'] = self._extract_competitors_with_gpt4(solution_results)
+                
+                if subvertical_results.get('competitors_found') or subvertical_results.get('expert_insights'):
+                    logger.info("🔬 GPT-4 processing sub-vertical competitors...")
+                    gpt4_enhanced_results['subvertical'] = self._extract_competitors_with_gpt4(subvertical_results)
+                
+                # Note: Skip vertical level for GPT-4 to save tokens, focus on most relevant levels
+                
+            except Exception as e:
+                logger.error(f"❌ GPT-4 enhancement failed: {e}")
+                gpt4_enhanced_results = {}
+        else:
+            logger.info("🧪 Skipping GPT-4 enhancement (TEST_MODE or no OpenAI key)")
+            gpt4_enhanced_results = {}
+        
+        # Process Level 1: Solution results (with GPT-4 enhancement)
+        if gpt4_enhanced_results.get('solution'):
+            # Use GPT-4 enhanced competitors for solution level
+            logger.info("✅ Using GPT-4 enhanced solution-level competitors")
+            for competitor in gpt4_enhanced_results['solution'].get('competitors', []):
                 competitive_intel['solution_competitors'].append({
                     'name': competitor.get('name', 'Unknown'),
                     'description': competitor.get('description', ''),
                     'url': competitor.get('url', ''),
-                    'source_domain': competitor.get('source_domain', ''),
-                    'level': 'solution'
+                    'funding': competitor.get('funding', 'Unknown'),
+                    'relevance_score': competitor.get('relevance_score', 0.9),
+                    'level': 'solution',
+                    'enhanced_by_gpt4': True
                 })
-            elif isinstance(competitor, str):  # Fallback for string format
-                parts = competitor.split('(')
-                name = parts[0].strip() if parts else competitor
-                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
-                competitive_intel['solution_competitors'].append({
-                    'name': name,
-                    'description': desc,
-                    'level': 'solution'
-                })
+        else:
+            # Fallback to original processing
+            for competitor in solution_results.get('competitors_found', []):
+                if isinstance(competitor, dict):  # Now expecting dict with URL
+                    competitive_intel['solution_competitors'].append({
+                        'name': competitor.get('name', 'Unknown'),
+                        'description': competitor.get('description', ''),
+                        'url': competitor.get('url', ''),
+                        'source_domain': competitor.get('source_domain', ''),
+                        'level': 'solution'
+                    })
+                elif isinstance(competitor, str):  # Fallback for string format
+                    parts = competitor.split('(')
+                    name = parts[0].strip() if parts else competitor
+                    desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                    competitive_intel['solution_competitors'].append({
+                        'name': name,
+                        'description': desc,
+                        'level': 'solution'
+                    })
         
         for insight in solution_results.get('expert_insights', []):
             if isinstance(insight, dict):  # Now expecting dict with URL
@@ -691,25 +1016,40 @@ Provide your analysis in the JSON format specified.
             elif isinstance(insight, str) and len(insight) > 20:  # Fallback
                 competitive_intel['solution_insights'].append({'text': insight[:200]})
         
-        # Process Level 2: Sub-vertical results
-        for competitor in subvertical_results.get('competitors_found', []):
-            if isinstance(competitor, dict):  # Now expecting dict with URL
+        # Process Level 2: Sub-vertical results (with GPT-4 enhancement)
+        if gpt4_enhanced_results.get('subvertical'):
+            # Use GPT-4 enhanced competitors for sub-vertical level  
+            logger.info("✅ Using GPT-4 enhanced sub-vertical competitors")
+            for competitor in gpt4_enhanced_results['subvertical'].get('competitors', []):
                 competitive_intel['subvertical_competitors'].append({
                     'name': competitor.get('name', 'Unknown'),
                     'description': competitor.get('description', ''),
                     'url': competitor.get('url', ''),
-                    'source_domain': competitor.get('source_domain', ''),
-                    'level': 'sub_vertical'
+                    'funding': competitor.get('funding', 'Unknown'),
+                    'relevance_score': competitor.get('relevance_score', 0.9),
+                    'level': 'sub_vertical',
+                    'enhanced_by_gpt4': True
                 })
-            elif isinstance(competitor, str):  # Fallback
-                parts = competitor.split('(')
-                name = parts[0].strip() if parts else competitor
-                desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
-                competitive_intel['subvertical_competitors'].append({
-                    'name': name,
-                    'description': desc,
-                    'level': 'sub_vertical'
-                })
+        else:
+            # Fallback to original processing
+            for competitor in subvertical_results.get('competitors_found', []):
+                if isinstance(competitor, dict):  # Now expecting dict with URL
+                    competitive_intel['subvertical_competitors'].append({
+                        'name': competitor.get('name', 'Unknown'),
+                        'description': competitor.get('description', ''),
+                        'url': competitor.get('url', ''),
+                        'source_domain': competitor.get('source_domain', ''),
+                        'level': 'sub_vertical'
+                    })
+                elif isinstance(competitor, str):  # Fallback
+                    parts = competitor.split('(')
+                    name = parts[0].strip() if parts else competitor
+                    desc = parts[1].replace(')', '').strip() if len(parts) > 1 else ''
+                    competitive_intel['subvertical_competitors'].append({
+                        'name': name,
+                        'description': desc,
+                        'level': 'sub_vertical'
+                    })
         
         for insight in subvertical_results.get('expert_insights', []):
             if isinstance(insight, dict):  # Now expecting dict with URL
