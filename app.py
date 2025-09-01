@@ -1,5 +1,5 @@
 """
-DataRoom Intelligence Bot - Railway-Compatible Version with Phase 2A Market Research
+DataRoom Intelligence Bot - Railway Production Deployment
 A Slack bot that analyzes data rooms for venture capital investment decisions using AI
 Combines robust document processing with full AI analysis capabilities + Flask server for Railway
 """
