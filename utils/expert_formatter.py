@@ -1060,15 +1060,19 @@ From an investment perspective, corporate VCs including Shell Ventures and Cater
         
         # Add professional title and spacing
         final_output = "📊 **MARKET INTELLIGENCE SUMMARY**\n\n"
-        final_output += synthesis
+        
+        # Improve readability: add blank line before INVESTMENT RECOMMENDATION
+        improved_synthesis = _improve_synthesis_formatting(synthesis)
+        final_output += improved_synthesis
         
         # Only include references that are actually cited in the text
         cited_refs = _extract_cited_references(synthesis, references)
         if cited_refs:
-            final_output += "\n\n📚 **REFERENCES:**\n"
+            final_output += "\n\n\n📚 **REFERENCES:**\n"
             for ref_num, (url, ref_data) in cited_refs.items():
                 title = ref_data['title'][:60] + '...' if len(ref_data['title']) > 60 else ref_data['title']
-                final_output += f"[{ref_num}] [{title}]({url})\n"
+                # Improved UX: URL on separate line without parentheses
+                final_output += f"[{ref_num}] {title}\n{url}\n\n"
         
         # Add commands
         final_output += "\n\n📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`"
@@ -1105,6 +1109,19 @@ def _generate_intelligent_mock_content(url: str, title: str) -> str:
     
     else:
         return f"""Market Intelligence: Industry analysis shows positive trends in water treatment technology adoption. Competitive landscape includes established players and emerging innovators. Funding environment remains active with strategic investors showing interest. Regulatory environment supportive of advanced treatment technologies."""
+
+def _improve_synthesis_formatting(synthesis):
+    """Improve readability of synthesis with better spacing"""
+    import re
+    
+    # Add blank line before INVESTMENT RECOMMENDATION for better readability
+    improved = re.sub(
+        r'(\*\*INVESTMENT RECOMMENDATION:)',
+        r'\n\1',
+        synthesis
+    )
+    
+    return improved
 
 def _extract_cited_references(text: str, all_references: dict) -> dict:
     """Extract only the references that are actually cited in the text"""

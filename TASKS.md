@@ -357,6 +357,52 @@ Emergency fallback (API issues):
 **Current (Quick Fix):** 90s fixed timeout - handles 95% of cases
 **Robust Solution:** Adaptive timeouts - handles 99.9% of cases including enterprise datarooms
 
+### **📋 TASK-UX-003: Session-Based Market Taxonomy Caching**
+**Estado:** 📝 **PLANNED** (Post-Demo Efficiency Enhancement)  
+**Duración:** 1-2 días  
+**Objetivo:** Evitar repetir llamadas GPT-4 para market detection en misma sesión
+
+**Problem Actual:** 
+- `/analyze` detecta taxonomía de mercado (solution → sub_vertical → vertical)
+- `/market-research` vuelve a detectar la **misma** taxonomía independientemente
+- **Duplicación innecesaria:** 2 llamadas GPT-4 por lo mismo en una sesión
+- **Experiencia lenta:** Usuario espera market detection cuando ya se hizo antes
+
+**Solution Propuesta:**
+```python
+# En session management:
+user_sessions[user_id] = {
+    'documents': processed_docs,
+    'market_taxonomy': {  # ✅ NUEVA FUNCIONALIDAD
+        'solution': 'electrochemical wastewater treatment',
+        'sub_vertical': 'water treatment technology', 
+        'vertical': 'sustainability',
+        'confidence': 0.85,
+        'detected_at': timestamp
+    }
+}
+
+# En /market-research command:
+if user_sessions[user_id].get('market_taxonomy'):
+    # Reutilizar taxonomía existente ✅
+    market_profile = cached_taxonomy
+else:
+    # Detectar taxonomía solo si no existe ❌
+    market_profile = detect_vertical()
+```
+
+**Benefits:**
+- **Eficiencia:** Una sola llamada GPT-4 para market detection por sesión
+- **UX:** `/market-research` más rápido (salta fase 1)
+- **Consistencia:** Misma taxonomía en `/analyze` y `/market-research`
+- **Cost Savings:** ~15% reducción adicional en llamadas GPT-4
+
+**Implementation Notes:**
+- Guardar market_taxonomy en user_sessions tras `/analyze` exitoso
+- Validar taxonomy cache en inicio de `/market-research`
+- Invalidar cache si usuario hace `/reset` o nueva session
+- Considerar TTL para taxonomía (ej: 24h) en caso de evolución del negocio
+
 ### **📋 TASK-DATA-001: Data Quality Architecture**
 **Estado:** 📝 **PLANNED** (Post-Demo Foundation)  
 **Duración:** 1 semana  
