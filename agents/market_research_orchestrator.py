@@ -11,12 +11,9 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from .base_agent import BaseAgent
 from .market_detection import MarketDetectionAgent, MarketProfile
-from .competitive_intelligence import CompetitiveIntelligenceAgent
-from .market_validation import MarketValidationAgent
-from .funding_benchmarker import FundingBenchmarkerAgent
-from .critical_synthesizer import CriticalSynthesizerAgent
 from .progress_tracker import ProgressTracker, create_test_progress_tracker
 from utils.logger import get_logger
+from utils.web_search import WebSearchEngine
 
 logger = get_logger(__name__)
 
@@ -108,7 +105,7 @@ class MarketIntelligenceResult:
         self.confidence_score: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             'market_profile': self.market_profile.to_dict() if self.market_profile else {},
             'competitive_analysis': self.competitive_analysis,
             'market_validation': self.market_validation,
@@ -120,6 +117,12 @@ class MarketIntelligenceResult:
             'processing_steps': self.processing_steps,
             'confidence_score': self.confidence_score
         }
+        
+        # Include final_analysis if it exists (new GPT-4 synthesis architecture)
+        if hasattr(self, 'final_analysis') and self.final_analysis:
+            result['final_analysis'] = self.final_analysis
+            
+        return result
 
 class MarketResearchOrchestrator(BaseAgent):
     """Orchestrates multi-agent market research analysis with progress tracking"""
@@ -127,14 +130,8 @@ class MarketResearchOrchestrator(BaseAgent):
     def __init__(self):
         super().__init__("Market Research Orchestrator")
         self.market_detector = MarketDetectionAgent()
-        # TASK-001: Competitive Intelligence Agent
-        self.competitive_analyzer = CompetitiveIntelligenceAgent()
-        # TASK-002: Market Validation Agent  
-        self.market_validator = MarketValidationAgent()
-        # TASK-003: Funding Benchmarker Agent
-        self.funding_benchmarker = FundingBenchmarkerAgent()
-        # TASK-005 FASE 2D: Critical Synthesizer Agent
-        self.critical_synthesizer = CriticalSynthesizerAgent()
+        # Direct web search - no more complex agents needed
+        self.web_search_engine = WebSearchEngine(provider='tavily')
         
         # Progress tracker will be initialized per analysis
         self.progress_tracker = None
@@ -184,18 +181,13 @@ class MarketResearchOrchestrator(BaseAgent):
             result.processing_steps.append(f"Market Detected: {market_profile.vertical} -> {market_profile.sub_vertical}")
             logger.info(f"✅ Phase 1 Complete: {self.progress_tracker.detected_market}")
 
-            # ==== PHASE 2: Competitive Intelligence (TASK-001) ====
-            logger.info("🏢 PHASE 2/5: Competitive Intelligence Analysis")
+            # ==== PHASE 2: Competitive Intelligence Search ====
+            logger.info("🔍 PHASE 2/5: Competitive Intelligence Search")
             self.progress_tracker.phases[1].status = "running"
             self.progress_tracker.phases[1].start_time = datetime.now()
             
-            # Use real competitive intelligence agent (FASE 2A Enhanced)
-            competitive_profile = self.competitive_analyzer.analyze_competitors(
-                market_profile.to_dict(), processed_documents, document_summary
-            )
-            # FASE 2A: Use complete competitive data (includes all_sources)
-            competitive_data = competitive_profile.to_dict()
-            result.competitive_analysis = competitive_data  # Keep full data including all_sources
+            # Direct competitive search - no complex agent processing needed
+            competitive_web_data = self._search_competitive_intelligence(market_profile)
             
             # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
             if os.getenv('TEST_MODE', 'false').lower() != 'true':
@@ -204,21 +196,16 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[1].status = "completed"
             self.progress_tracker.phases[1].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 2
-            result.processing_steps.append("Phase 2: Competitive Intelligence Analysis")
-            logger.info("✅ Phase 2 Complete: Competitive Intelligence")
+            result.processing_steps.append("Phase 2: Competitive Intelligence Search")
+            logger.info("✅ Phase 2 Complete: Competitive Intelligence Search")
 
-            # ==== PHASE 3: Market Validation (FASE 2B Enhanced) ====
-            logger.info("📈 PHASE 3/5: TAM/SAM Market Validation")
+            # ==== PHASE 3: Market Validation Research ====
+            logger.info("📈 PHASE 3/5: Market Validation Research")
             self.progress_tracker.phases[2].status = "running"
             self.progress_tracker.phases[2].start_time = datetime.now()
             
-            # Use real market validation agent (FASE 2B Enhanced)
-            validation_profile = self.market_validator.validate_market_opportunity(
-                market_profile.to_dict(), processed_documents, document_summary
-            )
-            # FASE 2B: Use new structure with independent_analysis
-            validation_data = validation_profile.to_dict()
-            result.market_validation = validation_data.get('independent_analysis', validation_data)
+            # Direct market validation search - no complex agent processing needed
+            validation_web_data = self._search_market_validation(market_profile)
             
             # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
             if os.getenv('TEST_MODE', 'false').lower() != 'true':
@@ -227,24 +214,16 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[2].status = "completed"
             self.progress_tracker.phases[2].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 3
-            result.processing_steps.append("Phase 3: Market Validation Analysis")
-            logger.info("✅ Phase 3 Complete: Market Validation")
+            result.processing_steps.append("Phase 3: Market Validation Research")
+            logger.info("✅ Phase 3 Complete: Market Validation Research")
 
-            # ==== PHASE 4: Funding Benchmarking (FASE 2C Enhanced) ====
-            logger.info("💰 PHASE 4/5: Funding & Metrics Benchmarking")
+            # ==== PHASE 4: Funding Intelligence Gathering ====
+            logger.info("💰 PHASE 4/5: Funding Intelligence Gathering")
             self.progress_tracker.phases[3].status = "running"
             self.progress_tracker.phases[3].start_time = datetime.now()
             
-            # FASE 2C: Enhanced funding benchmarking with web search
-            funding_profile = self.funding_benchmarker.benchmark_funding(
-                market_profile,
-                processed_documents,
-                result.competitive_analysis,
-                analysis_result  # Pass analysis result from /analyze
-            )
-            # FASE 2C: Use new structure with independent_analysis
-            funding_data = funding_profile.to_dict()
-            result.funding_benchmarks = funding_data.get('independent_analysis', funding_data)
+            # Direct funding intelligence search - no complex agent processing needed
+            funding_web_data = self._search_funding_intelligence(market_profile)
             
             # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
             if os.getenv('TEST_MODE', 'false').lower() != 'true':
@@ -253,33 +232,60 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[3].status = "completed"
             self.progress_tracker.phases[3].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 4
-            result.processing_steps.append("Phase 4: Funding Benchmarking")
-            logger.info("✅ Phase 4 Complete: Funding Benchmarking")
+            result.processing_steps.append("Phase 4: Funding Intelligence Gathering")
+            logger.info("✅ Phase 4 Complete: Funding Intelligence Gathering")
 
-            # ==== PHASE 4.5: Web Search Intelligence (REMOVED - Integrated into agents) ====
-            # Web search is now integrated directly into each agent (FASE 2A/2B/2C)
-            # No need for separate DuckDuckGo phase
+            # ==== PHASE 4.5: Combine Web Search Results ====
+            # Combine all web search results for GPT-4 synthesis
+            all_web_sources = {}
+            
+            # Add competitive intelligence sources
+            if 'all_sources' in competitive_web_data:
+                for source in competitive_web_data['all_sources']:
+                    if source.get('url'):
+                        all_web_sources[source['url']] = {
+                            'number': len(all_web_sources) + 1,
+                            'title': source.get('title', 'Unknown Title')
+                        }
+            
+            # Add market validation sources
+            if 'all_sources' in validation_web_data:
+                for source in validation_web_data['all_sources']:
+                    if source.get('url') and source['url'] not in all_web_sources:
+                        all_web_sources[source['url']] = {
+                            'number': len(all_web_sources) + 1,
+                            'title': source.get('title', 'Unknown Title')
+                        }
+            
+            # Add funding intelligence sources
+            if 'all_sources' in funding_web_data:
+                for source in funding_web_data['all_sources']:
+                    if source.get('url') and source['url'] not in all_web_sources:
+                        all_web_sources[source['url']] = {
+                            'number': len(all_web_sources) + 1,
+                            'title': source.get('title', 'Unknown Title')
+                        }
+            
+            # Web search data collected - ready for GPT-4 synthesis
             result.web_intelligence = {
-                'note': 'Web search integrated into agents',
-                'sources_count': 0  # Count is in each agent's results
+                'note': 'Direct web search completed - no intermediate processing',
+                'sources_collected': len(all_web_sources)
             }
-            logger.info("✅ Web search now integrated into individual agents")
+            logger.info(f"✅ Direct web search completed - {len(all_web_sources)} sources collected for GPT-4 synthesis")
 
-            # ==== PHASE 5: Investment Decision Synthesis (TASK-005 FASE 2D) ====
-            logger.info("🧠 PHASE 5/5: Investment Decision Synthesis")
+            # ==== PHASE 5: GPT-4 Market Intelligence Synthesis ====
+            logger.info("🤖 PHASE 5/5: GPT-4 Market Intelligence Synthesis")
             self.progress_tracker.phases[4].status = "running"
             self.progress_tracker.phases[4].start_time = datetime.now()
             
-            # Use Critical Synthesizer Agent for investment decision
-            investment_decision = self.critical_synthesizer.synthesize_investment_decision(result)
-            result.investment_decision = investment_decision.to_dict()
+            # Use GPT-4 synthesis for final professional analysis
+            from utils.expert_formatter import synthesize_market_intelligence_with_gpt4
             
-            # Legacy critical assessment (for backward compatibility)
-            result.critical_assessment = {
-                'decision': investment_decision.decision,
-                'summary': investment_decision.executive_summary,
-                'confidence': investment_decision.confidence_level
-            }
+            # Get professional synthesis
+            final_analysis = synthesize_market_intelligence_with_gpt4(all_web_sources)
+            
+            # Store synthesis result
+            result.final_analysis = final_analysis
             
             # Show progress for 5 seconds after work is done but before marking complete (this phase does most work)
             if os.getenv('TEST_MODE', 'false').lower() != 'true':
@@ -288,11 +294,11 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[4].status = "completed"
             self.progress_tracker.phases[4].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 5
-            result.processing_steps.append("Phase 5: Investment Decision Synthesis")
-            logger.info(f"✅ Phase 5 Complete: Investment Decision = {investment_decision.decision}")
+            result.processing_steps.append("Phase 5: GPT-4 Market Intelligence Synthesis")
+            logger.info(f"✅ Phase 5 Complete: GPT-4 Synthesis - {len(all_web_sources)} sources analyzed")
 
-            # Calculate overall confidence
-            result.confidence_score = self._calculate_overall_confidence(result)
+            # Calculate overall confidence based on sources and synthesis quality
+            result.confidence_score = min(0.9, 0.5 + (len(all_web_sources) * 0.05))  # Cap at 0.9
 
             # Log final progress state
             logger.info("📊 Final Progress State:")
@@ -450,3 +456,105 @@ Be brutally honest - this analysis will be used for investment decisions.
             'results': intelligence_result.to_dict(),
             'status': 'completed' if intelligence_result.confidence_score > 0.6 else 'needs_improvement'
         }
+    
+    def _search_competitive_intelligence(self, market_profile: MarketProfile) -> Dict[str, Any]:
+        """Direct competitive intelligence web search without complex agent processing"""
+        solution = market_profile.solution
+        sub_vertical = market_profile.sub_vertical  
+        vertical = market_profile.vertical
+        
+        # Execute 3-level competitive search
+        all_queries = []
+        
+        # Level 1: Solution search
+        if solution:
+            all_queries.extend([
+                f"{solution} competitors market analysis",
+                f"{solution} companies vendors providers"
+            ])
+        
+        # Level 2: Sub-vertical search  
+        if sub_vertical:
+            all_queries.extend([
+                f"{sub_vertical} market leaders companies 2024",
+                f"{sub_vertical} competitive landscape analysis"
+            ])
+        
+        # Level 3: Vertical search
+        if vertical:
+            all_queries.extend([
+                f"{vertical} industry companies directory 2024", 
+                f"{vertical} major players market leaders"
+            ])
+        
+        # Execute web searches
+        search_result = self.web_search_engine.search_multiple(all_queries, max_results_per_query=3)
+        return {'all_sources': search_result.get('all_sources', [])}
+    
+    def _search_market_validation(self, market_profile: MarketProfile) -> Dict[str, Any]:
+        """Direct market validation web search without complex agent processing"""
+        solution = market_profile.solution
+        sub_vertical = market_profile.sub_vertical
+        vertical = market_profile.vertical
+        
+        # Execute 3-level validation search
+        all_queries = []
+        
+        # Level 1: Solution validation
+        if solution:
+            all_queries.extend([
+                f"{solution} market viability expert opinion",
+                f"{solution} regulatory requirements compliance"
+            ])
+        
+        # Level 2: Sub-vertical validation
+        if sub_vertical:
+            all_queries.extend([
+                f"{sub_vertical} market growth trends 2024",
+                f"{sub_vertical} regulatory landscape analysis"
+            ])
+                
+        # Level 3: Vertical validation
+        if vertical:
+            all_queries.extend([
+                f"{vertical} industry TAM growth forecast",
+                f"{vertical} market maturity analysis"
+            ])
+        
+        # Execute web searches
+        search_result = self.web_search_engine.search_multiple(all_queries, max_results_per_query=3)
+        return {'all_sources': search_result.get('all_sources', [])}
+    
+    def _search_funding_intelligence(self, market_profile: MarketProfile) -> Dict[str, Any]:
+        """Direct funding intelligence web search without complex agent processing"""
+        solution = market_profile.solution
+        sub_vertical = market_profile.sub_vertical
+        vertical = market_profile.vertical
+        
+        # Execute 3-level funding search
+        all_queries = []
+        
+        # Level 1: Solution funding
+        if solution:
+            all_queries.extend([
+                f"{solution} companies funding rounds valuations",
+                f"{solution} investment deals 2024"
+            ])
+        
+        # Level 2: Sub-vertical funding
+        if sub_vertical:
+            all_queries.extend([
+                f"{sub_vertical} funding landscape 2024",
+                f"{sub_vertical} series A B valuations"
+            ])
+                
+        # Level 3: Vertical funding
+        if vertical:
+            all_queries.extend([
+                f"{vertical} venture capital investment 2024",
+                f"{vertical} startup valuations benchmarks"
+            ])
+        
+        # Execute web searches
+        search_result = self.web_search_engine.search_multiple(all_queries, max_results_per_query=3)
+        return {'all_sources': search_result.get('all_sources', [])}

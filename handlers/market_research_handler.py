@@ -204,7 +204,7 @@ class MarketResearchHandler:
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 1/5:** Market Detection & Taxonomy...\n" +
+                     "📊 **Phase 1/5:** Market Detection & Taxonomy\n" +
                      "🎯 Identifying 4-level hierarchy (Solution → Sub-vertical → Vertical → Industry)\n" +
                      "⏳ Status: Processing documents with GPT-4..."
             )
@@ -217,9 +217,9 @@ class MarketResearchHandler:
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 2/5:** Competitive Intelligence...\n" +
-                     "🏢 Executing 3-level hierarchical search via Tavily API\n" +
-                     "⏳ Status: Searching across Solution, Sub-vertical & Vertical levels..."
+                     "📊 **Phase 2/5:** Competitive Intelligence Search\n" +
+                     "🔍 Executing 3-level hierarchical web search via Tavily API\n" +
+                     "⏳ Status: Discovering competitors across Solution, Sub-vertical & Vertical levels..."
             )
             
             # Update progress - Phase 3 of 5
@@ -228,9 +228,9 @@ class MarketResearchHandler:
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 3/5:** Market Validation (TAM/SAM/SOM)...\n" +
-                     "📈 Validating market size with 3-level analysis\n" +
-                     "⏳ Status: Gathering expert opinions & precedents..."
+                     "📊 **Phase 3/5:** Market Validation Research\n" +
+                     "📈 Searching for TAM/SAM validation and expert market opinions\n" +
+                     "⏳ Status: Gathering independent market data and precedents..."
             )
             
             # Update progress - Phase 4 of 5
@@ -239,19 +239,19 @@ class MarketResearchHandler:
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 4/5:** Funding & Metrics Benchmarking...\n" +
-                     "💰 Analyzing funding patterns across 3 market levels\n" +
-                     "⏳ Status: Benchmarking valuations and metrics..."
+                     "📊 **Phase 4/5:** Funding Intelligence Gathering\n" +
+                     "💰 Searching for funding patterns, valuations, and investment climate data\n" +
+                     "⏳ Status: Analyzing investment trends and financial benchmarks..."
             )
             
-            # Update progress - Phase 5 of 5 (Critical Assessment - takes longer)
+            # Update progress - Phase 5 of 5 (GPT-4 Synthesis - takes longer)
             time.sleep(1.5)
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 5/5:** Critical Assessment & Investment Decision...\n" +
-                     "🧠 Generating brutal honest analysis with GPT-4\n" +
+                     "📊 **Phase 5/5:** GPT-4 Market Intelligence Synthesis\n" +
+                     "🤖 AI synthesis of all collected data into professional investment analysis\n" +
                      "⏳ **Note:** This phase may take 1-2 minutes - synthesizing all intelligence..."
             )
             

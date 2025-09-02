@@ -861,7 +861,13 @@ def format_expert_market_research(market_intelligence_result) -> str:
     if isinstance(market_intelligence_result, dict) and 'results' in market_intelligence_result:
         market_intelligence_result = market_intelligence_result['results']
     
-    # Check if we have any valid data (works for both dict and object)
+    # NEW ARCHITECTURE: Check if we have GPT-4 synthesis result directly
+    final_analysis = _get_component(market_intelligence_result, 'final_analysis')
+    if final_analysis:
+        logger.info("✅ Using new GPT-4 synthesis result directly")
+        return final_analysis
+    
+    # LEGACY FALLBACK: Check if we have old structure data for backward compatibility
     if isinstance(market_intelligence_result, dict):
         has_data = (
             market_intelligence_result.get('market_profile') or
@@ -880,7 +886,8 @@ def format_expert_market_research(market_intelligence_result) -> str:
     if not has_data:
         return "❌ **ANALYSIS INCOMPLETE** - Please try again\n"
     
-    # COLLECT ALL REFERENCES from all sections (silently)
+    # LEGACY: COLLECT ALL REFERENCES from all sections (backward compatibility)
+    logger.info("⚠️ Using legacy structure analysis - should update to new architecture")
     competitive_analysis = _get_component(market_intelligence_result, 'competitive_analysis')
     if competitive_analysis:
         format_expert_competitive_landscape_with_refs(competitive_analysis, references, reference_counter)
