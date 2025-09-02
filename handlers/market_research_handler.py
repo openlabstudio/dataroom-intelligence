@@ -258,11 +258,21 @@ class MarketResearchHandler:
             # Get analysis result from /analyze for funding benchmarking
             analysis_result = session_data.get('analysis_result', {})
             
+            # Get cached market profile to avoid duplicate GPT-4 call (TASK-UX-003)
+            cached_market_profile = session_data.get('market_profile', None)
+            
             # Perform actual market intelligence analysis
             logger.info("📊 Calling orchestrator for market intelligence...")
-            market_intelligence_result = self.orchestrator.perform_market_intelligence(
-                processed_documents, document_summary, analysis_result
-            )
+            if cached_market_profile:
+                logger.info("✅ TASK-UX-003: Using cached market taxonomy (saves ~$0.07 GPT-4 call)")
+                market_intelligence_result = self.orchestrator.perform_market_intelligence(
+                    processed_documents, document_summary, analysis_result, cached_market_profile
+                )
+            else:
+                logger.info("ℹ️ No cached taxonomy found - will detect from scratch")
+                market_intelligence_result = self.orchestrator.perform_market_intelligence(
+                    processed_documents, document_summary, analysis_result
+                )
             logger.info("✅ Market intelligence analysis complete")
             
             # Format compact response for Slack character limits

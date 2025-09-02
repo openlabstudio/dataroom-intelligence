@@ -138,7 +138,8 @@ class MarketResearchOrchestrator(BaseAgent):
 
     def perform_market_intelligence(self, processed_documents: List[Dict[str, Any]],
                                   document_summary: Dict[str, Any], 
-                                  analysis_result: Dict[str, Any] = None) -> MarketIntelligenceResult:
+                                  analysis_result: Dict[str, Any] = None,
+                                  cached_market_profile = None) -> MarketIntelligenceResult:
         """Orchestrate comprehensive market intelligence analysis with progress tracking"""
         try:
             logger.info("🔍 Starting comprehensive market intelligence analysis...")
@@ -162,7 +163,16 @@ class MarketResearchOrchestrator(BaseAgent):
             logger.info(f"Progress Update: {self.progress_tracker.format_progress_message()[:200]}...")
             result.processing_steps.append("Phase 1: Market Detection Started")
 
-            market_profile = self.market_detector.detect_vertical(processed_documents, document_summary)
+            # TASK-UX-003: Use cached market profile if available
+            if cached_market_profile:
+                logger.info("✅ TASK-UX-003: Using cached market taxonomy - skipping GPT-4 call")
+                market_profile = cached_market_profile
+                result.processing_steps.append("Phase 1: Using cached market taxonomy (TASK-UX-003)")
+            else:
+                logger.info("ℹ️ No cached taxonomy - detecting market with GPT-4")
+                market_profile = self.market_detector.detect_vertical(processed_documents, document_summary)
+                result.processing_steps.append("Phase 1: Market Detection via GPT-4")
+            
             result.market_profile = market_profile
             
             # Update progress tracker with detected market
