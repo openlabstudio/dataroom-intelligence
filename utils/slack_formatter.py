@@ -6,7 +6,7 @@ Formats analysis results and responses for optimal Slack display
 from typing import Dict, List, Any
 from config.settings import config
 
-def format_analysis_response(analysis_result: Dict[str, Any], document_summary: Dict[str, Any]) -> str:
+def format_analysis_response(analysis_result: Dict[str, Any], document_summary: Dict[str, Any], market_profile=None) -> str:
     """Format the main analysis response for Slack"""
 
     if 'error' in analysis_result:
@@ -30,6 +30,21 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
     
     response += f"📊 **Overall Score: {calculated_overall:.1f}/10**\n"
     response += f"*For detailed breakdown, see 'Complete Scoring' section below*\n\n"
+    
+    # Market Taxonomy (if available)
+    if market_profile:
+        response += "📊 **MARKET TAXONOMY**\n"
+        if hasattr(market_profile, 'solution') and market_profile.solution:
+            response += f"• **Solution:** {market_profile.solution}\n"
+        if hasattr(market_profile, 'sub_vertical') and market_profile.sub_vertical:
+            response += f"• **Sub-vertical:** {market_profile.sub_vertical}\n"
+        if hasattr(market_profile, 'vertical') and market_profile.vertical:
+            response += f"• **Vertical:** {market_profile.vertical}\n"
+        if hasattr(market_profile, 'industry') and market_profile.industry:
+            response += f"• **Industry:** {market_profile.industry}\n"
+        if hasattr(market_profile, 'target_market') and market_profile.target_market:
+            response += f"• **Target:** {market_profile.target_market}\n"
+        response += "\n"
 
     # Executive Summary
     executive_summary = analysis_result.get('executive_summary', [])

@@ -361,8 +361,18 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'test_mode': True
             }
             
+            # Create mock market profile for TEST MODE
+            from agents.market_detection import MarketProfile
+            mock_market_profile = MarketProfile(
+                solution="AI-powered invoice factoring platform",
+                sub_vertical="Invoice financing",
+                vertical="FinTech",
+                industry="Financial technology",
+                target_market="SMB merchants in LATAM"
+            )
+            
             # Use the standard formatting function (same as production)
-            formatted_response = format_analysis_response(mock_analysis_result, document_summary)
+            formatted_response = format_analysis_response(mock_analysis_result, document_summary, mock_market_profile)
             
             # Add TEST MODE indicator
             formatted_response = "⚠️ **TEST MODE ACTIVE** - Mock data, no GPT-4 calls\n\n" + formatted_response
@@ -379,6 +389,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'document_summary': document_summary,
                 'processed_documents': processed_documents,
                 'drive_link': drive_link,
+                'market_profile': mock_market_profile,  # Store for /market-research
                 'test_mode': True
             }
 
@@ -400,8 +411,19 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
 
             analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
 
-            # Format and send AI analysis response
-            formatted_response = format_analysis_response(analysis_result, document_summary)
+            # Get market taxonomy for context (minimal cost - ~$0.01)
+            market_profile = None
+            if market_research_orchestrator:
+                try:
+                    market_profile = market_research_orchestrator.market_detector.detect_vertical(
+                        processed_documents, document_summary
+                    )
+                    logger.info(f"✅ Market taxonomy detected: {market_profile.vertical}/{market_profile.sub_vertical}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Market taxonomy detection failed: {e}")
+
+            # Format and send AI analysis response with market taxonomy
+            formatted_response = format_analysis_response(analysis_result, document_summary, market_profile)
 
             # Enhanced response to mention market research
             if market_research_orchestrator:
@@ -420,6 +442,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'document_summary': document_summary,
                 'processed_documents': processed_documents,
                 'drive_link': drive_link,
+                'market_profile': market_profile,  # Store for /market-research
                 'analysis_timestamp': datetime.now().isoformat()
             }
             
@@ -640,6 +663,16 @@ def handle_ask_command(ack, body, client):
                 text="❓ Please provide a question.\n\nUsage: `/ask [your question]`"
             )
             return
+        
+        # Show progress message for complex questions
+        if len(question) > 20:  # Only show for non-trivial questions
+            try:
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text=f"🤔 **Analyzing Your Question...**\n\n❓ *\"{question}\"*\n\n⏳ Searching through analyzed documents for relevant information..."
+                )
+            except:
+                pass  # Don't fail if progress message fails
 
         if user_id not in user_sessions:
             logger.info(f"❌ No session found for user {user_id}")
@@ -708,6 +741,16 @@ def handle_ask_command(ack, body, client):
 def handle_scoring_command(ack, body, client):
     """Handle /scoring command - Detailed scoring breakdown"""
     ack()
+    
+    # Immediate progress message for better UX
+    try:
+        channel_id = body['channel_id']
+        client.chat_postMessage(
+            channel=channel_id,
+            text="📊 **Generating Scoring Analysis...**\n\n⏳ Calculating detailed investment scores across all evaluation criteria. Analyzing metrics and benchmarks..."
+        )
+    except:
+        pass  # Don't fail if progress message fails
 
     try:
         user_id = body['user_id']
@@ -792,6 +835,16 @@ def handle_scoring_command(ack, body, client):
 def handle_memo_command(ack, body, client):
     """Handle /memo command - Generate investment memo"""
     ack()
+    
+    # Immediate progress message for better UX
+    try:
+        channel_id = body['channel_id']
+        client.chat_postMessage(
+            channel=channel_id,
+            text="📝 **Building Investment Memo...**\n\n⏳ Analyzing data room documents and generating comprehensive investment memo. This may take a few moments..."
+        )
+    except:
+        pass  # Don't fail if progress message fails
 
     try:
         user_id = body['user_id']
@@ -858,6 +911,16 @@ def handle_memo_command(ack, body, client):
 def handle_gaps_command(ack, body, client):
     """Handle /gaps command - Analyze information gaps"""
     ack()
+    
+    # Immediate progress message for better UX
+    try:
+        channel_id = body['channel_id']
+        client.chat_postMessage(
+            channel=channel_id,
+            text="🔍 **Gaps Analysis in Progress...**\n\n⏳ Identifying missing information and potential data room gaps. Analyzing documentation comprehensiveness..."
+        )
+    except:
+        pass  # Don't fail if progress message fails
 
     try:
         user_id = body['user_id']

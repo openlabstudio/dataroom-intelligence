@@ -170,6 +170,13 @@ class MarketResearchOrchestrator(BaseAgent):
             
             # Update progress tracker with detected market
             self.progress_tracker.detected_market = f"{market_profile.vertical}/{market_profile.sub_vertical}"
+            
+            # Realistic progress timing - show phase for at least 8 seconds (skip in test mode)
+            import time
+            import os
+            if os.getenv('TEST_MODE', 'false').lower() != 'true':
+                time.sleep(8)
+            
             self.progress_tracker.phases[0].status = "completed"
             self.progress_tracker.phases[0].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 1
@@ -190,6 +197,10 @@ class MarketResearchOrchestrator(BaseAgent):
             competitive_data = competitive_profile.to_dict()
             result.competitive_analysis = competitive_data  # Keep full data including all_sources
             
+            # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
+            if os.getenv('TEST_MODE', 'false').lower() != 'true':
+                time.sleep(10)
+            
             self.progress_tracker.phases[1].status = "completed"
             self.progress_tracker.phases[1].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 2
@@ -208,6 +219,10 @@ class MarketResearchOrchestrator(BaseAgent):
             # FASE 2B: Use new structure with independent_analysis
             validation_data = validation_profile.to_dict()
             result.market_validation = validation_data.get('independent_analysis', validation_data)
+            
+            # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
+            if os.getenv('TEST_MODE', 'false').lower() != 'true':
+                time.sleep(10)
             
             self.progress_tracker.phases[2].status = "completed"
             self.progress_tracker.phases[2].end_time = datetime.now()
@@ -230,6 +245,10 @@ class MarketResearchOrchestrator(BaseAgent):
             # FASE 2C: Use new structure with independent_analysis
             funding_data = funding_profile.to_dict()
             result.funding_benchmarks = funding_data.get('independent_analysis', funding_data)
+            
+            # Show progress for 10 seconds after work is done but before marking complete (skip in test mode)
+            if os.getenv('TEST_MODE', 'false').lower() != 'true':
+                time.sleep(10)
             
             self.progress_tracker.phases[3].status = "completed"
             self.progress_tracker.phases[3].end_time = datetime.now()
@@ -261,6 +280,10 @@ class MarketResearchOrchestrator(BaseAgent):
                 'summary': investment_decision.executive_summary,
                 'confidence': investment_decision.confidence_level
             }
+            
+            # Show progress for 5 seconds after work is done but before marking complete (this phase does most work)
+            if os.getenv('TEST_MODE', 'false').lower() != 'true':
+                time.sleep(5)
             
             self.progress_tracker.phases[4].status = "completed"
             self.progress_tracker.phases[4].end_time = datetime.now()
