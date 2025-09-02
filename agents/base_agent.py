@@ -51,7 +51,8 @@ class BaseAgent(ABC):
         context = ""
         for doc in processed_documents:
             if doc['type'] != 'error' and doc.get('content'):
-                context += f"\n\n=== DOCUMENT: {doc['name']} ({doc['type'].upper()}) ===\n"
+                doc_name = doc.get('name', f"Document_{doc['type']}")
+                context += f"\n\n=== DOCUMENT: {doc_name} ({doc['type'].upper()}) ===\n"
                 # Take first part of content to fit within limits
                 content = doc['content'][:max_content_length // len(processed_documents)]
                 context += content

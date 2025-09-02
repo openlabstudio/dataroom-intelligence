@@ -46,37 +46,37 @@ class ProgressTracker:
         self.start_time = datetime.now()
         self.message_ts = None  # Will store timestamp of progress message
 
-        # Define all research phases
+        # Define all research phases (Updated to reflect actual processing)
         self.phases = [
             AgentPhase(
                 id="market_detection",
-                name="Market Detection & Profiling",
-                description="Identifying market vertical, target segments, and business model",
+                name="Market Detection & Taxonomy",
+                description="Identifying 4-level market hierarchy with GPT-4 analysis",
                 estimated_duration_minutes=2
             ),
             AgentPhase(
-                id="competitive_intelligence",
-                name="Competitive Intelligence",
-                description="Analyzing competitor landscape and market positioning",
+                id="competitive_search",
+                name="Competitive Intelligence Search",
+                description="3-level hierarchical web search for competitor discovery via Tavily API",
                 estimated_duration_minutes=3
             ),
             AgentPhase(
-                id="market_validation",
-                name="TAM/SAM Validation",
-                description="Validating market size claims with external data",
+                id="market_validation_search",
+                name="Market Validation Research",
+                description="Web search for TAM/SAM validation and expert market opinions",
                 estimated_duration_minutes=3
             ),
             AgentPhase(
-                id="funding_benchmarking",
-                name="Funding & Metrics Benchmarking",
-                description="Comparing financial metrics against industry standards",
+                id="funding_intelligence_search",
+                name="Funding Intelligence Gathering",
+                description="Search for funding patterns, valuations, and investment climate data",
                 estimated_duration_minutes=2
             ),
             AgentPhase(
-                id="critical_synthesis",
-                name="Investment Decision Synthesis",
-                description="AI-powered GO/CAUTION/NO-GO investment recommendation",
-                estimated_duration_minutes=3
+                id="gpt4_synthesis",
+                name="GPT-4 Market Intelligence Synthesis",
+                description="AI synthesis of all collected data into professional investment analysis",
+                estimated_duration_minutes=4
             )
         ]
 

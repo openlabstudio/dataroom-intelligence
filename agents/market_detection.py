@@ -130,8 +130,19 @@ Respond with JSON format only:
     def _get_market_detection_user_prompt(self, document_context: str, 
                                          document_summary: Dict[str, Any]) -> str:
         """User prompt with document context"""
+        
+        # Extract key business information from document_summary
+        business_description = document_summary.get('business_description', '')
+        executive_summary = document_summary.get('executive_summary', '')
+        
         return f"""
-Analyze the following startup documents to identify the market vertical and positioning:
+Analyze the following startup information to identify the market vertical and positioning:
+
+BUSINESS DESCRIPTION:
+{business_description}
+
+EXECUTIVE SUMMARY:
+{executive_summary}
 
 DOCUMENT SUMMARY:
 - Total documents: {document_summary.get('total_documents', 0)}
