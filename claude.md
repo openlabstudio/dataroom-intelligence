@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **DataRoom Intelligence Bot** - AI-powered data room analysis for venture capital firms using a chain-of-thought agent architecture.
 
-### Current Project Status  
+### Current Project Status
 - **Phase**: 2C - **ARCHITECTURE COMPLETELY OPTIMIZED** (✅ ULTRA-EFFICIENT SYSTEM)
 - **Stable Commit**: Next commit - **Architecture Cleanup Complete** - 77% more efficient
 - **System Status**: ✅ **STREAMLINED ARCHITECTURE** - Only essential components, maximum efficiency
@@ -36,7 +36,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GPT-4 Synthesis Revolution**: Single intelligent synthesis replacing multiple agents:
 - **Economic Efficiency**: 1 GPT-4 call (synthesis) vs 7-9 calls (legacy agents)
-- **Quality Enhancement**: 4 high-quality references vs 6 references with noise  
+- **Quality Enhancement**: 4 high-quality references vs 6 references with noise
 - **Content Intelligence**: Real content analysis from 24 collected sources
 - **Professional Output**: Senior VC analyst quality (Sequoia/a16z level)
 - **Investment Decisions**: Clear PROCEED/PASS with specific due diligence recommendations
@@ -79,11 +79,79 @@ python debug_web_search.py
 export TEST_MODE=true
 python app.py
 
-# Production testing (COSTS MONEY!)  
+# Production testing (COSTS MONEY!)
 export TEST_MODE=false
 export PRODUCTION_MODE=true
 python app.py
 ```
+
+### Gemini CLI for Large Codebase Analysis
+
+When analyzing large codebases or multiple files that might exceed context limits, use the Gemini CLI with its massive context window:
+
+**Basic Usage:**
+```bash
+# Single file analysis
+gemini -p "@src/main.py Explain this file's purpose and structure"
+
+# Multiple files
+gemini -p "@package.json @src/index.js Analyze the dependencies used in the code"
+
+# Entire directory
+gemini -p "@src/ Summarize the architecture of this codebase"
+
+# Multiple directories
+gemini -p "@src/ @tests/ Analyze test coverage for the source code"
+
+# Current directory and subdirectories
+gemini -p "@./ Give me an overview of this entire project"
+
+# Or use --all_files flag
+gemini --all_files -p "Analyze the project structure and dependencies"
+```
+
+**Implementation Verification Examples:**
+```bash
+# Check if a feature is implemented
+gemini -p "@src/ @lib/ Has dark mode been implemented in this codebase? Show me the relevant files and functions"
+
+# Verify authentication implementation
+gemini -p "@src/ @middleware/ Is JWT authentication implemented? List all auth-related endpoints and middleware"
+
+# Check for specific patterns
+gemini -p "@src/ Are there any React hooks that handle WebSocket connections? List them with file paths"
+
+# Verify error handling
+gemini -p "@src/ @api/ Is proper error handling implemented for all API endpoints? Show examples of try-catch blocks"
+
+# Check for rate limiting
+gemini -p "@backend/ @middleware/ Is rate limiting implemented for the API? Show the implementation details"
+
+# Verify caching strategy
+gemini -p "@src/ @lib/ @services/ Is Redis caching implemented? List all cache-related functions and their usage"
+
+# Check for specific security measures
+gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitized"
+
+# Verify test coverage for features
+gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? List all test cases"
+```
+
+**When to Use Gemini CLI:**
+- Analyzing entire codebases or large directories
+- Comparing multiple large files
+- Need to understand project-wide patterns or architecture
+- Current context window is insufficient for the task
+- Working with files totaling more than 100KB
+- Verifying if specific features, patterns, or security measures are implemented
+- Checking for the presence of certain coding patterns across the entire codebase
+
+**Important Notes:**
+- Paths in @ syntax are relative to your current working directory when invoking gemini
+- The CLI will include file contents directly in the context
+- No need for --yolo flag for read-only analysis
+- Gemini's context window can handle entire codebases that would overflow Claude's context
+- When checking implementations, be specific about what you're looking for to get accurate results
 
 ## Critical Development Patterns
 
@@ -94,13 +162,13 @@ from .base_agent import BaseAgent
 class NewAgent(BaseAgent):
     def __init__(self):
         super().__init__("Agent Name")
-    
+
     def analyze(self, processed_documents, document_summary):
         # ALWAYS check TEST_MODE first
         import os
         if os.getenv('TEST_MODE', 'false').lower() == 'true':
             return self._get_mock_response()
-        
+
         # Real implementation
         return self._real_analysis(processed_documents)
 ```
@@ -137,13 +205,13 @@ except Exception as e:
 OLD ARCHITECTURE (inefficient):
 MarketDetection → CompetitiveAgent (GPT-4) → ValidationAgent (GPT-4) → FundingAgent (GPT-4) → CriticalSynthesizer (GPT-4) → Final GPT-4 Synthesis
 
-NEW ARCHITECTURE (optimal):  
+NEW ARCHITECTURE (optimal):
 MarketDetection → Direct WebSearch → Single GPT-4 Synthesis
 ```
 
 **Results**:
 - ✅ **77% fewer GPT-4 calls** (2 calls vs 9 calls)
-- ✅ **78% cost reduction** per analysis  
+- ✅ **78% cost reduction** per analysis
 - ✅ **194KB code eliminated** (4 garbage agent files deleted)
 - ✅ **Higher quality output** (4 focused references vs 6 with noise)
 - ✅ **Same analysis time** (~1m 20s) but more stable
@@ -201,10 +269,10 @@ Core commands for testing and operation:
 ```bash
 # Slack Integration
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...  
+SLACK_APP_TOKEN=xapp-...
 SLACK_SIGNING_SECRET=...
 
-# AI Services  
+# AI Services
 OPENAI_API_KEY=sk-...
 TAVILY_API_KEY=tvly-...
 
@@ -219,7 +287,7 @@ PRODUCTION_MODE=false    # Railway sets to true
 ## Development Workflow
 
 1. **Always start with TEST_MODE=true** - Protects against API costs
-2. **Implement mock responses first** - Validates UX before real integration  
+2. **Implement mock responses first** - Validates UX before real integration
 3. **Test session persistence** - Use `/analyze debug` frequently
 4. **One agent at a time** - Incremental development and testing
 5. **Commit working increments** - Stability over features
@@ -255,11 +323,11 @@ Application auto-deploys from main branch with environment-based configuration. 
 ### Available Next Development Paths
 
 **Option A: Enhanced Intelligence System** (3-4 days)
-- 12-query expansion for specialized markets  
+- 12-query expansion for specialized markets
 - Advanced synthesis capabilities
 - Deeper analysis for niche sectors
 
-**Option B: PDF Report Generation** (1-2 weeks)  
+**Option B: PDF Report Generation** (1-2 weeks)
 - Comprehensive reports beyond 4000 char Slack limit
 - Professional client-ready documents
 - Complete sources and citations
