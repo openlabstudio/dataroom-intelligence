@@ -78,6 +78,20 @@ class DocumentProcessor:
                     plumber_result['metadata']['pypdf2_result'] = result['metadata']
                     return plumber_result
                 else:
+                    # If both traditional methods fail, try OCR as last resort
+                    if plumber_result['metadata']['total_chars_extracted'] < 100:
+                        logger.info(f"   🔄 Both traditional methods failed, trying OCR as last resort...")
+                        ocr_result = self._try_ocr_extraction(file_path, file_name)
+                        
+                        if ocr_result['metadata']['total_chars_extracted'] > 100:
+                            logger.info(f"   ✅ OCR succeeded: {ocr_result['metadata']['total_chars_extracted']} chars")
+                            ocr_result['metadata']['extraction_method'] = 'ocr_tesseract'
+                            ocr_result['metadata']['pypdf2_result'] = result['metadata']
+                            ocr_result['metadata']['pdfplumber_result'] = plumber_result['metadata']
+                            return ocr_result
+                        else:
+                            logger.warning(f"   ⚠️ All extraction methods failed - PDF may be corrupted or encrypted")
+                    
                     result['metadata']['extraction_method'] = 'pypdf2'
                     result['metadata']['pdfplumber_attempted'] = True
                     return result
@@ -288,6 +302,123 @@ class DocumentProcessor:
                     'pdf_quality': pdf_quality,
                     'file_size_bytes': os.path.getsize(file_path),
                     'debug_info': debug_info
+                }
+            }
+
+    def _try_ocr_extraction(self, file_path: str, file_name: str) -> Dict[str, Any]:
+        """Try OCR extraction using Tesseract (for image-based PDFs)"""
+        try:
+            # Import OCR libraries (conditional import to avoid dependency issues)
+            try:
+                import pytesseract
+                from pdf2image import convert_from_path
+                import PIL.Image
+            except ImportError as import_error:
+                logger.warning(f"   ⚠️ OCR libraries not available: {import_error}")
+                return {
+                    'name': file_name,
+                    'type': 'pdf',
+                    'content': '',
+                    'metadata': {
+                        'total_chars_extracted': 0,
+                        'pages_with_text': 0,
+                        'error': f'OCR libraries not installed: {import_error}',
+                        'ocr_available': False
+                    }
+                }
+            
+            logger.info(f"🔧 PDF OCR extraction for {file_name}:")
+            
+            # Convert PDF to images
+            logger.info(f"   📸 Converting PDF to images...")
+            try:
+                # Convert PDF pages to images (limit to first 5 pages for performance)
+                images = convert_from_path(file_path, first_page=1, last_page=15)  # Process more pages for better coverage
+                logger.info(f"   📸 Converted {len(images)} pages to images")
+            except Exception as convert_error:
+                logger.error(f"   ❌ PDF to image conversion failed: {convert_error}")
+                return {
+                    'name': file_name,
+                    'type': 'pdf',
+                    'content': '',
+                    'metadata': {
+                        'total_chars_extracted': 0,
+                        'pages_with_text': 0,
+                        'error': f'PDF to image conversion failed: {convert_error}',
+                        'ocr_available': True
+                    }
+                }
+            
+            # Perform OCR on each image
+            content = ""
+            total_chars_extracted = 0
+            pages_with_content = 0
+            
+            for page_num, image in enumerate(images, 1):
+                try:
+                    logger.info(f"   🔍 OCR processing page {page_num}...")
+                    
+                    # Perform OCR with Tesseract - enhanced for business documents
+                    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,€$%+-:|() '
+                    page_text = pytesseract.image_to_string(image, lang='eng', config=custom_config)
+                    page_char_count = len(page_text.strip())
+                    total_chars_extracted += page_char_count
+                    
+                    if page_char_count > 0:
+                        pages_with_content += 1
+                        content += f"\n--- Page {page_num} (OCR) ---\n"
+                        content += page_text
+                        
+                        # Log sample text from first few pages
+                        if page_num <= 3:
+                            sample_text = page_text.strip()[:100].replace('\n', ' ')
+                            logger.info(f"   📄 Page {page_num}: {page_char_count} chars - \"{sample_text}...\"")
+                    
+                except Exception as ocr_error:
+                    logger.warning(f"   ⚠️ OCR failed for page {page_num}: {ocr_error}")
+                    continue
+            
+            logger.info(f"   📊 OCR Summary: {pages_with_content}/{len(images)} pages, {total_chars_extracted} chars")
+            
+            # Determine OCR quality
+            if total_chars_extracted == 0:
+                ocr_quality = "failed"
+            elif total_chars_extracted < 500:
+                ocr_quality = "poor"
+            elif total_chars_extracted < 2000:
+                ocr_quality = "moderate"
+            else:
+                ocr_quality = "good"
+            
+            return {
+                'name': file_name,
+                'type': 'pdf',
+                'content': content.strip(),
+                'metadata': {
+                    'pages': len(images),
+                    'content_length': len(content),
+                    'has_content': bool(content.strip()),
+                    'pages_with_text': pages_with_content,
+                    'total_chars_extracted': total_chars_extracted,
+                    'ocr_quality': ocr_quality,
+                    'file_size_bytes': os.path.getsize(file_path),
+                    'pages_processed': len(images),
+                    'ocr_available': True
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ OCR extraction failed for {file_name}: {e}")
+            return {
+                'name': file_name,
+                'type': 'pdf',
+                'content': '',
+                'metadata': {
+                    'total_chars_extracted': 0,
+                    'pages_with_text': 0,
+                    'error': str(e),
+                    'ocr_available': True,
+                    'debug_info': [f"OCR error: {str(e)}"]
                 }
             }
 

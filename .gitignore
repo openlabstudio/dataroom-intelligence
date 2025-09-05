@@ -33,3 +33,9 @@ Thumbs.db
 # Deployment
 *.pid
 node_modules/
+
+# AI Assistant Tools (local only)
+.bmad-core/
+.claude/
+.gemini/
+.serena/

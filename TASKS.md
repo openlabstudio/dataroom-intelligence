@@ -1,14 +1,14 @@
 # 📋 TASKS - DataRoom Intelligence Phase 2B
 
-> **Documento vivo de gestión de tareas**  
-> Última actualización: September 2, 2025  
+> **Documento vivo de gestión de tareas**
+> Última actualización: September 2, 2025
 > Estado: ARQUITECTURA COMPLETAMENTE OPTIMIZADA - Sistema ultra-eficiente funcionando
 
 ## 📍 Estado Actual
 
 - **Branch activo:** `main`
 - **Commit estable:** Próximo commit (Architecture Cleanup Complete)
-- **TEST MODE:** ✅ Funcionando perfectamente 
+- **TEST MODE:** ✅ Funcionando perfectamente
 - **PRODUCTION MODE:** ✅ Funcionando perfectamente con sources reales
 - **Architecture:** ✅ COMPLETAMENTE OPTIMIZADA - Solo componentes esenciales, 77% menos llamadas GPT-4
 - **Web Search:** ✅ Tavily API integrado directamente sin agentes intermedios innecesarios
@@ -33,7 +33,7 @@
 
 ### 🗑️ CÓDIGO BASURA ELIMINADO:
 - ❌ `agents/competitive_intelligence.py` - 70,895 bytes eliminados
-- ❌ `agents/market_validation.py` - 46,829 bytes eliminados  
+- ❌ `agents/market_validation.py` - 46,829 bytes eliminados
 - ❌ `agents/funding_benchmarker.py` - 57,702 bytes eliminados
 - ❌ `agents/critical_synthesizer.py` - 18,434 bytes eliminados
 - **Total eliminado:** 193,860 bytes (~2,079 líneas de código basura)
@@ -64,27 +64,27 @@
 ---
 
 ## 📋 **TASK-MVP-001: GPT-4 Competitive Intelligence Enhancement**
-**Estado:** ✅ **COMPLETED**  
-**Duración:** 3-4 días (Semana 1) - ✅ **COMPLETED** 
+**Estado:** ✅ **COMPLETED**
+**Duración:** 3-4 días (Semana 1) - ✅ **COMPLETED**
 **Objetivo:** Reemplazar regex extraction con GPT-4 para 95% accuracy en nombres de empresas
 
 ### **✅ COMPLETION SUMMARY:**
 - ✅ GPT-4 competitive extraction prompt implemented and tested
 - ✅ Improved JSON parsing with multiple fallback strategies
-- ✅ Enhanced Slack formatting with GPT-4 indicators (🤖)  
+- ✅ Enhanced Slack formatting with GPT-4 indicators (🤖)
 - ✅ Expert formatter showing comprehensive competitor information
 - ✅ Both test files passing (test_gpt4_competitive_enhancement.py, test_improved_formatter.py)
 - ✅ Fallback mechanisms working for error handling
 - ✅ Ready for production testing with TEST_MODE=false
 
 ## 📋 **TASK-MVP-001.1: Professional Output Formatting**
-**Estado:** 🚧 **IN PROGRESS**  
-**Duración:** 1-2 horas  
+**Estado:** 🚧 **IN PROGRESS**
+**Duración:** 1-2 horas
 **Objetivo:** Fix formatting inconsistencies identified in user testing
 
 ### **🚨 Issues Found in User Testing:**
 - **Meaningless scores:** "Score 9.5/10" provides no value → REMOVE completely
-- **Section header inconsistencies:** "Market Insights:" vs "MARKET INSIGHTS:" 
+- **Section header inconsistencies:** "Market Insights:" vs "MARKET INSIGHTS:"
 - **Confusing entries:** "Not mentioned" and empty competitors confuse users → FILTER OUT
 - **Source counting misleading:** Shows "15 sources" when not all displayed
 - **Mixed titles:** Company names vs report titles mixed up (e.g., "Kurita Water Industries" for general report)
@@ -92,7 +92,7 @@
 - **Academic sources unclear:** "Academic: 1 papers" - which paper? where?
 
 ### **🔧 Implementation Plan:**
-- [ ] Remove all numerical scores from expert_formatter.py  
+- [ ] Remove all numerical scores from expert_formatter.py
 - [ ] Standardize ALL section headers to UPPERCASE format
 - [ ] Filter out empty/confusing competitor entries ("Not mentioned")
 - [ ] Fix source titles to show actual report names vs company names
@@ -102,7 +102,7 @@
 
 ### **✅ User Experience Improvements:**
 - **Before:** "Score 9.5/10" → **After:** Clean section without meaningless numbers
-- **Before:** "Market Insights:" → **After:** "MARKET INSIGHTS:" 
+- **Before:** "Market Insights:" → **After:** "MARKET INSIGHTS:"
 - **Before:** "ASIO - Not mentioned" → **After:** Filtered out completely
 - **Before:** "15 sources" (shows 3) → **After:** "KEY SOURCES:" without misleading count
 
@@ -117,8 +117,8 @@ Based on real demo testing with electrochemical wastewater treatment output:
 - **Questionable relevance:** SUEZ Water listed as competitor without validation
 
 ## 📋 **TASK-MVP-001.2: Quick Fix - Professional References System**
-**Estado:** ✅ **COMPLETED** → **EVOLVED TO TASK-MVP-002**  
-**Duración:** 3-4 horas (Evolved beyond original scope)  
+**Estado:** ✅ **COMPLETED** → **EVOLVED TO TASK-MVP-002**
+**Duración:** 3-4 horas (Evolved beyond original scope)
 **Objetivo:** ✅ Professional numbered references system + ✅ **GPT-4 Content Synthesizer**
 
 ### **🚨 CRITICAL EVOLUTION:**
@@ -126,7 +126,7 @@ Durante la implementación se identificó que los problemas de calidad requería
 
 ### **✅ COMPLETED - Beyond Original Scope:**
 - ✅ **Numbered References System:** [1], [2], [3] implemented with clickable URLs
-- ✅ **Complete Source Collection:** All sources from Tavily searches collected (10+ references)  
+- ✅ **Complete Source Collection:** All sources from Tavily searches collected (10+ references)
 - ✅ **Zero Information Loss:** Fixed "cada vez que hacemos un pequeño cambio incremental rompemos otra cosa"
 - ✅ **GPT-4 Content Synthesizer:** Professional VC analyst synthesis of real scraped content
 - ✅ **Investment Recommendations:** Clear PROCEED/PASS decisions with risk levels
@@ -174,9 +174,9 @@ INVESTMENT RECOMMENDATION: PROCEED (Medium Risk) - Attractive market fundamental
 - **Before:** Fixed format regardless of market vertical
 - **After:** Market-specific analysis adapted to sector dynamics
 
-## 📋 **TASK-MVP-002: GPT-4 Content Synthesis System** 
-**Estado:** ✅ **COMPLETED** (Implemented during TASK-MVP-001.2)  
-**Duración:** 3 horas  
+## 📋 **TASK-MVP-002: GPT-4 Content Synthesis System**
+**Estado:** ✅ **COMPLETED** (Implemented during TASK-MVP-001.2)
+**Duración:** 3 horas
 **Objetivo:** Professional VC analyst synthesis from real scraped content
 
 ### **🚀 REVOLUTIONARY ARCHITECTURAL CHANGE:**
@@ -193,7 +193,7 @@ Tavily Search → Raw Content Collection → GPT-4 Synthesis → Professional VC
 ```
 
 ### **✅ BREAKTHROUGH FEATURES:**
-- **Real Content Analysis:** Scrapes and analyzes content from 8-10 references automatically  
+- **Real Content Analysis:** Scrapes and analyzes content from 8-10 references automatically
 - **Professional Investment Language:** GPT-4 as senior VC analyst (Sequoia/a16z level)
 - **Clear Investment Decisions:** PROCEED (Low/Medium/High Risk) or PASS with reasoning
 - **Natural Reference Integration:** [1][2][3] woven naturally into professional paragraphs
@@ -207,8 +207,8 @@ Tavily Search → Raw Content Collection → GPT-4 Synthesis → Professional VC
 ## 🚀 **PRÓXIMAS EVOLUTIVAS - POST-DEMO**
 
 ### **📋 TASK-MVP-003: Markdown Report Generation**
-**Estado:** 📝 **PLANNED** (Post-Demo Priority)  
-**Duración:** 1-2 semanas  
+**Estado:** 📝 **PLANNED** (Post-Demo Priority)
+**Duración:** 1-2 semanas
 **Objetivo:** Comprehensive 20-page reports beyond Slack 4000-char limit
 
 **Features:**
@@ -216,23 +216,22 @@ Tavily Search → Raw Content Collection → GPT-4 Synthesis → Professional VC
 - Complete market analysis with charts and data
 - Extended investment thesis with detailed rationale
 - All references with full abstracts and key quotes
-- Export to PDF for client delivery
 
 ### **📋 TASK-MVP-004: Enhanced Intelligence System**
-**Estado:** 📝 **PLANNED** (Future Enhancement)  
-**Duración:** 3-4 días  
+**Estado:** 📝 **PLANNED** (Future Enhancement)
+**Duración:** 3-4 días
 **Objetivo:** 12-query expansion for specialized markets
 
 **Features:**
 - Deeper analysis for niche sectors
-- Advanced synthesis capabilities  
+- Advanced synthesis capabilities
 - Regulatory deep-dive analysis
 - Customer validation research
 - Technology risk assessment
 
 ### **📋 TASK-UX-001: Real-Time Progress Tracking System**
-**Estado:** 📝 **PLANNED** (Post-Demo UX Enhancement)  
-**Duración:** 2-3 días  
+**Estado:** 📝 **PLANNED** (Post-Demo UX Enhancement)
+**Duración:** 2-3 días
 **Objetivo:** Dynamic progress tracking based on actual orchestrator state
 
 ### **🚨 CURRENT LIMITATION:**
@@ -245,13 +244,13 @@ Tavily Search → Raw Content Collection → GPT-4 Synthesis → Professional VC
 ```
 CURRENT: Handler with Fixed Timing
 ├── Phase 1: sleep(8) → Update Slack
-├── Phase 2: sleep(10) → Update Slack  
+├── Phase 2: sleep(10) → Update Slack
 ├── Phase 3: sleep(10) → Update Slack
 └── Real work happens in parallel (unknown duration)
 
 IDEAL: Dynamic Progress Reading
 ├── Handler polls orchestrator.progress_tracker every 2-3 seconds
-├── Reads phases[i].status ("pending" → "running" → "completed")  
+├── Reads phases[i].status ("pending" → "running" → "completed")
 ├── Updates Slack when real phase transitions occur
 └── Timing matches actual work duration automatically
 ```
@@ -262,7 +261,7 @@ IDEAL: Dynamic Progress Reading
 - [ ] Handler polling mechanism every 2-3 seconds
 - [ ] Real-time Slack updates on actual phase changes
 
-**Phase 2: Dynamic Timing (1 day)**  
+**Phase 2: Dynamic Timing (1 day)**
 - [ ] Remove hardcoded sleep() values from handler
 - [ ] Progress updates driven by orchestrator state changes
 - [ ] Handle variable analysis durations automatically
@@ -279,8 +278,8 @@ IDEAL: Dynamic Progress Reading
 - [ ] Works consistently for 5-document and 50-document datarooms
 
 ### **📋 TASK-UX-002: Adaptive Progress Tracking for Large Datarooms**
-**Estado:** 📝 **PLANNED** (Critical for Production Scale)  
-**Duración:** 1-2 días  
+**Estado:** 📝 **PLANNED** (Critical for Production Scale)
+**Duración:** 1-2 días
 **Objetivo:** Handle variable dataroom sizes with robust progress tracking and timeout management
 
 ### **🚨 CURRENT PRODUCTION LIMITATION:**
@@ -297,7 +296,7 @@ CURRENT: Fixed Timing + Fixed Timeout
 ├── Timeout: 90s maximum
 └── Result: Fails with large datarooms or API slowdowns
 
-ROBUST: Adaptive Timing + Dynamic Timeout  
+ROBUST: Adaptive Timing + Dynamic Timeout
 ├── Document-based estimation: timeout = docs * 15s + base_time
 ├── API health monitoring: adjust timeouts based on recent response times
 ├── Progressive timeout extension: 90s → 180s → 300s if needed
@@ -314,7 +313,7 @@ def calculate_adaptive_timeout(document_count, market_complexity):
     doc_factor = document_count * 15  # 15s per document
     complexity_factor = 30 if market_complexity == 'niche' else 0
     api_health_factor = get_recent_api_latency() * 2
-    
+
     return min(base_timeout + doc_factor + complexity_factor + api_health_factor, 600)  # Max 10 minutes
 ```
 
@@ -334,7 +333,7 @@ def calculate_adaptive_timeout(document_count, market_complexity):
 Small dataroom (5 docs, common market):
 ├── Base: 90s + Docs: 75s + Complexity: 0s + API: 10s = 175s total
 
-Medium dataroom (15 docs, common market):  
+Medium dataroom (15 docs, common market):
 ├── Base: 90s + Docs: 225s + Complexity: 0s + API: 10s = 325s total
 
 Large dataroom (50 docs, niche market):
@@ -346,7 +345,7 @@ Emergency fallback (API issues):
 ```
 
 ### **✅ ACCEPTANCE CRITERIA:**
-- [ ] No timeout failures for datarooms up to 50 documents  
+- [ ] No timeout failures for datarooms up to 50 documents
 - [ ] Automatic timeout adjustment based on document count
 - [ ] Graceful handling of API latency spikes
 - [ ] Clear user communication for extended analysis times
@@ -358,11 +357,11 @@ Emergency fallback (API issues):
 **Robust Solution:** Adaptive timeouts - handles 99.9% of cases including enterprise datarooms
 
 ### **📋 TASK-UX-003: Session-Based Market Taxonomy Caching**
-**Estado:** ✅ **COMPLETED** (Implementation Successful)  
-**Duración:** Completada en 1 día  
+**Estado:** ✅ **COMPLETED** (Implementation Successful)
+**Duración:** Completada en 1 día
 **Objetivo:** Evitar repetir llamadas GPT-4 para market detection en misma sesión
 
-**Problem Actual:** 
+**Problem Actual:**
 - `/analyze` detecta taxonomía de mercado (solution → sub_vertical → vertical)
 - `/market-research` vuelve a detectar la **misma** taxonomía independientemente
 - **Duplicación innecesaria:** 2 llamadas GPT-4 por lo mismo en una sesión
@@ -375,7 +374,7 @@ user_sessions[user_id] = {
     'documents': processed_docs,
     'market_taxonomy': {  # ✅ NUEVA FUNCIONALIDAD
         'solution': 'electrochemical wastewater treatment',
-        'sub_vertical': 'water treatment technology', 
+        'sub_vertical': 'water treatment technology',
         'vertical': 'sustainability',
         'confidence': 0.85,
         'detected_at': timestamp
@@ -405,15 +404,15 @@ else:
 
 **✅ COMPLETED IMPLEMENTATION:**
 - Modified `market_research_handler.py` to pass cached `market_profile` from user session
-- Updated `market_research_orchestrator.py` to accept and use cached taxonomy 
+- Updated `market_research_orchestrator.py` to accept and use cached taxonomy
 - Added clear logging: "✅ TASK-UX-003: Using cached market taxonomy - skipping GPT-4 call"
 - Reset handler already clears cache properly via `del user_sessions[user_id]`
 - **Result:** 15% additional cost savings (~$0.07 per analysis) + faster `/market-research`
 - **Testing:** Verified cached taxonomy is used and GPT-4 call is skipped
 
 ### **📋 TASK-DATA-001: Data Quality Architecture**
-**Estado:** 📝 **PLANNED** (Post-Demo Foundation)  
-**Duración:** 1 semana  
+**Estado:** 📝 **PLANNED** (Post-Demo Foundation)
+**Duración:** 1 semana
 **Objetivo:** Robust data processing and quality control
 
 **Features:**
@@ -439,7 +438,7 @@ TASK: Extract exact company names, valuations, and key details from the followin
 
 RULES:
 1. Extract only real company names (not descriptions like "provider of electrochemical")
-2. Include funding amount and date if mentioned  
+2. Include funding amount and date if mentioned
 3. Include URL if available
 4. Maximum 8 competitors
 5. Focus on direct competitors, not suppliers/customers
@@ -452,7 +451,7 @@ Example output:
   "competitors": [
     {
       "name": "EcoClean Technologies",
-      "funding": "€15M Series A, 2023", 
+      "funding": "€15M Series A, 2023",
       "description": "Electrochemical wastewater treatment",
       "url": "https://ecoclean.com",
       "relevance_score": 0.95
@@ -472,13 +471,13 @@ Web search results:
 def analyze_competitors(self, market_profile, documents):
     if os.getenv('TEST_MODE', 'false').lower() == 'true':
         return self._get_mock_competitive_data()
-    
+
     # 1. Web search (existing)
     web_results = self._perform_competitive_search(market_profile)
-    
+
     # 2. NEW: GPT-4 extraction instead of regex
     structured_competitors = self._extract_competitors_with_gpt4(web_results)
-    
+
     # 3. Format for Slack (enhanced)
     return self._format_competitive_analysis(structured_competitors)
 
@@ -500,15 +499,15 @@ def _format_competitive_analysis(self, competitors_data):
     # NEW format with better competitor names
     competitors_text = "🏢 **COMPETITIVE LANDSCAPE** "
     competitors_text += f"({len(competitors_data['competitors'])} competitors analyzed)\n"
-    
+
     # Top 3 competitors with clean names
     for i, comp in enumerate(competitors_data['competitors'][:3]):
         competitors_text += f"• **{comp['name']}** ({comp['funding']}) - {comp['description'][:50]}...\n"
-    
+
     # Strategic insight
     competitors_text += f"• **Market status:** {self._assess_market_heating(competitors_data)}\n"
     competitors_text += "• 📄 Complete competitive analysis → startup_analysis.md"
-    
+
     return competitors_text
 ```
 
@@ -516,7 +515,7 @@ def _format_competitive_analysis(self, competitors_data):
 ```python
 # Tests to implement:
 1. TEST_MODE still works with mock data
-2. GPT-4 parsing handles malformed JSON gracefully  
+2. GPT-4 parsing handles malformed JSON gracefully
 3. Fallback to regex if GPT-4 fails
 4. Competitor names are clean (no "provider of..." fragments)
 5. Funding amounts properly parsed
@@ -524,7 +523,7 @@ def _format_competitive_analysis(self, competitors_data):
 
 # Test cases:
 - CleanTech water treatment startup
-- FinTech invoice factoring startup  
+- FinTech invoice factoring startup
 - MedTech diagnostic startup
 ```
 
@@ -532,7 +531,7 @@ def _format_competitive_analysis(self, competitors_data):
 
 ## 📋 **TASK-POST-DEMO: Data Quality Architecture**
 **Estado:** 📋 **PLANNED** (Post-Demo Implementation)
-**Duración:** 3-4 días  
+**Duración:** 3-4 días
 **Objetivo:** Solución arquitectural permanente para calidad de datos
 
 ### **🏗️ ARQUITECTURA DE CALIDAD DE DATOS**
@@ -545,7 +544,7 @@ RAW DATA → VALIDATION LAYER → CURATED DATA → PROFESSIONAL FORMATTER
 
 ### **Components to Implement:**
 - [ ] **DataCurationEngine class** - Validates and curates all data
-- [ ] **CompetitorRelevanceValidator** - GPT-4 validation of competitor relevance  
+- [ ] **CompetitorRelevanceValidator** - GPT-4 validation of competitor relevance
 - [ ] **InformationCompletionEngine** - Completes truncated sentences
 - [ ] **SourceQualityValidator** - Validates source reliability and relevance
 - [ ] **Professional References System** - Academic-style numbered references
@@ -560,7 +559,7 @@ RAW DATA → VALIDATION LAYER → CURATED DATA → PROFESSIONAL FORMATTER
 
 ## 📋 **TASK-MVP-002: Markdown Report Generation**
 **Estado:** 🚧 **READY TO START** (After Quick Fix)
-**Duración:** 4-5 días (Semana 1-2)  
+**Duración:** 4-5 días (Semana 1-2)
 **Objetivo:** Generar informes profesionales expandidos con citations inline
 
 ### **Implementación Detallada:**
@@ -578,7 +577,7 @@ CONTEXT: You have access to web search data, competitive intelligence, and marke
 TASK: Generate a detailed professional analysis with:
 1. Executive summary (similar to Slack output)
 2. Deep competitive landscape analysis with reasoning
-3. Market validation with external source validation  
+3. Market validation with external source validation
 4. Investment recommendation with detailed rationale
 
 FORMATTING REQUIREMENTS:
@@ -601,7 +600,7 @@ def generate_detailed_markdown_report(self, analysis_data):
         web_search_data=analysis_data['web_search_data'],
         market_profile=analysis_data['market_profile']
     )
-    
+
     response = self.client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -610,7 +609,7 @@ def generate_detailed_markdown_report(self, analysis_data):
         ],
         temperature=0.3
     )
-    
+
     return response.choices[0].message.content
 ```
 
@@ -642,14 +641,14 @@ MARKDOWN_TEMPLATE = """# Market Research Analysis: {startup_name}
 class MarkdownReportGenerator:
     def __init__(self):
         self.citations = []
-        
+
     def generate_report(self, analysis_data, web_sources):
         # 1. Generate detailed analysis with GPT-4
         detailed_content = self._generate_detailed_analysis(analysis_data)
-        
+
         # 2. Format citations
         formatted_citations = self._format_citations(web_sources)
-        
+
         # 3. Combine with template
         markdown_content = MARKDOWN_TEMPLATE.format(
             startup_name=analysis_data['startup_name'],
@@ -660,9 +659,9 @@ class MarkdownReportGenerator:
             investment_decision_detailed=detailed_content['decision'],
             formatted_citations=formatted_citations
         )
-        
+
         return markdown_content
-    
+
     def _format_citations(self, web_sources):
         citations = []
         for i, source in enumerate(web_sources, 1):
@@ -679,17 +678,17 @@ class MarkdownReportGenerator:
 
 def handle_command(self, ack, body, client):
     ack()
-    
+
     # Existing Slack summary logic...
     slack_response = self._generate_slack_summary(analysis_data)
-    
+
     # NEW: Generate and upload markdown report
     threading.Thread(
         target=self._generate_and_upload_markdown,
         args=(analysis_data, client, body['channel_id']),
         daemon=True
     ).start()
-    
+
     # Send Slack response (existing)
     client.chat_postMessage(
         channel=body['channel_id'],
@@ -698,21 +697,21 @@ def handle_command(self, ack, body, client):
 
 def _generate_and_upload_markdown(self, analysis_data, client, channel_id):
     try:
-        # 1. Generate markdown content  
+        # 1. Generate markdown content
         markdown_generator = MarkdownReportGenerator()
         markdown_content = markdown_generator.generate_report(
-            analysis_data, 
+            analysis_data,
             analysis_data['web_sources']
         )
-        
+
         # 2. Write to temporary file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{analysis_data['startup_name']}_analysis_{timestamp}.md"
         temp_path = f"/tmp/{filename}"
-        
+
         with open(temp_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
-        
+
         # 3. Upload to Slack
         client.files_upload_v2(
             channel=channel_id,
@@ -720,12 +719,12 @@ def _generate_and_upload_markdown(self, analysis_data, client, channel_id):
             title=f"Market Research Analysis - {analysis_data['startup_name']}",
             initial_comment="📄 **Complete market research analysis** with detailed insights, competitor analysis, and source citations."
         )
-        
+
         # 4. Cleanup
         os.remove(temp_path)
-        
+
         logger.info(f"✅ Markdown report uploaded: {filename}")
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to generate markdown report: {e}")
         client.chat_postMessage(
@@ -742,7 +741,7 @@ class CitationManager:
     def __init__(self):
         self.sources = []
         self.citation_map = {}
-    
+
     def add_source(self, url, title, excerpt):
         source_id = len(self.sources) + 1
         self.sources.append({
@@ -752,10 +751,10 @@ class CitationManager:
             'excerpt': excerpt
         })
         return source_id
-    
+
     def get_citation_text(self, claim, source_id):
         return f"{claim} `[{source_id}]`"
-    
+
     def generate_references_section(self):
         references = []
         for source in self.sources:
@@ -769,26 +768,26 @@ def _generate_competitive_analysis_detailed(self, competitors_data, citation_man
     analysis = "## Competitive Analysis\n\n"
     analysis += "### Market Positioning Assessment\n"
     analysis += f"Based on analysis of {len(self.web_sources)} sources and {len(competitors_data['competitors'])} direct competitors, "
-    
+
     # Add citation for market assessment
     market_source_id = citation_manager.add_source(
         url="https://mckinsey.com/market-analysis",
-        title="McKinsey Market Analysis 2024", 
+        title="McKinsey Market Analysis 2024",
         excerpt="Market shows signs of competitive pressure with 4 new entrants in 24 months"
     )
-    
+
     analysis += citation_manager.get_citation_text(
-        "this startup faces a highly competitive landscape with concerning precedents", 
+        "this startup faces a highly competitive landscape with concerning precedents",
         market_source_id
     ) + "\n\n"
-    
+
     return analysis
 ```
 
 ---
 
 ## 📋 **TASK-MVP-003: Demo Preparation & Testing**
-**Estado:** 🚧 **WEEK 2**  
+**Estado:** 🚧 **WEEK 2**
 **Duración:** 7 días (Semana 2)
 **Objetivo:** Sistema perfecto para demo CTO con casos de test optimizados
 
@@ -807,7 +806,7 @@ DEMO_TEST_CASES = [
         "wow_factors": ["8+ competitors found", "EU regulatory analysis", "Funding comparables"]
     },
     {
-        "name": "FinTech Invoice Factoring", 
+        "name": "FinTech Invoice Factoring",
         "google_drive_link": "[TEST_LINK_2]",
         "expected_competitors": ["FactorX", "InvoiceAI", "PaymentFlow"],
         "expected_insights": ["3 of 5 similar startups failed", "Series A average €8M", "Regulatory pre-approval required"],
@@ -820,18 +819,18 @@ def run_demo_validation():
         print(f"Testing: {test_case['name']}")
         # Run full analysis pipeline
         result = run_market_research_analysis(test_case['google_drive_link'])
-        
+
         # Validate competitive intelligence
         assert len(result['competitors']) >= 5, "Insufficient competitors found"
-        
+
         # Validate insights quality
         for expected_insight in test_case['expected_insights']:
             assert expected_insight in result['markdown_content'], f"Missing insight: {expected_insight}"
-        
+
         # Validate wow factors present
         assert result['sources_count'] >= 10, "Insufficient sources"
         assert result['markdown_size'] > 5000, "Report too short"
-        
+
         print(f"✅ {test_case['name']} validation passed")
 ```
 
@@ -846,7 +845,7 @@ def run_demo_validation():
 
 2. **Error Handling:**
    - Graceful fallback if GPT-4 fails
-   - Retry logic for Tavily API  
+   - Retry logic for Tavily API
    - Clear error messages for demo
 
 3. **Progress Indicators:**
@@ -863,7 +862,7 @@ def run_demo_validation():
 # DEMO SCRIPT CTO
 
 ## Opening (2 min)
-"Vamos a analizar una startup real de CleanTech que recibimos la semana pasada. 
+"Vamos a analizar una startup real de CleanTech que recibimos la semana pasada.
 Esto es lo que tarda nuestro sistema vs lo que hace la competencia."
 
 ## Live Demo (5 min)
@@ -875,7 +874,7 @@ Esto es lo que tarda nuestro sistema vs lo que hace la competencia."
 
 ## WOW Moments:
 - "8 competidores específicos con funding y URLs"
-- "47 fuentes verificadas con citations clicables"  
+- "47 fuentes verificadas con citations clicables"
 - "Análisis regulatorio EU específico para el sector"
 - "Assessment de por qué 3 de 5 startups similares fallaron"
 
@@ -892,7 +891,7 @@ Esto es lo que tarda nuestro sistema vs lo que hace la competencia."
 
 ✅ **Technical:**
 - All test cases pass consistently
-- Error handling works gracefully  
+- Error handling works gracefully
 - File uploads work in Railway
 - Performance acceptable (<2 minutes total)
 
@@ -927,7 +926,7 @@ Esto es lo que tarda nuestro sistema vs lo que hace la competencia."
 - ✅ Investment recommendation with detailed rationale
 
 ### **Technical Success:**
-- ✅ Sub-2 minute total processing time  
+- ✅ Sub-2 minute total processing time
 - ✅ GPT-4 competitor extraction 95%+ accuracy
 - ✅ Markdown upload works flawlessly in Railway
 - ✅ Citations system fully functional
@@ -947,14 +946,14 @@ Esto es lo que tarda nuestro sistema vs lo que hace la competencia."
 ```
 SEMANA 1 - DEVELOPMENT SPRINT
 ├── Día 1: GPT-4 competitive prompt + integration
-├── Día 2: Enhanced Slack formatting + testing  
+├── Día 2: Enhanced Slack formatting + testing
 ├── Día 3: Validation + fallback handling
 ├── Día 4: Dual prompt architecture for markdown
 ├── Día 5: Markdown template system
 ├── Día 6: Slack file upload integration
 └── Día 7: Citation system implementation
 
-SEMANA 2 - DEMO PREPARATION SPRINT  
+SEMANA 2 - DEMO PREPARATION SPRINT
 ├── Día 8: Perfect test cases + validation
 ├── Día 9: Performance optimization + caching
 ├── Día 10: Error handling + demo mode
@@ -971,7 +970,7 @@ SEMANA 2 - DEMO PREPARATION SPRINT
 ### Phase 2B.1: Chain of Thought (80% COMPLETADO)
 Implementar 5 agentes especializados para análisis de mercado
 ✅ Agent 1: Market Detection - COMPLETADO
-✅ Agent 2: Competitive Intelligence - COMPLETADO  
+✅ Agent 2: Competitive Intelligence - COMPLETADO
 ✅ Agent 3: Market Validation - COMPLETADO
 ✅ Agent 4: Funding Benchmarker - COMPLETADO (`msg_too_long` resuelto)
 🚧 Agent 5: Critical Synthesizer Enhanced - EN DESARROLLO
@@ -1000,7 +999,7 @@ Generar reportes PDF completos (superar límite de 4000 chars de Slack)
 ### 🔴 PRIORIDAD ALTA (Hacer ahora)
 
 #### ✅ TASK-001: Implementar Agent 2 - Competitive Intelligence
-**Estado:** ✅ **COMPLETADO**  
+**Estado:** ✅ **COMPLETADO**
 **Completado:** August 13, 2025
 **Commit:** `[PENDING COMMIT]`
 
@@ -1029,7 +1028,7 @@ CompetitiveIntelligenceAgent completamente funcional, probado y estable. TEST_MO
 ### 🟡 PRIORIDAD MEDIA (Próximas 2 semanas)
 
 #### ✅ TASK-002: Implementar Agent 3 - Market Validation
-**Estado:** ✅ **COMPLETADO**  
+**Estado:** ✅ **COMPLETADO**
 **Completado:** August 14, 2025
 **Commit:** `fda80a3`
 
@@ -1055,7 +1054,7 @@ CompetitiveIntelligenceAgent completamente funcional, probado y estable. TEST_MO
 MarketValidationAgent completamente funcional con análisis real de TAM/SAM/SOM, timing de mercado, oportunidades y riesgos. Production mode totalmente operativo.
 
 #### ✅ TASK-003: Implementar Agent 4 - Funding Benchmarker
-**Estado:** ✅ **COMPLETADO**  
+**Estado:** ✅ **COMPLETADO**
 **Completado:** August 14, 2025
 
 **✅ Subtareas completadas:**
@@ -1079,8 +1078,8 @@ MarketValidationAgent completamente funcional con análisis real de TAM/SAM/SOM,
 FundingBenchmarkerAgent completamente funcional con análisis independiente de mercado. Problema `msg_too_long` resuelto con formato compacto. Agent enfocado en benchmarks de industria/geografia en lugar de claims específicos de startup.
 
 #### TASK-004: Critical Synthesizer Enhanced con Investment Decision Framework
-**Estado:** 📋 **BACKLOG (redefinido)**  
-**Dependencias:** TASK-005 FASE 2D (todos los agents integrados con web search)  
+**Estado:** 📋 **BACKLOG (redefinido)**
+**Dependencias:** TASK-005 FASE 2D (todos los agents integrados con web search)
 
 **🎯 Nuevo enfoque - Investment Decision Framework:**
 - [ ] **Synthesize independent analysis** de 3 agents + web intelligence
@@ -1097,8 +1096,8 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 ### 🟢 PRIORIDAD BAJA (Futuro - Phase 2B.2)
 
 #### TASK-005: Web Search Integration + Agent Refactoring - Análisis Independiente
-**Estado:** ✅ **FASE 1 ESTABILIZACIÓN COMPLETADA EXITOSAMENTE**  
-**Phase:** 2B.2  
+**Estado:** ✅ **FASE 1 ESTABILIZACIÓN COMPLETADA EXITOSAMENTE**
+**Phase:** 2B.2
 **Estrategia:** ✅ Web search integrado EN CADA AGENT para análisis independiente
 **Resultado:** ✅ Pipeline completo funcionando con sources reales y output profesional
 
@@ -1136,12 +1135,12 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
   - Integrar web search directamente en el agent
   - Output dual: `independent_analysis` + `startup_claims_extracted`
   - Web searches específicos por value proposition
-  
+
 - ✅ **Update handler display:**
   - Nueva sección "🏢 **COMPETITIVE LANDSCAPE**"
   - Remover sección "🔍 **WEB INTELLIGENCE**" independiente
   - Format: análisis independiente + sources count
-  
+
 - ✅ **Testing completo:**
   - TEST_MODE con mock data mejorado
   - Verificar que no rompe funcionalidad existente
@@ -1164,7 +1163,7 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
   - Integrar web search para expert opinions
   - Buscar precedent cases y regulatory analysis
   - Output format consistent con 2A
-  
+
 - ✅ **Update display:**
   - Sección "📈 **MARKET VALIDATION**" mejorada
   - Expert insights + regulatory risks + precedent analysis
@@ -1186,7 +1185,7 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
   - Web search para similar startups + funding outcomes
   - Investor sentiment analysis por sector
   - Success/failure patterns analysis
-  
+
 - ✅ **Update display:**
   - Sección "💰 **FUNDING BENCHMARKS**"
   - Market patterns + recent deals + funding climate
@@ -1212,7 +1211,7 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 ```
 📊 **MARKET TAXONOMY** (8.8/10)
 • **Solution:** Electrochemical wastewater treatment
-• **Sub-vertical:** Water treatment technology  
+• **Sub-vertical:** Water treatment technology
 • **Vertical:** Cleantech sustainability
 • **Industry:** Environmental technology
 • **Target:** B2B pharmaceutical and cosmetics industries
@@ -1238,7 +1237,7 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 #### **🎯 NUEVA SOLUCIÓN: Tavily API**
 **Decisión estratégica:** Cambiar completamente a Tavily API porque:
 - ✅ **Búsquedas web reales:** Diseñado específicamente para AI research
-- ✅ **Resultados estructurados:** Mejor calidad para análisis de mercado  
+- ✅ **Resultados estructurados:** Mejor calidad para análisis de mercado
 - ✅ **Fuentes confiables:** Filtradas y verificadas
 - ✅ **API profesional:** 1,000 requests gratis/mes, escalable
 
@@ -1265,12 +1264,12 @@ Este task se implementará en TASK-005 FASE 2D después de que todos los agents 
 ⚠️ **EXTERNAL DATA UNAVAILABLE**
 Web search service temporarily unavailable. Analysis limited to document review only.
 
-🏢 **COMPETITIVE LANDSCAPE** 
+🏢 **COMPETITIVE LANDSCAPE**
 ❌ External competitor research unavailable
 • **Recommendation:** Manual research required
 
 🧠 **KEY INSIGHT:**
-⚠️ This analysis is incomplete due to external data limitations. 
+⚠️ This analysis is incomplete due to external data limitations.
 Recommend postponing investment decision until full market research available.
 ```
 
@@ -1284,7 +1283,7 @@ Recommend postponing investment decision until full market research available.
   - Synthesize independent analysis de 3 agents + web intelligence
   - Generate investment recommendation (GO/NO-GO/CAUTION)
   - Dual output: Slack conciso + PDF data prep
-  
+
 - [ ] **Investment Decision Framework:**
   - GO/NO-GO basado en analysis externo
   - Key risk factors identificados
@@ -1307,12 +1306,12 @@ Recommend deeper due diligence on regulatory partnerships.
   - Full sources con quotes y links
   - Startup claims extraction completo
   - Reality check comparisons preparado
-  
+
 - [ ] **Citations y sources management:**
   - Source tracking per agent
   - Link validation y archiving
   - Screenshot capability prep
-  
+
 - [ ] **PDF Section: Reality Check vs Startup Claims:**
   ```markdown
   ## STARTUP CLAIMS VS MARKET REALITY
@@ -1321,12 +1320,12 @@ Recommend deeper due diligence on regulatory partnerships.
   **Market reality:** FactorX, InvoiceAI had similar claims
   **Assessment:** ❌ Not first-mover, precedent failures concerning
   ```
-  
+
 - [ ] **Output enriquecido:**
   ```python
   web_intelligence = {
       'specific_competitors': [...],     # Competidores exactos con context
-      'expert_opinions': [...],         # Opiniones específicas de la solución  
+      'expert_opinions': [...],         # Opiniones específicas de la solución
       'scalability_concerns': [...],    # Concerns específicos encontrados
       'precedent_companies': [...],     # Empresas que intentaron lo mismo
       'regulatory_insights': [...],     # Insights regulatorios específicos
@@ -1334,7 +1333,7 @@ Recommend deeper due diligence on regulatory partnerships.
       'confidence_score': float         # Confidence en los findings
   }
   ```
-  
+
 - [ ] **Citations mejoradas con snippets:**
   ```
   🔗 **Key Sources:**
@@ -1343,7 +1342,7 @@ Recommend deeper due diligence on regulatory partnerships.
   • [Competitor Study] FactorX achieved 72h (not 48h) with similar AI
   ```
   - Balance entre información y límite de caracteres
-  
+
 - [ ] **Análisis de calidad de fuentes:**
   - Ranking de relevancia de resultados
   - Filtrado de fuentes poco confiables
@@ -1380,7 +1379,7 @@ Recommend deeper due diligence on regulatory partnerships.
 
 **FASE 2D (Critical Synthesizer - Enhanced Intelligence):**
 - [ ] Investment decision framework
-- [ ] GO/NO-GO recommendation clara  
+- [ ] GO/NO-GO recommendation clara
 - [ ] Slack conciso + PDF data prep
 - [ ] **TEST_MODE:** Mock synthesis de todos los agents (simulated 8-10 min)
 - [ ] **PRODUCTION TEST:** 1-2 tests máximo para validar GPT-4 synthesis
@@ -1393,8 +1392,8 @@ Recommend deeper due diligence on regulatory partnerships.
 - [ ] **TEST_MODE:** Mock PDF data structures completas
 
 #### TASK-006: PDF Report Generation + Slack Integration con Links
-**Estado:** 📋 Backlog  
-**Phase:** 2B.3  
+**Estado:** 📋 Backlog
+**Phase:** 2B.3
 **Dependencias:** TASK-004 (Critical Synthesizer) + TASK-005 (Web Search)
 
 **🎯 Nuevo enfoque - Slack + PDF + Links específicos:**
@@ -1414,7 +1413,7 @@ Recommend deeper due diligence on regulatory partnerships.
 • **Direct:** FactorX, InvoiceAI, PaymentFlow
 • **Critical insight:** 3 similar companies failed at scale
 
-📈 **VALIDATION** (6.5/10)  
+📈 **VALIDATION** (6.5/10)
 • **TAM:** $1.6B claimed vs $800M expert estimate
 • **Risk:** 48h approval requires regulatory pre-approval
 
@@ -1423,8 +1422,8 @@ Recommend deeper due diligence on regulatory partnerships.
 • **Climate:** Cautious - regulatory complexity high
 
 🧠 **CRITICAL DECISION: ⚠️ PROCEED WITH CAUTION**
-External analysis shows regulatory hurdles not addressed. Similar 
-companies achieved only 72h approval. Expert concern: unrealistic 
+External analysis shows regulatory hurdles not addressed. Similar
+companies achieved only 72h approval. Expert concern: unrealistic
 timeline without government partnerships.
 
 📄 **Detailed Report:** [market_analysis_startup_name.pdf]
@@ -1442,7 +1441,7 @@ timeline without government partnerships.
 - [ ] Crear `utils/pdf_generator.py`
 - [ ] **Diseñar template profesional VC con secciones:**
   - Executive Summary (de Critical Synthesizer)
-  - Detailed Analysis (todos los agentes sin límite de caracteres)  
+  - Detailed Analysis (todos los agentes sin límite de caracteres)
   - Web Search Findings (análisis específico completo)
   - References and Sources (con links completos)
 - [ ] **Integrar datos de web search específicos en PDF:**
@@ -1460,21 +1459,21 @@ timeline without government partnerships.
 ## 🐛 BUGS & ISSUES
 
 ### BUG-001: ❌ RESUELTO - dispatch_failed en Slack
-**Estado:** ✅ Resuelto  
-**Solución:** Simplificar handler, ack() inmediato  
+**Estado:** ✅ Resuelto
+**Solución:** Simplificar handler, ack() inmediato
 **Commit:** `31e7fba`
 
 ### BUG-002: Session persistence entre comandos
-**Estado:** 🟡 Monitorear  
-**Descripción:** Las sesiones a veces se pierden  
+**Estado:** 🟡 Monitorear
+**Descripción:** Las sesiones a veces se pierden
 **Workaround:** Usar `/analyze debug` para verificar
 
 ---
 
 ## ✅ TAREAS COMPLETADAS
 
-### ✅ TASK-005: Web Search Quality Improvements - FASES 1-3 Complete 
-**Completado:** August 28, 2025  
+### ✅ TASK-005: Web Search Quality Improvements - FASES 1-3 Complete
+**Completado:** August 28, 2025
 **Branch:** phase2b-market-research
 **Commit:** `187bf3d`
 - ✅ **Migración completa a Tavily API** - Reemplazo de DuckDuckGo con búsquedas profesionales
@@ -1486,8 +1485,8 @@ timeline without government partnerships.
 - ✅ **Sistema listo para producción** - Todos los agents con web search integrado y funcionando
 - ✅ **Dependencies actualizadas** - tavily-python==0.7.11 añadido a requirements.txt
 
-### ✅ TASK-003: FundingBenchmarkerAgent  
-**Completado:** August 14, 2025  
+### ✅ TASK-003: FundingBenchmarkerAgent
+**Completado:** August 14, 2025
 **Commit:** `[PENDING]`
 - FundingBenchmarkerAgent completamente implementado
 - Análisis independiente basado en vertical + geografía (NO startup claims)
@@ -1496,18 +1495,18 @@ timeline without government partnerships.
 - Mock data específica para mercado (FinTech in Europe)
 - TEST_MODE preservado con benchmarks de mercado realistas
 
-### ✅ TASK-002: MarketValidationAgent  
-**Completado:** August 14, 2025  
+### ✅ TASK-002: MarketValidationAgent
+**Completado:** August 14, 2025
 **Commit:** `fda80a3`
 - MarketValidationAgent completamente implementado con GPT-4 real
 - Production mode funcional con análisis TAM/SAM/SOM
-- TEST_MODE preservado con mock data completa  
+- TEST_MODE preservado con mock data completa
 - Formateo robusto sin truncar información útil
 - TypeError de estructuras complejas resuelto
 - Información completa para decisiones de inversión
 
 ### ✅ TASK-001: CompetitiveIntelligenceAgent
-**Completado:** August 13, 2025  
+**Completado:** August 13, 2025
 **Commit:** `6580039`
 - CompetitiveIntelligenceAgent completamente implementado
 - TEST_MODE incluye competitive analysis
@@ -1516,7 +1515,7 @@ timeline without government partnerships.
 - Agent listo para producción con GPT-4
 
 ### ✅ TASK-000: Crear documentación para Claude Code
-**Completado:** August 12, 2025  
+**Completado:** August 12, 2025
 - claude.md creado - Commit: `95ddd5fb`
 - TASKS.md creado - Commit: `4d67ef6`
 - claude.md actualizado - Commit: `ba67bd0`
@@ -1524,14 +1523,14 @@ timeline without government partnerships.
 - Guías de desarrollo y protección TEST_MODE
 
 ### ✅ Simplificar market research handler
-**Completado:** August 12, 2025  
-**Commit:** `31e7fba`  
+**Completado:** August 12, 2025
+**Commit:** `31e7fba`
 - Eliminar progress tracking complejo
 - Mensaje simple "analysis in progress"
 - Base estable para desarrollo
 
 ### ✅ Implementar TEST_MODE
-**Completado:** August 11, 2025  
+**Completado:** August 11, 2025
 **Commit:** `0a4f842`
 - Evitar costos GPT-4 en desarrollo
 - Mock responses completas
@@ -1557,11 +1556,11 @@ Phase 2B.3 (PDF Reports):      ░░░░░░░░░░ 0% (TASK-006 - des
 ### Progreso TASK-005 por Fases (✅ COMPLETADO)
 ```
 FASE 1 (Infrastructure):   ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Web search base funcionando
-FASE 2A (Competitive):     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ CompetitiveIntelligenceAgent refactored 
+FASE 2A (Competitive):     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ CompetitiveIntelligenceAgent refactored
 FASE 2B (Market Valid):    ▓▓▓▓▓▓▓▓▓▓ 100% ✅ MarketValidationAgent + web search
 FASE 2C (Funding Intel):   ▓▓▓▓▓▓▓▓▓▓ 100% ✅ FundingBenchmarkerAgent + web search
 🎯 MEJORAS CALIDAD:        ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Tavily + Hierarchical Search + UX mejoras
-FASE 2D (Expert Analysis):  ░░░░░░░░░░ 0% 🚧 PRIORITY: Expert-level analysis with sources  
+FASE 2D (Expert Analysis):  ░░░░░░░░░░ 0% 🚧 PRIORITY: Expert-level analysis with sources
 FASE 2E (Critical Synth):   ░░░░░░░░░░ 0% 📋 Next: Investment Decision Framework
 FASE 2F (PDF Prep):         ░░░░░░░░░░ 0% 📋 Next: Reality check + sources management
 ```
@@ -1569,7 +1568,7 @@ FASE 2F (PDF Prep):         ░░░░░░░░░░ 0% 📋 Next: Reality
 ### Progreso Mejoras de Calidad (✅ COMPLETADO CON TAVILY + UX)
 ```
 Market Taxonomy Section:    ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Nueva sección "📊 MARKET TAXONOMY"
-Remove Geo from Search:     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Global analysis instead of geo-specific  
+Remove Geo from Search:     ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Global analysis instead of geo-specific
 Tavily API Setup:           ▓▓▓▓▓▓▓▓▓▓ 100% ✅ API key configurada (pay-as-you-go)
 Tavily Integration:         ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Reemplazo completo de DuckDuckGo
 Transparent Fallback:       ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Error handling transparente implementado
@@ -1579,15 +1578,15 @@ Progress Messages:          ▓▓▓▓▓▓▓▓▓▓ 100% ✅ Updated to 5
 ```
 
 ### ⭐ **FASE 2D: Expert-Level Analysis & Source Integration**
-**Estado:** 🚧 **ALTA PRIORIDAD** - Iniciando desarrollo  
-**Objetivo:** Transformar output de "básico" a "nivel analista experto VC"  
+**Estado:** 🚧 **ALTA PRIORIDAD** - Iniciando desarrollo
+**Objetivo:** Transformar output de "básico" a "nivel analista experto VC"
 **Problema identificado:** Output actual no aporta valor real a analista VC
 
 #### 📋 **REQUERIMIENTOS ESPECÍFICOS:**
 ```
 🎯 CALIDAD DE INFORMACIÓN
 ├── Mínimo 10 fuentes verificables con URLs clicables
-├── Mínimo 5 competidores específicos con links directos  
+├── Mínimo 5 competidores específicos con links directos
 ├── Análisis regulatorio obligatorio (EU/US mercados principales)
 ├── Separación clara: Oportunidades vs Riesgos
 └── Contexto experto sectorial (prompts especializados)
@@ -1608,7 +1607,7 @@ SPRINT 1 (3-4 días): Enhanced Tavily Extraction
 ├── ✅ Procesar contenido completo (no solo snippets)
 └── ✅ Configurar min_sources=10, min_competitors=5
 
-SPRINT 2 (3-4 días): Expert-Level Processing  
+SPRINT 2 (3-4 días): Expert-Level Processing
 ├── ✅ Prompts especializados por vertical (CleanTech pilot)
 ├── ✅ Separación automática Oportunidades/Riesgos
 ├── ✅ Análisis regulatorio EU/US con URLs
@@ -1623,7 +1622,7 @@ SPRINT 3 (2-3 días): Integration & Testing
 
 #### 🎯 **CRITERIOS DE ÉXITO:**
 - [ ] Output incluye ≥10 fuentes con URLs válidas
-- [ ] Identifica ≥5 competidores relevantes con links  
+- [ ] Identifica ≥5 competidores relevantes con links
 - [ ] Análisis regulatorio específico por mercado
 - [ ] Separación clara oportunidades/riesgos
 - [ ] Formato Slack <3500 chars con links clicables
@@ -1638,11 +1637,11 @@ DESPUÉS: "Nivel junior analyst especializado con fuentes verificables"
 ### Timeline Actualizado (23-29 días total)
 ```
 ✅ FASE 2A: 3 días (Competitive Intelligence template) - COMPLETADO
-✅ FASE 2B: 3 días (Market Validation integration) - COMPLETADO  
+✅ FASE 2B: 3 días (Market Validation integration) - COMPLETADO
 ✅ FASE 2C: 3 días (Funding Intelligence integration) - COMPLETADO
 ✅ MEJORAS CALIDAD: 3 días (Market Taxonomy + Tavily + Hierarchical + UX) - COMPLETADO
 🚧 FASE 2D: 8-11 días (Expert-Level Analysis + Source Integration) - EN DESARROLLO
-📋 FASE 2E: 3-4 días (Critical Synthesizer + Investment Decision)  
+📋 FASE 2E: 3-4 días (Critical Synthesizer + Investment Decision)
 📋 FASE 2F: 2-3 días (PDF foundation + Reality Check section)
 ```
 
