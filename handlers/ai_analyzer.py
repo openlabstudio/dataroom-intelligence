@@ -34,7 +34,7 @@ class AIAnalyzer:
             # Create analysis prompt
             analysis_prompt = DATAROOM_ANALYSIS_PROMPT.format(
                 documents_with_metadata=context['documents_summary'],
-                document_contents=context['full_content'][:15000]  # Limit to avoid token limits
+                document_contents=context['full_content'][:25000]  # Increased to ensure financial data is included
             )
 
             # Call GPT-4 for analysis
@@ -90,7 +90,7 @@ class AIAnalyzer:
 
                 # Add content with document separator
                 full_content += f"\n\n=== DOCUMENT: {doc['name']} ===\n"
-                full_content += doc['content'][:5000]  # Limit per document
+                full_content += doc['content'][:10000]  # Increased limit to capture financial data
 
         return {
             'documents_summary': json.dumps(docs_summary, indent=2),
