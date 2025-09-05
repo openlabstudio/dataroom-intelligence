@@ -333,7 +333,7 @@ class DocumentProcessor:
             logger.info(f"   📸 Converting PDF to images...")
             try:
                 # Convert PDF pages to images (limit to first 5 pages for performance)
-                images = convert_from_path(file_path, first_page=1, last_page=15)  # Process more pages for better coverage
+                images = convert_from_path(file_path, first_page=1, last_page=25)  # Process more pages for better coverage
                 logger.info(f"   📸 Converted {len(images)} pages to images")
             except Exception as convert_error:
                 logger.error(f"   ❌ PDF to image conversion failed: {convert_error}")
