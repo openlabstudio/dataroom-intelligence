@@ -2,8 +2,8 @@
 Financial Data Extractor for DataRoom Intelligence
 
 This module provides deterministic extraction of financial data from document content
-before passing to GPT-4 for analysis. It uses pattern matching to identify funding amounts,
-KPIs, percentages, and other financial metrics that GPT-4 might miss due to formatting.
+before passing to GPT-5 for analysis. It uses pattern matching to identify funding amounts,
+KPIs, percentages, and other financial metrics that GPT-5 might miss due to formatting.
 """
 
 import re
@@ -375,13 +375,13 @@ class FinancialDataExtractor:
     
     def format_for_gpt4(self, extracted_data: Dict[str, Any]) -> str:
         """
-        Format extracted financial data for GPT-4 prompt
+        Format extracted financial data for GPT-5 prompt
         
         Args:
             extracted_data: Result from extract_all_financial_data()
             
         Returns:
-            Formatted string for inclusion in GPT-4 prompt
+            Formatted string for inclusion in GPT-5 prompt
         """
         if not extracted_data['has_financial_data']:
             return "No specific financial data detected in documents."
@@ -437,13 +437,13 @@ def extract_financial_data(content: str) -> Dict[str, Any]:
 
 def format_financial_data_for_prompt(extracted_data: Dict[str, Any]) -> str:
     """
-    Convenience function for formatting data for GPT-4
+    Convenience function for formatting data for GPT-5
     
     Args:
         extracted_data: Result from extract_financial_data()
         
     Returns:
-        Formatted string for GPT-4 prompt
+        Formatted string for GPT-5 prompt
     """
     extractor = FinancialDataExtractor()
     return extractor.format_for_gpt4(extracted_data)

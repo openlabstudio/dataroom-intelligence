@@ -272,7 +272,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         logger.info(f"🔍 Process PID: {os.getpid()}")
         logger.info(f"🔍 TEST_MODE raw value: '{test_mode_value}'")
         logger.info(f"🔍 TEST_MODE check result: {test_mode_check}")
-        logger.info(f"🔍 Will skip GPT-4: {'YES ✅' if test_mode_check else 'NO ❌ (WILL USE GPT-4)'}")
+        logger.info(f"🔍 Will skip GPT-5: {'YES ✅' if test_mode_check else 'NO ❌ (WILL USE GPT-5)'}")
         logger.info(f"🔍 ========================================")
 
         # Step 1: Download documents
@@ -282,7 +282,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📁 Link: {drive_link}\n" +
                  f"📥 **Downloading documents from Google Drive...**" +
-                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-4" if test_mode_check else "")
+                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-5" if test_mode_check else "")
         )
 
         downloaded_files = drive_handler.download_dataroom(drive_link)
@@ -304,7 +304,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📄 Found {len(downloaded_files)} documents\n" +
                  f"📖 **Processing document contents...**" +
-                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-4" if test_mode_check else "")
+                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-5" if test_mode_check else "")
         )
 
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
@@ -375,7 +375,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             formatted_response = format_analysis_response(mock_analysis_result, document_summary, mock_market_profile)
             
             # Add TEST MODE indicator
-            formatted_response = "⚠️ **TEST MODE ACTIVE** - Mock data, no GPT-4 calls\n\n" + formatted_response
+            formatted_response = "⚠️ **TEST MODE ACTIVE** - Mock data, no GPT-5 calls\n\n" + formatted_response
             
             client.chat_update(
                 channel=channel_id,
@@ -398,7 +398,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
 
         # Step 3: AI Analysis (ONLY if NOT in test mode)
         logger.info("📊 ========== PRODUCTION MODE ==========")
-        logger.info("📊 TEST_MODE is not active, proceeding with GPT-4 analysis")
+        logger.info("📊 TEST_MODE is not active, proceeding with GPT-5 analysis")
         
         if ai_analyzer and config.openai_configured:
             client.chat_update(
@@ -406,7 +406,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 ts=message_ts,
                 text="🔍 **Analysis in Progress**\n\n" +
                      f"📄 Processed {document_summary['successful_processing']} documents\n" +
-                     f"🧠 **Analyzing with AI (GPT-4)...**"
+                     f"🧠 **Analyzing with AI (GPT-5)...**"
             )
 
             analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
@@ -448,7 +448,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             
             # DEBUG: Log session storage
             logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
-            logger.info(f"✅ PRODUCTION MODE - With GPT-4 analysis results")
+            logger.info(f"✅ PRODUCTION MODE - With GPT-5 analysis results")
             logger.info(f"✅ PRODUCTION MODE - Active sessions: {list(user_sessions.keys())}")
 
         else:
@@ -692,7 +692,7 @@ def handle_ask_command(ack, body, client):
             response = f"💡 **Question:** {question}\n\n"
             response += f"**Answer (TEST MODE):**\n"
             response += "This is a test mode response. In production, this would analyze your documents and provide a real answer based on the content.\n\n"
-            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            response += "📎 *TEST MODE - No GPT-5 calls made*"
             
             client.chat_postMessage(
                 channel=channel_id,
@@ -777,7 +777,7 @@ def handle_scoring_command(ack, body, client):
             response += "• **Product:** 7/10 - MVP ready\n"
             response += "• **Traction:** 6/10 - Early stage\n\n"
             response += "🎯 **Recommendation:** Proceed with due diligence\n\n"
-            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            response += "📎 *TEST MODE - No GPT-5 calls made*"
             
             client.chat_postMessage(
                 channel=channel_id,
@@ -871,7 +871,7 @@ def handle_memo_command(ack, body, client):
             response += "• Experienced team\n"
             response += "• Clear revenue model\n"
             response += "• Competitive advantages\n\n"
-            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            response += "📎 *TEST MODE - No GPT-5 calls made*"
             
             client.chat_postMessage(
                 channel=channel_id,
@@ -948,7 +948,7 @@ def handle_gaps_command(ack, body, client):
             response += "**Recommendations:**\n"
             response += "• Request detailed financial model\n"
             response += "• Ask for unit economics breakdown\n\n"
-            response += "📎 *TEST MODE - No GPT-4 calls made*"
+            response += "📎 *TEST MODE - No GPT-5 calls made*"
             
             client.chat_postMessage(
                 channel=channel_id,
@@ -1153,7 +1153,7 @@ def main():
         test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
         logger.info(f"🔧 PRODUCTION_MODE: {'✅ ENABLED - Forcing TEST_MODE=false' if PRODUCTION_MODE else '❌ DISABLED - Using env var'}")
         logger.info(f"🔧 TEST_MODE environment variable: '{test_mode_value}'")
-        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-4 calls' if test_mode_active else '❌ NO - Will use GPT-4 ($$$ Production costs)'}")
+        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-5 calls' if test_mode_active else '❌ NO - Will use GPT-5 ($$$ Production costs)'}")
 
         # Validate configuration
         config_status = config.validate_configuration()

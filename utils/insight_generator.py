@@ -25,11 +25,11 @@ def generate_market_insights(competitive_data: Dict, market_profile: Dict) -> Di
     try:
         logger.info("🧠 Generating intelligent market insights")
         
-        # Check if we should use GPT-4 or provide heuristic insights
+        # Check if we should use GPT-5 or provide heuristic insights
         if os.getenv('TEST_MODE', 'false').lower() == 'true':
             return _generate_mock_insights(competitive_data, market_profile)
         
-        # Use GPT-4 to generate real insights
+        # Use GPT-5 to generate real insights
         return _generate_ai_insights(competitive_data, market_profile)
         
     except Exception as e:
@@ -59,13 +59,13 @@ def _generate_mock_insights(competitive_data: Dict, market_profile: Dict) -> Dic
     return {'opportunities': opportunities, 'risks': risks}
 
 def _generate_ai_insights(competitive_data: Dict, market_profile: Dict) -> Dict[str, List[str]]:
-    """Generate AI-powered insights using GPT-4"""
+    """Generate AI-powered insights using GPT-5"""
     try:
         from openai import OpenAI
         
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         
-        # Prepare context for GPT-4
+        # Prepare context for GPT-5
         context = _build_insight_context(competitive_data, market_profile)
         
         prompt = f"""You are a senior VC analyst reviewing market intelligence for investment decisions.
@@ -106,7 +106,7 @@ RISKS:
             temperature=0.3
         )
         
-        # Parse GPT-4 response
+        # Parse GPT-5 response
         content = response.choices[0].message.content
         return _parse_insight_response(content)
         
@@ -116,7 +116,7 @@ RISKS:
         return _generate_heuristic_insights(competitive_data, market_profile)
 
 def _build_insight_context(competitive_data: Dict, market_profile: Dict) -> str:
-    """Build context string for GPT-4 analysis"""
+    """Build context string for GPT-5 analysis"""
     context = f"""
 MARKET PROFILE:
 - Solution: {market_profile.get('solution', 'Unknown')}
@@ -159,7 +159,7 @@ COMPETITIVE LANDSCAPE:
     return context
 
 def _parse_insight_response(content: str) -> Dict[str, List[str]]:
-    """Parse GPT-4 response into structured insights"""
+    """Parse GPT-5 response into structured insights"""
     try:
         opportunities = []
         risks = []

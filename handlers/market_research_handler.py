@@ -174,7 +174,7 @@ class MarketResearchHandler:
         
         response += "📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`\n\n"
         
-        response += "📎 *TEST MODE - No GPT-4 calls made*"
+        response += "📎 *TEST MODE - No GPT-5 calls made*"
         
         return response
     
@@ -206,7 +206,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Phase 1/5:** Market Detection & Taxonomy\n" +
                      "🎯 Identifying 4-level hierarchy (Solution → Sub-vertical → Vertical → Industry)\n" +
-                     "⏳ Status: Processing documents with GPT-4..."
+                     "⏳ Status: Processing documents with GPT-5..."
             )
             
             # Simulate some processing time
@@ -244,13 +244,13 @@ class MarketResearchHandler:
                      "⏳ Status: Analyzing investment trends and financial benchmarks..."
             )
             
-            # Update progress - Phase 5 of 5 (GPT-4 Synthesis - takes longer)
+            # Update progress - Phase 5 of 5 (GPT-5 Synthesis - takes longer)
             time.sleep(1.5)
             client.chat_update(
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 5/5:** GPT-4 Market Intelligence Synthesis\n" +
+                     "📊 **Phase 5/5:** GPT-5 Market Intelligence Synthesis\n" +
                      "🤖 AI synthesis of all collected data into professional investment analysis\n" +
                      "⏳ **Note:** This phase may take 1-2 minutes - synthesizing all intelligence..."
             )
@@ -258,13 +258,13 @@ class MarketResearchHandler:
             # Get analysis result from /analyze for funding benchmarking
             analysis_result = session_data.get('analysis_result', {})
             
-            # Get cached market profile to avoid duplicate GPT-4 call (TASK-UX-003)
+            # Get cached market profile to avoid duplicate GPT-5 call (TASK-UX-003)
             cached_market_profile = session_data.get('market_profile', None)
             
             # Perform actual market intelligence analysis
             logger.info("📊 Calling orchestrator for market intelligence...")
             if cached_market_profile:
-                logger.info("✅ TASK-UX-003: Using cached market taxonomy (saves ~$0.07 GPT-4 call)")
+                logger.info("✅ TASK-UX-003: Using cached market taxonomy (saves ~$0.07 GPT-5 call)")
                 market_intelligence_result = self.orchestrator.perform_market_intelligence(
                     processed_documents, document_summary, analysis_result, cached_market_profile
                 )
@@ -319,7 +319,7 @@ class MarketResearchHandler:
         """
         # Use new analyst formatter for clarity and actionability
         try:
-            # MVP DEMO: Use expert formatter for GPT-4 enhanced output
+            # MVP DEMO: Use expert formatter for GPT-5 enhanced output
             from utils.expert_formatter import format_expert_market_research
             return format_expert_market_research(market_intelligence_result)
         except ImportError:

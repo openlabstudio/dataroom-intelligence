@@ -98,11 +98,11 @@ def format_expert_competitive_landscape(comp_analysis: Dict[str, Any]) -> str:
     meets_reqs = independent.get('meets_requirements', {})
     sources_count = independent.get('sources_count', 0)
     
-    # Header with requirements status and GPT-4 enhancement indication
+    # Header with requirements status and GPT-5 enhancement indication
     threat_level = independent.get('threat_level', 'Unknown')
     threat_display = threat_level.capitalize()
     
-    # Check if any competitors were enhanced by GPT-4
+    # Check if any competitors were enhanced by GPT-5
     solution_competitors = independent.get('solution_competitors', [])
     subvertical_competitors = independent.get('subvertical_competitors', [])
     has_gpt4_enhancement = any(
@@ -112,7 +112,7 @@ def format_expert_competitive_landscape(comp_analysis: Dict[str, Any]) -> str:
     
     if meets_reqs.get('competitors', {}).get('met'):
         if has_gpt4_enhancement:
-            header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat - 🤖 GPT-4 enhanced)\n"
+            header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat - 🤖 GPT-5 enhanced)\n"
         else:
             header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat)\n"
     else:
@@ -148,7 +148,7 @@ def format_expert_competitive_landscape(comp_analysis: Dict[str, Any]) -> str:
                 
                 if url:
                     comp_line += f"\n   {url}"
-                elif enhanced:  # Show GPT-4 enhancement only if no URL
+                elif enhanced:  # Show GPT-5 enhancement only if no URL
                     comp_line += " 🤖"
                     
                 response += comp_line + "\n"
@@ -507,11 +507,11 @@ def format_expert_competitive_landscape_with_refs(comp_analysis, references, ref
     # Check if we meet requirements
     meets_reqs = independent.get('meets_requirements', {})
     
-    # Header with requirements status and GPT-4 enhancement indication
+    # Header with requirements status and GPT-5 enhancement indication
     threat_level = independent.get('threat_level', 'Unknown')
     threat_display = threat_level.capitalize()
     
-    # Check if any competitors were enhanced by GPT-4
+    # Check if any competitors were enhanced by GPT-5
     solution_competitors = independent.get('solution_competitors', [])
     subvertical_competitors = independent.get('subvertical_competitors', [])
     has_gpt4_enhancement = any(
@@ -521,7 +521,7 @@ def format_expert_competitive_landscape_with_refs(comp_analysis, references, ref
     
     if meets_reqs.get('competitors', {}).get('met'):
         if has_gpt4_enhancement:
-            header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat - 🤖 GPT-4 enhanced)\n"
+            header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat - 🤖 GPT-5 enhanced)\n"
         else:
             header = f"🏢 **COMPETITIVE LANDSCAPE** ({threat_display} threat)\n"
     else:
@@ -851,7 +851,7 @@ def format_expert_funding_benchmarks_with_refs(funding_data, references, referen
     return response
 
 def format_expert_market_research(market_intelligence_result) -> str:
-    """Main formatter - now uses GPT-4 synthesis of real content from references"""
+    """Main formatter - now uses GPT-5 synthesis of real content from references"""
     
     # Initialize references system to collect all sources first
     references = {}  # url -> {number, title}
@@ -861,10 +861,10 @@ def format_expert_market_research(market_intelligence_result) -> str:
     if isinstance(market_intelligence_result, dict) and 'results' in market_intelligence_result:
         market_intelligence_result = market_intelligence_result['results']
     
-    # NEW ARCHITECTURE: Check if we have GPT-4 synthesis result directly
+    # NEW ARCHITECTURE: Check if we have GPT-5 synthesis result directly
     final_analysis = _get_component(market_intelligence_result, 'final_analysis')
     if final_analysis:
-        logger.info("✅ Using new GPT-4 synthesis result directly")
+        logger.info("✅ Using new GPT-5 synthesis result directly")
         return final_analysis
     
     # LEGACY FALLBACK: Check if we have old structure data for backward compatibility
@@ -903,10 +903,10 @@ def format_expert_market_research(market_intelligence_result) -> str:
     # Get market profile for context
     market_profile = _get_component(market_intelligence_result, 'market_profile')
     
-    # Use GPT-4 to synthesize all collected references into professional analysis
+    # Use GPT-5 to synthesize all collected references into professional analysis
     return synthesize_market_intelligence_with_gpt4(references, market_profile)
 
-# GPT-4 Content Synthesizer for Real Market Insights
+# GPT-5 Content Synthesizer for Real Market Insights
 MARKET_SYNTHESIZER_PROMPT = """
 ROLE: Senior Market Intelligence Analyst at tier-1 VC fund (Sequoia/a16z level)
 CONTEXT: You are preparing a concise executive brief for partners reviewing a startup investment
@@ -981,7 +981,7 @@ Provide your synthesis (max 3000 characters):
 """
 
 def synthesize_market_intelligence_with_gpt4(references, market_profile=None):
-    """Use GPT-4 to synthesize real content from all collected references"""
+    """Use GPT-5 to synthesize real content from all collected references"""
     import os
     from openai import OpenAI
     
@@ -1014,7 +1014,7 @@ From an investment perspective, corporate VCs including Shell Ventures and Cater
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         
         # Scrape content from all references
-        logger.info(f"🔍 Scraping content from {len(references)} sources for GPT-4 synthesis...")
+        logger.info(f"🔍 Scraping content from {len(references)} sources for GPT-5 synthesis...")
         scraped_content = []
         references_list = []
         
@@ -1044,8 +1044,8 @@ From an investment perspective, corporate VCs including Shell Ventures and Cater
             references_list=formatted_references
         )
         
-        # Get GPT-4 synthesis with more tokens to avoid truncation
-        logger.info("🤖 Generating GPT-4 market intelligence synthesis...")
+        # Get GPT-5 synthesis with more tokens to avoid truncation
+        logger.info("🤖 Generating GPT-5 market intelligence synthesis...")
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -1081,7 +1081,7 @@ From an investment perspective, corporate VCs including Shell Ventures and Cater
         return ensure_slack_length_limit(final_output)
         
     except Exception as e:
-        logger.error(f"GPT-4 synthesis failed: {e}")
+        logger.error(f"GPT-5 synthesis failed: {e}")
         return f"❌ **SYNTHESIS FAILED** - {str(e)}"
 
 def _generate_intelligent_mock_content(url: str, title: str) -> str:

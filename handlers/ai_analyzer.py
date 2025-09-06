@@ -1,6 +1,6 @@
 """
 AI Analysis handler for DataRoom Intelligence Bot
-Integrates with OpenAI GPT-4 to analyze data room documents
+Integrates with OpenAI GPT-5 to analyze data room documents
 """
 
 import json
@@ -14,7 +14,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 class AIAnalyzer:
-    """Handles AI-powered analysis of data room documents using OpenAI GPT-4"""
+    """Handles AI-powered analysis of data room documents using OpenAI GPT-5"""
 
     def __init__(self):
         self.client = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -24,7 +24,7 @@ class AIAnalyzer:
 
     def analyze_dataroom(self, processed_documents: List[Dict[str, Any]],
                         document_summary: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform comprehensive data room analysis using GPT-4"""
+        """Perform comprehensive data room analysis using GPT-5"""
         try:
             logger.info("🧠 Starting AI analysis of data room...")
 
@@ -45,7 +45,7 @@ class AIAnalyzer:
                 extracted_financials=formatted_financials
             )
 
-            # Call GPT-4 for analysis
+            # Call GPT-5 for analysis
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -108,7 +108,7 @@ class AIAnalyzer:
         }
 
     def _parse_analysis_response(self, analysis_text: str) -> Dict[str, Any]:
-        """Parse GPT-4 analysis response into structured format with robust scoring extraction"""
+        """Parse GPT-5 analysis response into structured format with robust scoring extraction"""
         try:
             import re
 

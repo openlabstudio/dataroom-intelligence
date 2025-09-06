@@ -26,7 +26,7 @@ def main():
     
     if not test_mode_active:
         print("\n🚨 CRÍTICO: TEST_MODE no está activo!")
-        print("   Esto causará llamadas reales a GPT-4 ($$$ costos)")
+        print("   Esto causará llamadas reales a GPT-5 ($$$ costos)")
         print("   Solucionando...")
         
         # Force set TEST_MODE in current environment

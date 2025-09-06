@@ -51,7 +51,7 @@ class ProgressTracker:
             AgentPhase(
                 id="market_detection",
                 name="Market Detection & Taxonomy",
-                description="Identifying 4-level market hierarchy with GPT-4 analysis",
+                description="Identifying 4-level market hierarchy with GPT-5 analysis",
                 estimated_duration_minutes=2
             ),
             AgentPhase(
@@ -74,7 +74,7 @@ class ProgressTracker:
             ),
             AgentPhase(
                 id="gpt4_synthesis",
-                name="GPT-4 Market Intelligence Synthesis",
+                name="GPT-5 Market Intelligence Synthesis",
                 description="AI synthesis of all collected data into professional investment analysis",
                 estimated_duration_minutes=4
             )

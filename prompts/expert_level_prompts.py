@@ -1,5 +1,5 @@
 """
-Expert-Level GPT-4 Prompts for Market Intelligence
+Expert-Level GPT-5 Prompts for Market Intelligence
 FASE 2D - SPRINT 2: Specialized prompts for VC analyst quality output
 
 These prompts are designed to generate analysis at the level of a senior

@@ -18,7 +18,7 @@ from utils.web_search import WebSearchEngine
 logger = get_logger(__name__)
 
 def get_mock_market_intelligence_result():
-    """Return mock data for testing without GPT-4 calls"""
+    """Return mock data for testing without GPT-5 calls"""
     from dataclasses import dataclass
     from typing import Dict, Any
 
@@ -118,7 +118,7 @@ class MarketIntelligenceResult:
             'confidence_score': self.confidence_score
         }
         
-        # Include final_analysis if it exists (new GPT-4 synthesis architecture)
+        # Include final_analysis if it exists (new GPT-5 synthesis architecture)
         if hasattr(self, 'final_analysis') and self.final_analysis:
             result['final_analysis'] = self.final_analysis
             
@@ -165,13 +165,13 @@ class MarketResearchOrchestrator(BaseAgent):
 
             # TASK-UX-003: Use cached market profile if available
             if cached_market_profile:
-                logger.info("✅ TASK-UX-003: Using cached market taxonomy - skipping GPT-4 call")
+                logger.info("✅ TASK-UX-003: Using cached market taxonomy - skipping GPT-5 call")
                 market_profile = cached_market_profile
                 result.processing_steps.append("Phase 1: Using cached market taxonomy (TASK-UX-003)")
             else:
-                logger.info("ℹ️ No cached taxonomy - detecting market with GPT-4")
+                logger.info("ℹ️ No cached taxonomy - detecting market with GPT-5")
                 market_profile = self.market_detector.detect_vertical(processed_documents, document_summary)
-                result.processing_steps.append("Phase 1: Market Detection via GPT-4")
+                result.processing_steps.append("Phase 1: Market Detection via GPT-5")
             
             result.market_profile = market_profile
             
@@ -246,7 +246,7 @@ class MarketResearchOrchestrator(BaseAgent):
             logger.info("✅ Phase 4 Complete: Funding Intelligence Gathering")
 
             # ==== PHASE 4.5: Combine Web Search Results ====
-            # Combine all web search results for GPT-4 synthesis
+            # Combine all web search results for GPT-5 synthesis
             all_web_sources = {}
             
             # Add competitive intelligence sources
@@ -276,19 +276,19 @@ class MarketResearchOrchestrator(BaseAgent):
                             'title': source.get('title', 'Unknown Title')
                         }
             
-            # Web search data collected - ready for GPT-4 synthesis
+            # Web search data collected - ready for GPT-5 synthesis
             result.web_intelligence = {
                 'note': 'Direct web search completed - no intermediate processing',
                 'sources_collected': len(all_web_sources)
             }
-            logger.info(f"✅ Direct web search completed - {len(all_web_sources)} sources collected for GPT-4 synthesis")
+            logger.info(f"✅ Direct web search completed - {len(all_web_sources)} sources collected for GPT-5 synthesis")
 
-            # ==== PHASE 5: GPT-4 Market Intelligence Synthesis ====
-            logger.info("🤖 PHASE 5/5: GPT-4 Market Intelligence Synthesis")
+            # ==== PHASE 5: GPT-5 Market Intelligence Synthesis ====
+            logger.info("🤖 PHASE 5/5: GPT-5 Market Intelligence Synthesis")
             self.progress_tracker.phases[4].status = "running"
             self.progress_tracker.phases[4].start_time = datetime.now()
             
-            # Use GPT-4 synthesis for final professional analysis
+            # Use GPT-5 synthesis for final professional analysis
             from utils.expert_formatter import synthesize_market_intelligence_with_gpt4
             
             # Get professional synthesis
@@ -304,8 +304,8 @@ class MarketResearchOrchestrator(BaseAgent):
             self.progress_tracker.phases[4].status = "completed"
             self.progress_tracker.phases[4].end_time = datetime.now()
             self.progress_tracker.current_phase_index = 5
-            result.processing_steps.append("Phase 5: GPT-4 Market Intelligence Synthesis")
-            logger.info(f"✅ Phase 5 Complete: GPT-4 Synthesis - {len(all_web_sources)} sources analyzed")
+            result.processing_steps.append("Phase 5: GPT-5 Market Intelligence Synthesis")
+            logger.info(f"✅ Phase 5 Complete: GPT-5 Synthesis - {len(all_web_sources)} sources analyzed")
 
             # Calculate overall confidence based on sources and synthesis quality
             result.confidence_score = min(0.9, 0.5 + (len(all_web_sources) * 0.05))  # Cap at 0.9
