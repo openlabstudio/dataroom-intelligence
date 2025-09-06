@@ -6,6 +6,9 @@ FIXED VERSION - Gaps analysis error resolved
 QA_PROMPT = """
 You are an expert analyst who has just completed a comprehensive data room analysis. Answer the following question based EXCLUSIVELY on the documents you have analyzed.
 
+EXTRACTED FINANCIAL DATA (CONFIRMED TO BE PRESENT):
+{extracted_financials}
+
 CONTEXT OF ANALYZED DATA ROOM:
 {analyzed_documents_summary}
 
@@ -13,9 +16,11 @@ USER QUESTION:
 {user_question}
 
 INSTRUCTIONS:
-- Respond specifically and practically
+- ALWAYS check the EXTRACTED FINANCIAL DATA first before answering financial questions
+- If funding, KPIs, or P&L data are listed in EXTRACTED FINANCIAL DATA, they ARE present in the documents
+- Respond specifically and practically based on available data
 - Cite specific documents when relevant
-- If the information is not available in the documents, clearly state "This information is not available in the analyzed data room"
+- If specific details are not available, acknowledge what IS available from extracted data
 - Maintain perspective of experienced VC analyst
 - Maximum 200 words per response
 

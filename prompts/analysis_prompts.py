@@ -11,6 +11,9 @@ TASK: Analyze the following data room completely and provide a structured analys
 DOCUMENTS IN THE DATA ROOM:
 {documents_with_metadata}
 
+EXTRACTED FINANCIAL DATA (CONFIRMED TO BE PRESENT):
+{extracted_financials}
+
 DOCUMENT CONTENTS:
 {document_contents}
 
@@ -25,7 +28,7 @@ ANALYSIS REQUIRED:
 2. DETAILED SCORING (scale 1-10 with justification):
 - Team & Management: [score]/10 -- [brief justification]
 - Business Model: [score]/10 -- [brief justification]
-- Financials & Traction: [score]/10 -- [brief justification]
+- Financials & Traction: [score]/10 -- [brief justification based on EXTRACTED FINANCIAL DATA above]
 - Market & Competition: [score]/10 -- [brief justification]
 - Technology/Product: [score]/10 -- [brief justification]
 - Legal & Compliance: [score]/10 -- [brief justification]
@@ -42,7 +45,12 @@ ANALYSIS REQUIRED:
 6. PRELIMINARY RECOMMENDATION:
 - [PASS/INVESTIGATE FURTHER/NO GO] with justification based on analysis
 
-IMPORTANT: Base ALL conclusions EXCLUSIVELY on the documents provided. If something is not clear or missing information, mention it specifically in the gaps section.
+CRITICAL INSTRUCTIONS:
+1. ALWAYS use the EXTRACTED FINANCIAL DATA section in your analysis
+2. If funding amounts, KPIs (CAC, CPL), or percentages are listed in EXTRACTED FINANCIAL DATA, they ARE present in the documents
+3. Rate "Financials & Traction" based on what IS provided in the extracted data, not what might be missing
+4. Do NOT say "financial data is missing" if EXTRACTED FINANCIAL DATA contains information
+5. Base ALL conclusions EXCLUSIVELY on the documents and extracted financial data provided
 
 Provide your analysis in a clear, structured format that a VC partner can quickly digest.
 """

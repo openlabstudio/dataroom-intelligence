@@ -31,10 +31,18 @@ class AIAnalyzer:
             # Prepare context for analysis
             context = self._prepare_analysis_context(processed_documents, document_summary)
 
-            # Create analysis prompt
+            # PHASE 1: Extract financial data deterministically
+            logger.info("💰 Extracting financial data patterns...")
+            from utils.financial_extractor import extract_financial_data, format_financial_data_for_prompt
+            
+            financial_data = extract_financial_data(context['full_content'])
+            formatted_financials = format_financial_data_for_prompt(financial_data)
+            
+            # Create enhanced analysis prompt with extracted financial data
             analysis_prompt = DATAROOM_ANALYSIS_PROMPT.format(
                 documents_with_metadata=context['documents_summary'],
-                document_contents=context['full_content'][:25000]  # Increased to ensure financial data is included
+                document_contents=context['full_content'][:25000],  # Increased to ensure financial data is included
+                extracted_financials=formatted_financials
             )
 
             # Call GPT-4 for analysis
@@ -223,9 +231,15 @@ class AIAnalyzer:
 
             logger.info(f"🤔 Answering question: {question[:100]}...")
 
-            # Create Q&A prompt with FULL CONTENT (not just metadata)
+            # Extract financial data for Q&A context
+            from utils.financial_extractor import extract_financial_data, format_financial_data_for_prompt
+            financial_data = extract_financial_data(self.analysis_context['full_content'])
+            formatted_financials = format_financial_data_for_prompt(financial_data)
+
+            # Create Q&A prompt with FULL CONTENT and EXTRACTED FINANCIAL DATA
             qa_prompt = QA_PROMPT.format(
                 analyzed_documents_summary=self.analysis_context['full_content'][:10000],  # ← CONTENIDO REAL
+                extracted_financials=formatted_financials,
                 user_question=question
             )
 
