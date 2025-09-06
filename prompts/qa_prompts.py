@@ -62,15 +62,23 @@ Generate a structured investment memo with the following sections:
 Keep the memo concise but comprehensive. Focus on actionable insights that will help the partnership make an investment decision.
 """
 
-# FIXED: Remove {detected_stage} variable that was causing the error
+# Enhanced GAPS_PROMPT with financial data awareness
 GAPS_PROMPT = """
 As a VC expert, identify what critical information is missing from this data room for a complete due diligence evaluation.
 
 AVAILABLE DOCUMENTS:
 {available_documents}
 
+EXTRACTED FINANCIAL DATA (CONFIRMED TO BE PRESENT):
+{extracted_financials}
+
 CONTENT SUMMARY:
 {content_summary}
+
+CRITICAL INSTRUCTIONS:
+- DO NOT mark financial data as "missing" if it appears in EXTRACTED FINANCIAL DATA above
+- Focus on gaps in documentation types, not data that was successfully extracted
+- If funding amounts, KPIs, or P&L data are listed above, they ARE present in the documents
 
 Based on the documents provided, analyze what stage this company appears to be at (Seed, Series A, Series B, etc.) and identify critical gaps.
 

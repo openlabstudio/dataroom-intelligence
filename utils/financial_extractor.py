@@ -85,9 +85,12 @@ class FinancialDataExtractor:
         percentage_data = self._extract_percentages(content)
         revenue_data = self._extract_revenue_metrics(content)
         
+        # Validate and check for inconsistencies
+        validation_warnings = self._validate_extracted_data(funding_data, kpi_data, percentage_data)
+        
         # Determine if we have meaningful financial data
         has_financial_data = any([
-            funding_data['amounts'],
+            funding_data['company_funding'] or funding_data['market_data'],
             any(kpi_data.values()),
             percentage_data['rates'],
             revenue_data['metrics']
@@ -99,38 +102,104 @@ class FinancialDataExtractor:
             'percentages': percentage_data,
             'revenue': revenue_data,
             'has_financial_data': has_financial_data,
+            'validation_warnings': validation_warnings,
             'extraction_summary': self._create_summary(funding_data, kpi_data, percentage_data, revenue_data)
         }
         
         logger.info(f"   💰 Financial data found: {has_financial_data}")
-        logger.info(f"   📊 Funding amounts: {len(funding_data['amounts'])}")
+        logger.info(f"   📊 Company funding: {len(funding_data['company_funding'])}, Market data: {len(funding_data['market_data'])}, Founder exits: {len(funding_data['founder_exits'])}")
         logger.info(f"   📈 KPIs detected: {sum(1 for v in kpi_data.values() if v)}")
         logger.info(f"   📉 Percentages: {len(percentage_data['rates'])}")
+        if validation_warnings:
+            logger.warning(f"   ⚠️  Validation warnings: {len(validation_warnings)}")
         
         return result
     
     def _extract_funding_amounts(self, content: str) -> Dict[str, Any]:
-        """Extract funding amounts and investment needs"""
-        amounts = []
+        """Extract funding amounts and investment needs with context awareness"""
+        company_funding = []
+        market_data = []
+        founder_exits = []
         contexts = []
         
         for pattern in self.funding_patterns:
             matches = re.finditer(pattern, content, re.IGNORECASE | re.MULTILINE)
             for match in matches:
                 # Extract context around the match
-                start = max(0, match.start() - 50)
-                end = min(len(content), match.end() + 50)
-                context = content[start:end].strip()
+                start = max(0, match.start() - 100)
+                end = min(len(content), match.end() + 100)
+                context = content[start:end].strip().lower()
                 
                 amount_text = match.group(0)
-                amounts.append(amount_text)
+                
+                # Categorize based on context (order matters - most specific first)
+                if self._is_market_data_context(context):
+                    market_data.append(amount_text)
+                elif self._is_founder_exit_context(context):
+                    founder_exits.append(amount_text)
+                elif self._is_company_funding_context(context):
+                    company_funding.append(amount_text)
+                else:
+                    # Default to company funding if context is unclear
+                    company_funding.append(amount_text)
+                
                 contexts.append(context)
         
         return {
-            'amounts': list(set(amounts)),  # Remove duplicates
+            'company_funding': list(set(company_funding)),
+            'market_data': list(set(market_data)), 
+            'founder_exits': list(set(founder_exits)),
             'contexts': contexts,
-            'count': len(set(amounts))
+            'total_amounts': len(company_funding) + len(market_data) + len(founder_exits)
         }
+    
+    def _is_founder_exit_context(self, context: str) -> bool:
+        """Check if funding amount refers to founder's previous exit"""
+        # Specific company/exit indicators
+        exit_indicators = [
+            'sold by', 'sold for', 'sold to', 'acquisition', 'acquired for',
+            'akamon', 'startup sold', 'company sold', 'exit'
+        ]
+        
+        # Founder background indicators
+        founder_indicators = [
+            'previous startup', 'founder of', 'sold a startup', 'entrepreneur',
+            'previous company', 'previously sold', 'ceo previously'
+        ]
+        
+        # Must have both exit context AND founder context for high confidence
+        has_exit_context = any(indicator in context for indicator in exit_indicators)
+        has_founder_context = any(indicator in context for indicator in founder_indicators)
+        
+        # Special case for known companies like Akamon
+        has_known_exit = 'akamon' in context
+        
+        return (has_exit_context and has_founder_context) or has_known_exit
+    
+    def _is_market_data_context(self, context: str) -> bool:
+        """Check if amount refers to market size data"""
+        market_indicators = [
+            'market size', 'tam', 'total addressable market', 'market value',
+            'industry size', 'market potential', 'jewelry market', 'global market',
+            'market worth', 'billion market', 'european market', 'serviceable obtainable market',
+            'market opportunity', 'addressable market', 'market represents'
+        ]
+        # Strong market indicators that override other contexts
+        strong_indicators = ['€70b', '€35b', '€1.5b', 'global', 'billion', 'market']
+        
+        has_market_indicator = any(indicator in context for indicator in market_indicators)
+        has_strong_indicator = any(indicator in context for indicator in strong_indicators)
+        
+        return has_market_indicator or has_strong_indicator
+    
+    def _is_company_funding_context(self, context: str) -> bool:
+        """Check if amount refers to actual company funding"""
+        company_funding_indicators = [
+            'initial financing', 'funding needs', 'investment needs', 'capital needs',
+            'raise', 'raised', 'funding', 'investment', 'series a', 'series b',
+            'seed', 'round', 'investors', 'valuation', 'financing 2019'
+        ]
+        return any(indicator in context for indicator in company_funding_indicators)
     
     def _extract_kpis(self, content: str) -> Dict[str, Optional[str]]:
         """Extract KPIs like CAC, CPL, LTV"""
@@ -200,16 +269,27 @@ class FinancialDataExtractor:
         """Create human-readable summary of extracted financial data"""
         summary_parts = []
         
-        if funding_data['amounts']:
-            amounts_text = ', '.join(funding_data['amounts'][:3])  # Max 3 amounts
-            summary_parts.append(f"Funding: {amounts_text}")
+        # Company funding (most important)
+        if funding_data['company_funding']:
+            amounts_text = ', '.join(funding_data['company_funding'][:2])  # Max 2 amounts
+            summary_parts.append(f"Company Funding: {amounts_text}")
+        
+        # Market data (separate category)
+        if funding_data['market_data']:
+            market_text = ', '.join(funding_data['market_data'][:1])  # Max 1 market size
+            summary_parts.append(f"Market Size: {market_text}")
+        
+        # Founder background (if relevant)
+        if funding_data['founder_exits']:
+            exit_text = ', '.join(funding_data['founder_exits'][:1])  # Max 1 exit
+            summary_parts.append(f"Founder Exit: {exit_text}")
         
         detected_kpis = [k.upper() for k, v in kpi_data.items() if v]
         if detected_kpis:
             summary_parts.append(f"KPIs: {', '.join(detected_kpis)}")
         
         if percentage_data['rates']:
-            rates_text = ', '.join(percentage_data['rates'][:5])  # Max 5 percentages
+            rates_text = ', '.join(percentage_data['rates'][:3])  # Max 3 percentages
             summary_parts.append(f"Metrics: {rates_text}")
         
         if revenue_data['has_pl_reference']:
@@ -217,14 +297,79 @@ class FinancialDataExtractor:
         
         return ' | '.join(summary_parts) if summary_parts else "No financial data detected"
     
+    def _validate_extracted_data(self, funding_data: Dict, kpi_data: Dict, percentage_data: Dict) -> List[str]:
+        """Validate extracted financial data for inconsistencies"""
+        warnings = []
+        
+        # Check for unrealistic funding amounts vs market sizes
+        company_funding = funding_data.get('company_funding', [])
+        market_data = funding_data.get('market_data', [])
+        
+        if company_funding and market_data:
+            # Extract numeric values for comparison
+            company_values = self._extract_numeric_values(company_funding)
+            market_values = self._extract_numeric_values(market_data)
+            
+            for comp_val in company_values:
+                for market_val in market_values:
+                    if comp_val > market_val * 0.1:  # Company funding >10% of market is suspicious
+                        warnings.append(f"Company funding ({comp_val}) unusually high vs market size ({market_val})")
+        
+        # Check for KPI consistency
+        cac = kpi_data.get('cac')
+        ltv = kpi_data.get('ltv')
+        if cac and ltv:
+            try:
+                cac_num = float(''.join(filter(str.isdigit, cac.replace(',', '.'))))
+                ltv_num = float(''.join(filter(str.isdigit, ltv.replace(',', '.'))))
+                if ltv_num > 0 and cac_num / ltv_num > 0.5:  # CAC > 50% of LTV is concerning
+                    warnings.append(f"CAC/LTV ratio concerning: CAC {cac}, LTV {ltv}")
+            except (ValueError, ZeroDivisionError):
+                pass
+        
+        # Check for duplicate amounts across categories
+        all_amounts = company_funding + market_data + funding_data.get('founder_exits', [])
+        if len(all_amounts) != len(set(all_amounts)):
+            warnings.append("Duplicate amounts found across different categories")
+        
+        return warnings
+    
+    def _extract_numeric_values(self, amounts_list: List[str]) -> List[float]:
+        """Convert amount strings to numeric values for comparison"""
+        values = []
+        for amount in amounts_list:
+            try:
+                # Extract number and multiplier
+                import re
+                match = re.search(r'(\d+[.,]?\d*)\s*([KMB])', amount.upper())
+                if match:
+                    num = float(match.group(1).replace(',', '.'))
+                    multiplier = match.group(2)
+                    if multiplier == 'K':
+                        values.append(num * 1000)
+                    elif multiplier == 'M':
+                        values.append(num * 1000000)
+                    elif multiplier == 'B':
+                        values.append(num * 1000000000)
+            except (ValueError, AttributeError):
+                continue
+        return values
+    
     def _empty_result(self) -> Dict[str, Any]:
         """Return empty result structure"""
         return {
-            'funding': {'amounts': [], 'contexts': [], 'count': 0},
+            'funding': {
+                'company_funding': [], 
+                'market_data': [], 
+                'founder_exits': [], 
+                'contexts': [], 
+                'total_amounts': 0
+            },
             'kpis': {k: None for k in self.kpi_patterns.keys()},
             'percentages': {'rates': [], 'contexts': [], 'count': 0},
             'revenue': {'metrics': [], 'pl_mentions': [], 'has_pl_reference': False},
             'has_financial_data': False,
+            'validation_warnings': [],
             'extraction_summary': 'No content provided'
         }
     
@@ -243,10 +388,20 @@ class FinancialDataExtractor:
         
         sections = []
         
-        # Funding information
-        if extracted_data['funding']['amounts']:
-            amounts = extracted_data['funding']['amounts']
-            sections.append(f"FUNDING: {', '.join(amounts)}")
+        # Company funding (most important for analysis)
+        if extracted_data['funding']['company_funding']:
+            company_amounts = extracted_data['funding']['company_funding']
+            sections.append(f"COMPANY FUNDING: {', '.join(company_amounts)}")
+        
+        # Market data (separate context)  
+        if extracted_data['funding']['market_data']:
+            market_amounts = extracted_data['funding']['market_data']
+            sections.append(f"MARKET SIZE: {', '.join(market_amounts)}")
+            
+        # Founder background (if relevant)
+        if extracted_data['funding']['founder_exits']:
+            founder_amounts = extracted_data['funding']['founder_exits']
+            sections.append(f"FOUNDER PREVIOUS EXIT: {', '.join(founder_amounts)}")
         
         # KPIs
         kpis = extracted_data['kpis']

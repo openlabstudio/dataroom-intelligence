@@ -293,17 +293,23 @@ class AIAnalyzer:
             return f"❌ Sorry, I couldn't generate the memo due to a technical error: {str(e)}"
 
     def analyze_gaps(self) -> str:
-            """Analyze information gaps in the data room - FIXED"""
+            """Analyze information gaps in the data room with financial data awareness"""
             try:
                 if not self.current_analysis or not self.analysis_context:
                     return "❌ No data room has been analyzed yet. Please run /analyze first."
 
                 logger.info("🔍 Analyzing information gaps...")
 
-                # FIXED: Use only available variables
+                # PHASE 1: Extract financial data deterministically to know what we actually have
+                from utils.financial_extractor import extract_financial_data, format_financial_data_for_prompt
+                financial_data = extract_financial_data(self.analysis_context['full_content'])
+                formatted_financials = format_financial_data_for_prompt(financial_data)
+
+                # FIXED: Use available variables + financial data context
                 gaps_prompt = GAPS_PROMPT.format(
                     available_documents=self.analysis_context['documents_summary'],
-                    content_summary=json.dumps(self.current_analysis.get('missing_info', []), indent=2)
+                    content_summary=json.dumps(self.current_analysis.get('missing_info', []), indent=2),
+                    extracted_financials=formatted_financials
                 )
 
                 response = self.client.chat.completions.create(
