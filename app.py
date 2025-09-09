@@ -139,8 +139,25 @@ if market_research_orchestrator:
 @app.command("/analyze")
 def handle_analyze_command(ack, body, client):
     """Handle /analyze command - Complete data room analysis with AI"""
-    ack()
+    # CRITICAL: Acknowledge immediately to prevent dispatch_failed
+    try:
+        ack()
+        logger.info("✅ Command acknowledged successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to acknowledge command: {e}")
+        return
+    
+    # IMMEDIATE: Send progress message before ANY complex processing
+    try:
+        channel_id = body['channel_id']
+        client.chat_postMessage(
+            channel=channel_id,
+            text="🔍 **Analysis Request Received**\n\n⏳ Processing your data room analysis request..."
+        )
+    except:
+        pass  # Don't fail if progress message fails
 
+    # DEFERRED: All complex processing after immediate response
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
@@ -150,15 +167,13 @@ def handle_analyze_command(ack, body, client):
         if drive_link.lower() == 'debug':
             return debug_sessions(user_id, channel_id, client)
 
-        # NUEVO: Debug logs para capturar el problema
+        # Debug logs after immediate acknowledgment
         logger.info(f"🎯 ANALYZE COMMAND - Starting for user {user_id}")
         logger.info(f"🎯 ANALYZE COMMAND - Channel: {channel_id}")
         logger.info(f"🎯 ANALYZE COMMAND - Drive link: {drive_link}")
 
         if not drive_link:
             logger.info("🎯 ANALYZE COMMAND - No drive link provided")
-
-        if not drive_link:
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ Please provide a Google Drive folder link.\n\nUsage: `/analyze [google-drive-link]`\n\n💡 **Debug tip:** Use `/analyze debug` to check active sessions"
@@ -172,7 +187,7 @@ def handle_analyze_command(ack, body, client):
             )
             return
 
-        # Send initial response
+        # Send detailed initial response with drive link
         initial_response = client.chat_postMessage(
             channel=channel_id,
             text="🔍 **Analysis Request Received**\n\n" +

@@ -1,216 +1,661 @@
-# Product Requirements Document: DataRoom Intelligence - Professional Market Intelligence Evolution
+# DataRoom Intelligence Professional Market Research PRD
 
-## 1. Executive Summary
+## Project Overview
 
-DataRoom Intelligence currently provides basic AI-powered market research but suffers from an inefficient architecture that creates inconsistent outputs and lacks the analytical depth required for professional investment decisions. This brownfield project will re-architect the platform into a Professional Market Intelligence System. We will replace the redundant, separate processes for Slack and full reports with a single, comprehensive analysis pipeline, ensuring consistent, high-quality intelligence across all outputs.
+### Mission Statement
+**Transform the `/market-research` command into a professional-grade market intelligence system that generates McKinsey/BCG quality reports for venture capital investment decisions.**
 
-This evolution will introduce a suite of post-analysis tools, transforming static reports into a queryable "living intelligence asset" and enabling automated fact-checking of startup claims against market reality with a new `/verify` command. Key infrastructure upgrades, including Redis-backed session persistence and automated Quality Gates, will ensure reliability and scalability. This strategic enhancement is projected to reduce manual verification work for VC analysts by up to 70%, providing a decisive competitive advantage and unlocking the underserved mid-market VC segment.
+### Current Problem
+The existing `/market-research` command produces inadequate output that fails to meet professional VC standards. The current synthesis system delivers substandard results because it:
 
----
+- Produces only superficial 3-4 insights instead of the required 8-10 actionable insights
+- Uses only 4-6 meaningful sources instead of the required 50+ comprehensive sources (expanding from current 24 sources collected)
+- Generates brief Slack summaries with no comprehensive report generation
+- Lacks professional structure, citations, and investment-grade recommendations
+- Results in user satisfaction of 5/10 (failing grade), creating significant business impact for VC investment decision quality
 
-## 2. Problem Statement
+**This PRD addresses strategic incremental enhancement of existing functionality to achieve professional quality standards.
 
-#### **Current State**
-DataRoom Intelligence is a functional MVP that successfully automates basic data room analysis and market research using a cost-optimized, streamlined architecture. It processes documents from Google Drive, performs a 3-level hierarchical web search using the Tavily API to gather 24 sources, and delivers a Slack-based summary with a PROCEED/PASS recommendation. Despite a 77% reduction in API calls compared to multi-agent competitors, the platform's output is rated as surface-level (6/10 user satisfaction) and often "doesn't add value to a VC analyst". Key operational limitations include in-memory session management that loses context between commands and an inefficient dual-process architecture for generating Slack summaries and full reports.
+**CRITICAL DEVELOPMENT CLARIFICATION**: "Incremental enhancement" refers to preserving existing system architecture (Flask + Slack Bolt patterns, session management, etc.) while completely replacing/rewriting synthesis logic that produces inadequate quality results. The current `/market-research` code functions technically but delivers extremely poor user experience. Developers should feel free to ignore existing synthesis implementation and build clean, professional code if current approach would compromise quality standards.**
 
-#### **The Problem**
-The core problem is that the platform's intelligence capabilities do not meet the standards of professional venture capital due diligence. This manifests in several critical gaps:
-1.  **Lack of Analytical Depth**: The current single-pass synthesis provides generic insights rather than the deep, verifiable analysis required for high-stakes investment decisions.
-2.  **Static Intelligence**: The generated reports are static "snapshots." They cannot be queried, updated, or cross-referenced, failing to become a "living" part of the deal evaluation process.
-3.  **No Claims Verification**: The system cannot automatically validate a startup's claims (e.g., market size, competitive differentiation) against the independently gathered market intelligence, a crucial step in professional due diligence.
-4.  **Architectural Inefficiency**: The dual-pipeline process for generating Slack and Markdown outputs is redundant, costly, and can lead to inconsistencies between the summary and the full report.
-5.  **Poor User Experience**: The lack of session persistence forces users to restart the analysis flow frequently, creating a fragmented and frustrating workflow.
+### Target Solution
+**New Professional `/market-research` Command** that delivers:
 
-#### **Impact**
-These deficiencies severely limit the platform's value and market potential. The low-depth analysis undermines user trust and credibility, leading to poor user satisfaction (6/10) and positioning the tool as a novelty rather than an essential part of the VC tech stack. The inability to perform critical functions like claims verification means analysts must still perform significant manual work, defeating the platform's primary value proposition. This restricts the addressable market to less sophisticated investors and exposes the platform to competitive threats from both established players adding AI and new AI-native startups.
+- **McKinsey/BCG Quality Reports**: 10-20 page comprehensive markdown reports
+- **Deep Intelligence**: 8-10 actionable, data-backed insights per analysis
+- **Comprehensive Sources**: 30+ meaningful sources synthesized professionally
+- **Investment Grade**: Three-tier recommendations with confidence scoring
+- **Professional Structure**: Executive Assessment, Critical Findings, Risk Matrix, Citations
+- **User Satisfaction**: Target >8.5/10 (vs current failing 5/10)
 
----
+### Project Scope
+**Timeline**: 3 weeks to demo-ready professional market intelligence system
+**Approach**: Strategic incremental enhancement of existing `/market-research` command using Single Process Architecture with BMAD Framework integration
+**Quality Standard**: Reports that a VC fund would pay McKinsey/BCG to produce
+**Technical Environment**: Production-only development (`TEST_MODE=false`) - no mock implementations
 
-## 3. Proposed Enhancement
+### Success Metrics
+- **Quality**: Reports meet professional consulting standards (McKinsey/BCG level)
+- **Depth**: 8-10 actionable insights (vs current 3-4 superficial)
+- **Sources**: 30+ synthesized sources (vs current 4-6 meaningful)
+- **Structure**: Complete 10-20 page reports (vs current brief summaries only)
+- **Satisfaction**: >8.5/10 user rating (vs current 5/10 failure)
+- **Decision Support**: Investment-grade recommendations with confidence scoring
+- **Demo Constraint**: Single-process limitation acceptable for demo scope (multi-channel support deferred to post-demo)
 
-#### **Core Concept**
-The proposed enhancement will evolve DataRoom Intelligence from a basic analysis tool into a professional-grade, independent market intelligence platform. The central innovation is the adoption of a **Single Process Architecture**. Instead of running separate, inefficient processes for Slack and full reports, the system will execute one comprehensive, deep analysis using the BMAD framework to generate a 15-20 page professional report. A high-fidelity, intelligent summary for Slack will then be derived from this complete report, ensuring perfect coherence and eliminating redundant API calls. This allows the platform to deliver consultant-level analysis focused on the market's potential, independent of the startup's own documentation quality.
+## Requirements
 
-#### **Key Features & Capabilities**
-1.  **Post-Analysis Intelligence Suite**: A new set of Slack commands will transform static reports into dynamic, "living" intelligence assets.
-    * **`/verify`**: Automatically compares claims made in a startup's dataroom against the independently generated market intelligence report to flag discrepancies and exaggerations.
-    * **`/ask-reports`**: Allows users to ask natural language questions about any report generated within the session, enabling continuous, interactive due diligence.
-    * **`/search`**: Provides ad-hoc, real-time web intelligence with a synthesized summary without needing to run a full analysis.
-    * **`/memo`**: Generates a standardized, investment committee-ready memo by consolidating all gathered intelligence.
-2.  **BMAD Framework Integration**: The analysis engine will be upgraded to use the BMAD methodology for deeper, more structured insights.
-    * **Adaptive Research Types**: The system will dynamically select from 8 different research personas and frameworks based on the startup's stage and market context.
-    * **Structured Prompting**: Analysis will be guided by expert-level, structured prompts to ensure professional quality and depth.
-3.  **Critical Infrastructure Upgrades**: The platform's foundation will be enhanced for reliability and user experience.
-    * **Session Persistence**: User sessions will be moved from volatile in-memory storage to a Redis-backed system, maintaining context across commands and over time (24-hour TTL).
-    * **Intelligent Caching**: A multi-tier caching system will be implemented for search results and competitor data to reduce API costs by an estimated 40-50%.
-    * **Quality Gates System**: An automated validation layer will ensure all analysis outputs meet minimum quality thresholds before being delivered to the user.
+### Functional Requirements
 
-#### **Targeted Outcomes**
-* **Improved Output Quality**: Increase user satisfaction with analysis depth and value from 6/10 to a target of 8.5/10.
-* **Increased Analytical Depth**: Elevate reports from 3-4 basic insights to 8-10 actionable, consultant-level insights per analysis.
-* **Enhanced User Efficiency**: Reduce the need for manual claims verification and follow-up research by up to 70% with the new `/verify` and `/ask-reports` commands.
-* **Superior User Experience**: Achieve a 95% session restoration rate, eliminating the frustration of lost context between commands.
-* **Greater Credibility**: Establish the platform as an essential, high-trust tool for professional VC due diligence through verifiable, in-depth, and interactive intelligence.
+**FR1**: The `/market-research` command shall enhance existing synthesis capabilities to generate professional-grade 10-20 page markdown reports with McKinsey/BCG consultant-level quality, including Executive Assessment, Critical Findings, Risk Matrix, and comprehensive citations.
 
----
+**FR2**: The system shall expand source collection from current 24 sources to 50+ reliable sources through enhanced Tavily API integration to ensure comprehensive market analysis coverage with professional source diversity.
 
-## 4. Functional Requirements
+**FR3**: The system shall integrate BMAD Framework methodologies into existing MarketResearchOrchestrator, adding 8 distinct research types (product validation, competitive intelligence, market opportunity, etc.) with expert persona system for enhanced analysis depth.
 
-#### **Epic 1: Platform Stability & User Experience Foundation**
-*Goal: To deliver immediate user value and improve system performance with foundational infrastructure that can support future enhancements.*
+**FR4**: The system shall enhance existing synthesis logic to generate 8-10 actionable, data-backed insights per analysis (vs current 3-4 superficial insights) with specific investment implications and supporting evidence from multiple sources.
 
-* **Story 1.1: Implement Redis-backed Session Persistence**
-    * **As a** VC Analyst, **I want** my analysis session to persist during the entire deal evaluation lifecycle (days or weeks), **so that** I can build upon previous analysis without losing context.
-    * **Acceptance Criteria:**
-        1.  User session data is stored in a Redis cache with a **30-day TTL**.
-        2.  After running `/analyze`, a user can run `/market-research` days or weeks later and the context is retrieved successfully.
-        3.  The `/analyze debug` command correctly displays session information from Redis.
-        4.  Session TTL is automatically extended upon any new command activity.
-        5.  The system gracefully handles expired sessions.
+**FR5**: The system shall implement three-tier investment recommendation system with risk assessment:
+- HIGH RISK - Multiple red flags identified
+- MODERATE RISK - Mixed signals, requires deep due diligence
+- LOW RISK - Strong fundamentals with clear path to returns
 
-* **Story 1.2: Implement Intelligent Caching for Web Searches**
-* **Story 1.3: Implement Caching for Competitor & Market Data**
+**FR6**: The system shall enhance existing Slack integration to provide intelligent summarization (3500 chars max) that maintains current threading patterns while highlighting key insights and investment recommendations with permanent report download links.
 
-#### **Epic 2: Core Analysis Engine Upgrade**
-*Goal: Re-architect the analysis pipeline and integrate the BMAD framework to produce professional-grade intelligence.*
+**FR7**: The system shall preserve existing market detection capabilities while enhancing generic functionality for any market vertical/niche without requiring sector-specific hardcoding or manual configuration.
 
-* **Story 2.1: Develop Comprehensive Markdown Report Generator**
-* **Story 2.2: Develop Intelligent Summarizer Module for Slack**
-* **Story 2.3: Integrate New Pipeline and Deprecate Old Architecture**
-* **Story 2.4: Implement BMAD Framework for a Single Research Type (e.g., Competitive Intelligence)**
-* **Story 2.5: Implement Adaptive Selection Logic and Roll Out Remaining Research Types**
+**FR8**: The system shall maintain existing response time patterns while completing enhanced market intelligence analysis and professional report generation within 2-3 minutes of command execution.
 
-#### **Epic 3: Advanced Intelligence Suite**
-*Goal: Launch the new user-facing commands that leverage the upgraded analysis engine.*
+**FR9**: The system shall implement permanent report storage with downloadable .md files, integrating with existing session management without disrupting current `user_sessions` dict structure.
 
-* **Story 3.1: Implement `/verify` Command for Claims Verification**
-* **Story 3.2: Implement `/ask-reports` Command for Report Querying**
-* **Story 3.3: Implement Automated Quality Gates**
+### Non-Functional Requirements
 
----
+**NFR1**: The enhanced system must integrate seamlessly without impacting existing `/analyze` command response times or session management functionality.
 
-## 5. Non-Functional Requirements (NFRs)
+**NFR2**: The system shall complete market intelligence analysis within 2-3 minutes to provide timely decision support for VC analysts.
 
-#### **5.1 Performance**
-* **Analysis Throughput**: The end-to-end single-process analysis for `/market-research` may take up to **5 minutes** for a standard dataroom (up to 15 documents). This is acceptable given the command's infrequent use, provided the user is kept informed with real-time progress tracking.
-* **Command Responsiveness**: Post-analysis commands must meet the following response time targets: `/verify` < 10s, `/ask-reports` < 10s, `/search` < 15s.
-* **Caching Efficiency**: The intelligent caching system must achieve a minimum cache hit rate of 40%.
+**NFR3**: Report generation shall achieve >8.5/10 user satisfaction rating compared to current failing 5/10 performance.
 
-#### **5.2 Reliability**
-* **System Uptime**: Must maintain 99.5% uptime.
-* **Analysis Success Rate**: Must be above 95%.
-* **Session Persistence**: Must achieve a 99.9% successful restoration rate for sessions within the **30-day TTL**.
-* **Graceful Degradation**: Must deliver a coherent "Conservative Assessment" on Quality Gate failure.
+**NFR4**: The system shall support demo-first development approach with local validation before production deployment, maintaining production-quality standards throughout development cycle.
 
-#### **5.3 Scalability**
-* **Concurrent Users**: While current concurrency is low, the system must support up to 5 simultaneous requests and be architected for future horizontal scaling.
-* **Data Volume**: Must process reports generated from 50+ sources without timeouts.
+**NFR5**: All generated reports must pass professional quality gates with minimum 70% quality score before delivery to users.
 
-#### **5.4 Security**
-* **Data Isolation**: Data must be strictly isolated at the Slack channel level.
-* **Credential Management**: API keys must be stored securely as environment variables.
-* **Infrastructure Security**: Redis instance must be secured within the private network.
+**NFR6**: The system shall maintain 95% reliability rate for market research operations with graceful degradation when quality thresholds are not met.
 
-#### **5.5 Responsiveness & User Feedback**
-* **Immediate Acknowledgement**: All Slack commands must provide an initial "Processing..." message to the user in under 2 seconds, with the main task running in the background.
+**NFR7**: Cost efficiency shall be achieved through intelligent analysis rather than reduced API calls, prioritizing quality over cost optimization.
 
----
+**NFR8**: The system shall acknowledge single-process limitation for demo scope, with multi-channel session management enhancements deferred to post-demo development.
 
-## 6. Market Context
+**NFR9**: The system shall monitor Railway deployment resource usage during enhanced processing (50+ sources, 10-20 page reports) and provide alerts for resource threshold management.
 
-#### **6.1 Market Overview**
-The market for AI-powered VC due diligence tools is fragmented and in a high-growth phase, driven by an accelerating AI adoption wave across the investment industry. Currently, no single player has more than 20% market share. The landscape is a mix of established VC tech platforms retrofitting AI capabilities and a new class of AI-native startups.
+### Compatibility Requirements
 
-#### **6.2 Target Audience**
-The primary target is the underserved **mid-market VC segment**, comprising over 500 firms managing **$50M to $500M in AUM**. These firms typically evaluate **200-500 deals annually** but are priced out of enterprise solutions.
+**CR1**: Slack Command Compatibility - All current Slack commands (`/analyze`, `/ask`, `/reset`, `/health`) must remain fully functional without modification to user experience.
 
-#### **6.3 Competitive Landscape**
-The platform faces three distinct competitive threats:
-1.  **Incumbent Threat (Affinity)**: Threat of adoption through a massive existing user base (600+ VCs).
-2.  **AI-Native Threat (Harmonic)**: Threat of a focused, agile competitor with a similar AI-first approach.
-3.  **Platform Threat (OpenAI/Microsoft)**: Long-term risk of a tech giant building a similar, deeply integrated solution.
-Our architectural efficiency provides a sustainable cost and quality advantage, allowing us to profitably serve the mid-market.
+**CR2**: Session Management Compatibility - In-memory `user_sessions` dict structure must be preserved to maintain compatibility with existing document analysis workflows.
 
----
+**CR3**: Flask + Slack Bolt Integration Consistency - The enhanced system must integrate seamlessly with existing Flask application and Slack Bolt event handling patterns.
 
-## 7. User Personas
+**CR4**: Railway Deployment Compatibility - The enhanced system must maintain compatibility with existing Railway deployment pipeline and environment variable configuration.
 
-#### **7.1 Primary Persona: Alex, The VC Analyst**
-* **Role**: Senior Associate at a mid-market VC firm.
-* **Goals**: Quickly assess startup viability, reduce manual work, present data-backed recommendations.
-* **Pain Points**: Overwhelmed by high deal flow, fragmented workflows, and the high cost of enterprise tools.
-* **How Enhancement Helps**: The `/verify` command saves hours of manual fact-checking. Session persistence and professional reports streamline the workflow and improve the quality of deliverables to partners.
+## Technical Constraints and Integration Requirements
 
-#### **7.2 Secondary Persona: Sam, The Independent Consultant**
-* **Role**: Solo due diligence consultant serving multiple VC firms.
-* **Goals**: Deliver enterprise-grade analysis, scale the practice, and standardize deliverables.
-* **Pain Points**: Lacks access to expensive enterprise tools, and manual processes are a bottleneck.
-* **How Enhancement Helps**: Provides access to previously unaffordable analytical power. The professional reports and adaptive research framework allow for high-quality, tailored deliverables that scale the business.
+### Existing Technology Stack
 
----
+**Languages**: Python 3.11+
+**Frameworks**: Flask (web application), Slack Bolt (Slack integration), OpenAI Python SDK
+**Database**: In-memory session storage (`user_sessions` dict), no persistent database currently
+**Infrastructure**: Railway cloud deployment, environment-based configuration
+**External Dependencies**: OpenAI GPT-4 API, Tavily Search API, Google Drive API, Slack API
 
-## 8. User Stories / Epics
+### Integration Approach
 
-This project is organized into three core epics. Detailed User Stories and Acceptance Criteria are documented in **Section 4: Functional Requirements**.
+**Database Integration Strategy**: Maintain existing in-memory session management while adding storage for generated reports. No breaking changes to current session handling.
 
-* **Epic 1: Platform Stability & User Experience Foundation**: To implement foundational infrastructure like session persistence and caching.
-* **Epic 2: Core Analysis Engine Upgrade**: To re-architect the analysis pipeline and integrate the BMAD framework for professional-grade reports.
-* **Epic 3: Advanced Intelligence Suite**: To launch the new user-facing commands (`/verify`, `/ask-reports`, etc.) that leverage the upgraded engine.
+**API Integration Strategy**: Build new OpenAI integration with structured prompting for BMAD Framework. Expand Tavily API usage from 24 to 50+ sources. Maintain current API wrapper patterns.
 
----
+**Frontend Integration Strategy**: Preserve existing Slack interface patterns while enhancing `/market-research` command output. Maintain consistent command acknowledgment and threading patterns.
 
-## 9. Technical Specifications
+**Testing Integration Strategy**: Implement production-only testing approach (`TEST_MODE=false`) with real API validation. Establish quality gates for professional output validation.
 
-#### **9.1 Architecture & Design**
-The core enhancement is a shift to a **Single Process Architecture**. This event-driven, asynchronous pipeline will orchestrate the entire analysis flow, supported by new modular services for session management, caching, and quality validation.
+### Code Organization and Standards
 
-#### **9.2 Technology Stack**
-* **Existing Stack**: Python 3.11, Flask, Slack Bolt, OpenAI GPT-4, Tavily API.
-* **New Additions**:
-    * **Redis**: For session persistence and multi-tier intelligent caching.
-    * **PostgreSQL**: For long-term storage and versioning of generated intelligence reports.
+**File Structure Approach**: Utilize existing `agents/`, `handlers/`, `utils/` structure. Build new market intelligence system within current architecture.
 
-#### **9.3 Data Management**
-* **Session Data**: Stored in Redis with a 30-day TTL.
-* **Cache Data**: API responses and intermediate results stored in Redis with varying TTLs.
-* **Intelligence Reports**: Full Markdown reports stored persistently in PostgreSQL.
+**Naming Conventions**: Follow existing Python PEP 8 standards and current project conventions (snake_case for functions/variables, CamelCase for classes).
 
-#### **9.4 Integration Points**
-* The system maintains existing integrations with Google Drive, OpenAI, Tavily, and Slack.
-* New internal services for Session Management, Caching, and Post-Analysis Commands will be integrated with the main orchestrator and the new data stores (Redis, PostgreSQL).
+**Coding Standards**: Maintain existing patterns including TEST_MODE checking, proper error handling with logger integration, and Slack acknowledgment patterns.
 
----
+**Documentation Standards**: Update CLAUDE.md with new architecture patterns and maintain comprehensive docstrings for all new components.
 
-## 10. Risks and Mitigation
+### Deployment and Operations
 
-#### **10.1 Technical Risks**
-* **Risk**: The core architectural refactor could lead to delays and introduce new bugs.
-    * **Mitigation**: A phased rollout using feature flags will be employed, along with comprehensive regression testing before deprecating the old pipeline.
-* **Risk**: Introducing new dependencies (Redis, PostgreSQL) adds operational complexity.
-    * **Mitigation**: Infrastructure will be managed via IaC, with robust monitoring, alerting, and load testing implemented before production.
+**Build Process Integration**: Leverage existing Railway auto-deployment from main branch. No changes required to current build process.
 
-#### **10.2 Product Risks**
-* **Risk**: "Living intelligence" features (`/ask-reports`, `/verify`) may not achieve the required accuracy to be trustworthy.
-    * **Mitigation**: Launch features in a closed beta to gather feedback and refine accuracy. Clearly communicate confidence levels and cite sources to manage user expectations.
-* **Risk**: Automated Quality Gates could be improperly calibrated.
-    * **Mitigation**: Initially launch in a "logging-only" mode to calibrate thresholds on real-world data without impacting users.
+**Deployment Strategy**: Direct replacement of existing `/market-research` command with new McKinsey-quality system.
 
-#### **10.3 Market Risks**
-* **Risk**: Competitors may release similar AI features faster, neutralizing our advantage.
-    * **Mitigation**: Prioritize and accelerate the development of unique, defensible features like `/verify`. Focus go-to-market messaging on our superior cost-efficiency and claims verification capabilities.
+**Monitoring and Logging**: Utilize existing logger infrastructure in `utils/logger.py`. Enhance with quality metrics and professional output tracking.
 
----
+**Railway Resource Monitoring & Alerting**: Implement comprehensive monitoring for enhanced processing loads with specific thresholds and automated responses.
 
-## 11. Success Metrics
+#### RAILWAY RESOURCE MONITORING REQUIREMENTS
 
-#### **11.1 Product & User Metrics**
-* **User Satisfaction**: Increase user satisfaction rating from **6/10 to 8.5/10** within 3 months of launch.
-* **Analysis Quality**: Increase actionable insights per report from an average of **3-4 to 8-10**.
-* **User Efficiency**: Achieve a **70% reduction in time spent on manual claims verification**.
-* **Feature Adoption**: Achieve **50% adoption** of `/verify` and `/ask-reports` among active users within 6 weeks of launch.
+**Memory Usage Monitoring**:
+```yaml
+Baseline Memory Usage: Current /analyze command memory profile
+Enhanced Memory Targets:
+  - Normal Operation: <512MB sustained memory usage
+  - Peak Processing (50+ sources): <1GB maximum memory usage
+  - Concurrent Users: <1.5GB total memory usage
 
-#### **11.2 Business & Platform Metrics**
-* **System Reliability**: Increase analysis success rate from **85% to over 95%**.
-* **User Experience**: Achieve a **95% successful session restoration rate**.
-* **Cost Efficiency**: Reduce cost-per-analysis by **25%** through caching.
-* **Business Impact**: Contribute to a **10% increase in pilot customer conversion rate**.
+Alert Thresholds:
+  - WARNING: Memory usage >80% of current Railway plan limit
+  - CRITICAL: Memory usage >90% of Railway plan limit
+  - EMERGENCY: Memory usage approaching Railway plan maximum
+
+Automated Responses:
+  - WARNING: Log detailed memory usage patterns, investigate source
+  - CRITICAL: Enable enhanced garbage collection, consider feature flag reduction
+  - EMERGENCY: Automatic feature flag rollback for high-memory features
+```
+
+**API Cost & Usage Monitoring**:
+```yaml
+Cost Baselines:
+  - Current Tavily API: ~$X/day for 24 sources per analysis
+  - Target Enhanced: <150% of baseline cost for 50+ sources
+  - OpenAI GPT-4: Monitor token usage for report generation
+
+Monitoring Metrics:
+  - API calls per minute/hour/day
+  - Cost per market research analysis
+  - Success/failure rates per API endpoint
+  - Response time degradation patterns
+
+Alert Thresholds:
+  - Cost increase >125% baseline → Investigation alert
+  - Cost increase >150% baseline → Feature flag review
+  - API failure rate >10% → Service degradation alert
+  - Response times >2x baseline → Performance investigation
+```
+
+**Performance & Availability Monitoring**:
+```yaml
+Response Time Targets:
+  - /analyze commands: Maintain existing response times (no degradation)
+  - Enhanced /market-research: Complete within 2-3 minutes
+  - Slack integration: Maintain existing message delivery times
+  - Download endpoints: <5 seconds for report download initiation
+
+System Health Metrics:
+  - Overall system availability >99.5% uptime
+  - Enhancement feature availability when flags enabled >95%
+  - Concurrent user handling without performance degradation
+  - Railway deployment health and auto-scaling triggers
+
+Error Rate Monitoring:
+  - Enhancement-related errors <5% of total requests
+  - Existing functionality error rate unchanged from baseline
+  - Quality gate rejections tracked but not counted as system errors
+  - Feature flag rollback triggers <1% of deployments
+```
+
+**Railway Platform Integration Monitoring**:
+```yaml
+Railway-Specific Metrics:
+  - Build time monitoring for deployments with enhancements
+  - Resource allocation efficiency within Railway constraints
+  - Auto-scaling triggers and effectiveness
+  - Network bandwidth usage for increased source collection
+
+Deployment Health:
+  - Zero-downtime deployment success rate >95%
+  - Rollback capability within 5 minutes of deployment issue detection
+  - Environment variable and configuration management integrity
+  - Database/session management compatibility with Railway restarts
+```
+
+**Monitoring Dashboard Requirements**:
+```yaml
+Real-Time Monitoring Dashboard:
+  - Current resource usage vs Railway plan limits
+  - Enhancement feature performance metrics
+  - User satisfaction scores and trending
+  - Cost analysis and budget tracking
+  - Error rates and system health indicators
+
+Alerting Integration:
+  - Slack notifications for critical system alerts
+  - Email escalation for unresolved critical alerts
+  - Automated feature flag adjustments for resource protection
+  - Railway deployment rollback triggers for critical failures
+```
+
+**Configuration Management**: Extend existing environment variable pattern with additional API keys, monitoring thresholds, and Railway-specific configuration options.
+
+### Risk Assessment and Mitigation
+
+**Technical Risks**:
+- API rate limits with increased source collection (50+ vs 24)
+- Token limits with comprehensive report generation
+- Integration complexity with BMAD Framework methodologies
+
+**Integration Risks**:
+- Slack command integration with existing system architecture
+- Potential performance impact on other system components
+- API rate limiting with increased source collection
+
+**Deployment Risks**:
+- Railway deployment pipeline compatibility
+- Environment variable configuration conflicts
+- Production testing costs during development
+
+**Mitigation Strategies**:
+- Implement exponential backoff for API rate limit handling
+- Use intelligent prompt compression and chunking for token management
+- Direct replacement approach to avoid system conflicts
+- Comprehensive monitoring and quality validation
+
+## Epic and Story Structure
+
+### Epic Approach
+**Epic Structure Decision**: Single comprehensive epic with sequential story implementation to deliver cohesive market intelligence enhancement.
+
+The strategic incremental enhancement approach requires coordinated development of multiple existing components (agents, handlers, utils) with BMAD Framework integration. The interdependencies between enhanced source collection, professional report generation, and quality assurance make this most suitable for unified development approach.
+
+## Epic 1: Professional Market Intelligence Enhancement
+
+**Epic Goal**: Transform existing `/market-research` command into McKinsey/BCG quality market intelligence system through strategic incremental enhancement of current synthesis capabilities, BMAD Framework integration, and permanent report delivery.
+
+**Integration Requirements**: Maintain complete compatibility with existing Flask + Slack Bolt architecture, preserve session management patterns, and ensure no degradation of current `/analyze` command functionality.
+
+**DEVELOPMENT APPROACH**: Preserve architectural patterns while completely rewriting synthesis components that produce inadequate results. Current `/market-research` implementation works technically but delivers poor quality (5/10 satisfaction). Developers should build clean, professional implementations rather than building on code that produces substandard output.
+
+## ROLLBACK PROCEDURES & SAFETY PROTOCOLS
+
+### Story-Level Rollback Procedures
+
+**Story 1.1 (BMAD Framework Integration)**:
+- **Rollback Trigger**: Quality score < 70% OR existing `/analyze` commands fail OR BMAD integration errors > 10%
+- **Rollback Process**:
+  1. Disable BMAD modules via feature flag
+  2. Restart MarketResearchOrchestrator with original logic
+  3. Verify existing `/analyze` commands function identically
+  4. Run regression test suite on all Slack commands
+- **Verification Steps**: Complete /analyze, /ask, /reset, /health command test suite
+- **Recovery Time Estimate**: 15 minutes
+- **Data Preservation**: Session data remains intact, no data loss expected
+
+**Story 1.2 (Enhanced Source Collection)**:
+- **Rollback Trigger**: API failures > 20% OR cost overrun > 150% baseline OR source quality degradation
+- **Rollback Process**:
+  1. Revert Tavily API integration to original 24-source configuration
+  2. Disable enhanced source collection via feature flag
+  3. Test source collection functionality with known working queries
+  4. Verify cost metrics return to baseline levels
+- **Verification Steps**: Successful market research execution with original source count
+- **Recovery Time Estimate**: 10 minutes
+- **Data Preservation**: No impact on user sessions or stored data
+
+**Story 1.3 (Professional Report Generation)**:
+- **Rollback Trigger**: Report quality score < 70% OR synthesis failures > 15% OR user satisfaction drop
+- **Rollback Process**:
+  1. Revert expert_formatter.py to previous synthesis logic
+  2. Disable professional report templates via feature flag
+  3. Test report generation with multiple startup types
+  4. Verify output format compatibility with existing workflows
+- **Verification Steps**: Generate test reports and validate against quality baseline
+- **Recovery Time Estimate**: 20 minutes
+- **Data Preservation**: Existing reports remain accessible, new generation uses original logic
+
+**Story 1.4 (Permanent Report Storage)**:
+- **Rollback Trigger**: Storage system failures OR download service errors OR Flask integration issues
+- **Rollback Process**:
+  1. Disable permanent storage via feature flag
+  2. Remove `/reports` directory access from Flask endpoints
+  3. Revert to original temporary report handling
+  4. Verify system functions without storage dependency
+- **Verification Steps**: Test market research without storage, confirm no broken dependencies
+- **Recovery Time Estimate**: 12 minutes
+- **Data Preservation**: Previously stored reports remain but new storage disabled
+
+**Story 1.5 (Enhanced Slack Integration)**:
+- **Rollback Trigger**: Slack integration failures OR message format errors OR download link issues
+- **Rollback Process**:
+  1. Revert to original Slack message formatting
+  2. Disable enhanced summarization via feature flag
+  3. Remove download links from message templates
+  4. Test Slack integration with original message format
+- **Verification Steps**: Send test messages, verify threading and formatting
+- **Recovery Time Estimate**: 8 minutes
+- **Data Preservation**: Message history preserved, new messages use original format
+
+**Story 1.6 (Quality Assurance Integration)**:
+- **Rollback Trigger**: Quality gates blocking legitimate requests OR monitoring system failures
+- **Rollback Process**:
+  1. Disable quality scoring system via feature flag
+  2. Remove quality validation gates from request flow
+  3. Revert to original request processing pipeline
+  4. Verify system performance returns to baseline
+- **Verification Steps**: Process requests without quality gates, confirm no impact on performance
+- **Recovery Time Estimate**: 10 minutes
+- **Data Preservation**: All data preserved, quality scoring disabled
+
+### System-Level Emergency Rollback
+
+**Full System Rollback Procedure**:
+- **Trigger**: Multiple story rollbacks required OR system-wide failure OR critical production issue
+- **Process**:
+  1. Execute Railway deployment rollback to previous stable commit
+  2. Restore environment variables to previous configuration
+  3. Verify all existing Slack commands function identically
+  4. Run complete integration test suite
+  5. Monitor system health for 30 minutes post-rollback
+- **Recovery Time**: 45 minutes maximum
+- **Communication**: Notify users of temporary service restoration, provide timeline for re-deployment
+
+## FEATURE FLAG STRATEGY
+
+### Feature Flag Implementation Architecture
+
+**Core Feature Flags Configuration**:
+```python
+ENHANCEMENT_FEATURE_FLAGS = {
+    "bmad_framework_enabled": False,           # Story 1.1: BMAD Framework Integration
+    "enhanced_source_collection": False,      # Story 1.2: 24→50+ Source Collection
+    "professional_report_generation": False,  # Story 1.3: McKinsey-Quality Reports
+    "permanent_report_storage": False,        # Story 1.4: Permanent Storage System
+    "enhanced_slack_integration": False,      # Story 1.5: Download Links Integration
+    "quality_assurance_gates": False          # Story 1.6: Quality Validation Gates
+}
+```
+
+**Feature Flag Usage Pattern**:
+```python
+# Example implementation in market research orchestrator
+def execute_market_research(user_id, query):
+    if get_feature_flag("bmad_framework_enabled", user_id):
+        return enhanced_market_research_with_bmad(query)
+    else:
+        return legacy_market_research(query)
+```
+
+### Gradual Rollout Strategy
+
+**Phase 1: Internal Validation (Week 1)**
+- All flags OFF for production users
+- Flags ON for development team testing only
+- Target: Validate basic functionality without user impact
+- Success Criteria: All existing functionality preserved, enhanced features working locally
+
+**Phase 2: Limited Beta Testing (Week 2)**
+- Flags ON for 10% of users (feature flag percentage control)
+- Monitor user satisfaction and error rates closely
+- Target: Real-world validation with limited exposure
+- Success Criteria: User satisfaction ≥8.5/10, error rate <5%
+
+**Phase 3: Gradual Production Rollout (Week 3)**
+- Flags ON for 25% → 50% → 100% users over 3-day intervals
+- Continuous monitoring of quality metrics and performance
+- Target: Full production deployment with safety controls
+- Success Criteria: System stability maintained, quality targets met
+
+**Phase 4: Flag Consolidation (Week 4)**
+- Remove feature flags after 1 week of stable 100% rollout
+- Clean up code to eliminate conditional logic
+- Target: Production-ready system without flag overhead
+- Success Criteria: Code simplified, performance optimized
+
+### Feature Flag Management & Control
+
+**Administrative Control Interface**:
+```python
+# Feature flag admin endpoints for real-time control
+POST /admin/feature-flags/{flag_name}/enable/{percentage}
+POST /admin/feature-flags/{flag_name}/disable
+GET /admin/feature-flags/status
+```
+
+**Per-User Feature Flag Override**:
+```python
+# Allow specific users to be included/excluded from features
+FEATURE_FLAG_USER_OVERRIDES = {
+    "user_123": {"bmad_framework_enabled": True},    # Early access for power users
+    "user_456": {"enhanced_source_collection": False} # Exclude problematic cases
+}
+```
+
+**Emergency Rollback via Feature Flags**:
+- All feature flags can be disabled immediately via admin interface
+- No code deployment required for emergency rollback
+- Gradual rollback possible (100% → 50% → 25% → 0%)
+- Individual feature isolation for granular rollback control
+
+### Feature Flag Monitoring & Metrics
+
+**Real-Time Monitoring Dashboard**:
+- Feature flag activation rates per user segment
+- Error rates with flags enabled vs disabled
+- Performance metrics comparison (flag on vs off)
+- User satisfaction scores by feature flag status
+
+**Alert Thresholds**:
+- Error rate increase >10% with any flag enabled → Auto-rollback trigger
+- User satisfaction drop >1 point → Investigation alert
+- Performance degradation >20% → Flag percentage reduction
+- Cost increase >150% baseline → Enhanced source collection flag review
+
+### Story 1.1: BMAD Framework Integration into Existing Architecture
+
+As a **VC analyst**,
+I want **the system to integrate BMAD Framework methodologies into existing MarketResearchOrchestrator**,
+so that **I can receive enhanced market analysis with professional intelligence depth**.
+
+#### Acceptance Criteria
+1. BMAD Framework modules integrated into existing `agents/market_research_orchestrator.py`
+2. Expert persona system with 8 research types (product validation, competitive intelligence, etc.) added to current architecture
+3. Enhanced synthesis logic integrated with existing Single Process Architecture
+4. BMAD integration documented in updated CLAUDE.md with component enhancement details
+5. Demo-first development approach established with local validation capabilities
+
+#### Integration Verification
+- IV1: All existing Slack commands (`/analyze`, `/ask`, `/reset`, `/health`) function identically
+- IV2: Session management through `user_sessions` dict remains unaffected
+- IV3: Enhanced system integrates seamlessly with existing Railway deployment pipeline
+
+### Story 1.2: Enhanced Multi-Source Intelligence Collection
+
+As a **VC analyst**,
+I want **the system to expand existing source collection from current 24 to 50+ high-quality sources through enhanced Tavily API integration**,
+so that **market analysis is based on comprehensive, reliable data with professional source diversity**.
+
+#### Acceptance Criteria
+1. Existing Tavily API integration enhanced to expand from current 24 to 50+ verified sources per analysis
+2. Intelligent source quality scoring and filtering implemented
+3. Multi-API integration (Tavily enhanced, additional pay-per-use APIs)
+4. Source diversity validation (geographic, temporal, domain variety)
+5. Rate limiting and exponential backoff for API management
+6. Source traceability for professional citation requirements
+
+#### Integration Verification
+- IV1: Enhanced collection operates independently without affecting other system functionality
+- IV2: API costs monitored and controlled within acceptable parameters
+- IV3: Source collection failure gracefully degrades without system disruption
+
+### Story 1.3: Enhanced Professional Report Generation
+
+As a **VC analyst**,
+I want **the system to enhance existing synthesis capabilities in expert_formatter.py to generate comprehensive 10-20 page markdown reports with professional structure and citations**,
+so that **I receive consultant-quality analysis suitable for investment committee presentation**.
+
+#### Acceptance Criteria
+1. Existing `expert_formatter.py` enhanced with professional report templates (Executive Assessment, Critical Findings, Risk Matrix, etc.)
+2. Current synthesis logic upgraded to produce 8-10 actionable insights per report (vs current 3-4 superficial insights)
+3. Professional citation system integrated with existing source processing
+4. Enhanced markdown formatting optimized for professional presentation
+5. Quality validation gates integrated ensuring minimum 70% quality score
+6. Investment recommendations with risk assessment (HIGH RISK, MODERATE RISK, LOW RISK)
+
+#### Integration Verification
+- IV1: Report generation operates asynchronously without blocking Slack command responses
+- IV2: Generated reports stored without interfering with session data structures
+- IV3: Memory usage controlled to prevent system resource conflicts
+
+### Story 1.4: Permanent Report Storage and Download System
+
+As a **VC analyst**,
+I want **permanent storage and download capability for professional market research reports**,
+so that **I can access and organize comprehensive reports as permanent business assets**.
+
+#### Acceptance Criteria
+1. Permanent report storage implemented in `/reports` directory within existing Flask application structure
+2. Download service integrated with existing Flask web server using new endpoint
+3. Session management enhanced to include permanent report references without disrupting existing `user_sessions` dict structure
+4. Professional report file naming with startup and timestamp identification
+5. Download endpoint creation for secure report access
+6. Report storage operates independently of existing document analysis workflows
+
+#### Integration Verification
+- IV1: Report storage integrates seamlessly with existing Flask application architecture
+- IV2: Download service operates without affecting existing `/analyze` command performance
+- IV3: Permanent storage system maintains Railway deployment compatibility
+
+### Story 1.5: Enhanced Slack Integration with Report Downloads
+
+As a **VC analyst**,
+I want **existing Slack integration enhanced to provide intelligent summarization with permanent report download links**,
+so that **I receive immediate decision support while having permanent access to detailed professional reports**.
+
+#### Acceptance Criteria
+1. Existing Slack formatting enhanced to convert 10-20 page reports to 3500 character summaries while maintaining current threading patterns
+2. Perfect alignment between summary and full report content maintained through enhanced synthesis
+3. Key insights and risk assessments prominently featured in existing message format
+4. Permanent report download links integrated into existing Slack message structure (depends on Story 1.4 download endpoints)
+5. Enhanced summarization maintains existing user experience patterns
+6. Summary quality validation integrated before delivery to existing channels
+
+#### Integration Verification
+- IV1: Slack message formatting compatible with existing threading and channel patterns
+- IV2: Summary generation does not exceed Slack API rate limits
+- IV3: Fallback mechanisms handle summarization failures gracefully
+- **IV4: Download link integration functions correctly with Story 1.4 storage system**
+
+### Story 1.6: Demo-Ready Quality Assurance and System Integration
+
+As a **VC analyst**,
+I want **professional quality gates integrated into existing system architecture with demo-first validation approach**,
+so that **enhanced market intelligence meets professional standards while preserving system reliability**.
+
+#### Acceptance Criteria
+1. Comprehensive quality scoring system integrated with existing validation patterns
+2. Demo-first development approach with local validation before production deployment
+3. **EXPANDED INTEGRATION TESTING**: Comprehensive regression testing covering all system integration points
+4. Railway resource monitoring and alerting integrated for enhanced processing loads
+5. User satisfaction tracking enhanced for professional output quality measurement
+6. Complete CLAUDE.md documentation updates reflecting incremental enhancement patterns
+
+#### EXPANDED INTEGRATION TESTING REQUIREMENTS
+
+**Pre-Deployment Integration Test Suite**:
+
+1. **Existing System Preservation Testing**:
+   ```yaml
+   Test Scenario: Concurrent Command Execution
+   - Execute /analyze command while /market-research is running
+   - Verify: No session interference, both commands complete successfully
+   - Verify: Memory usage within acceptable limits, no resource conflicts
+
+   Test Scenario: Session Management Integrity
+   - Analyze Document A in Channel 1, run market research on Startup B in Channel 2
+   - Verify: Session data correctly isolated, no cross-contamination
+   - Verify: Enhanced session structure doesn't break existing patterns
+
+   Test Scenario: Slack Command Compatibility
+   - Test all existing commands: /analyze, /ask, /reset, /health
+   - Verify: Response times unchanged, message formatting preserved
+   - Verify: Threading and channel patterns function identically
+   ```
+
+2. **Enhancement Integration Testing**:
+   ```yaml
+   Test Scenario: BMAD Framework Integration
+   - Test enhanced /market-research with BMAD enabled/disabled
+   - Verify: Quality improvement with BMAD vs baseline performance
+   - Verify: Graceful fallback when BMAD components fail
+
+   Test Scenario: Source Collection Scaling
+   - Test source collection from 24→50+ sources
+   - Verify: API rate limiting handles increased load gracefully
+   - Verify: Cost monitoring accurately tracks enhanced usage
+   - Verify: Performance remains within 2-3 minute target
+
+   Test Scenario: Report Generation and Storage
+   - Generate reports, store permanently, create download links
+   - Verify: End-to-end workflow completes successfully
+   - Verify: Download links function correctly in Slack integration
+   - Verify: Storage doesn't interfere with existing document analysis
+   ```
+
+3. **Error Scenario and Resilience Testing**:
+   ```yaml
+   Test Scenario: API Failure Handling
+   - Simulate Tavily API failures during source collection
+   - Verify: Graceful degradation, user receives meaningful error
+   - Verify: System doesn't crash, existing functionality unaffected
+
+   Test Scenario: Railway Resource Constraints
+   - Simulate high memory usage during 50+ source processing
+   - Verify: System handles resource pressure gracefully
+   - Verify: Monitoring alerts trigger appropriately
+   - Verify: Performance degradation doesn't affect existing commands
+
+   Test Scenario: Feature Flag Emergency Rollback
+   - Disable features via feature flags during active processing
+   - Verify: Graceful rollback without system interruption
+   - Verify: Users receive appropriate communication about changes
+   - Verify: System returns to baseline functionality correctly
+   ```
+
+4. **User Experience Integration Testing**:
+   ```yaml
+   Test Scenario: Cross-Channel Workflow Testing
+   - User analyzes documents in Channel A, runs market research in Channel B
+   - Verify: No session conflicts, appropriate context isolation
+   - Verify: Download links accessible from correct channels only
+
+   Test Scenario: Quality Gate Validation
+   - Submit various quality levels of market research requests
+   - Verify: Quality gates block substandard output appropriately
+   - Verify: Users receive clear feedback on quality issues
+   - Verify: Quality scoring aligns with professional standards (70%+ threshold)
+   ```
+
+**Performance Benchmark Integration Testing**:
+- **Baseline Performance**: Document existing /analyze response times
+- **Enhanced Performance**: Verify /market-research completes within 2-3 minutes
+- **Concurrent Performance**: Test multiple simultaneous requests
+- **Resource Usage**: Monitor memory, CPU, API call patterns
+- **Cost Analysis**: Validate cost increases remain within acceptable parameters
+
+**Automated Regression Test Suite**:
+```yaml
+Automated Tests (Run on every deployment):
+  - All existing Slack commands function identically
+  - Session management preserves existing behavior
+  - Enhanced features work when feature flags enabled
+  - Feature flags provide proper isolation when disabled
+  - Error handling maintains system stability
+  - Performance stays within defined thresholds
+
+Manual Validation Tests (Run before major releases):
+  - End-to-end user workflows from multiple personas
+  - Cross-browser/platform compatibility for download links
+  - Professional report quality assessment by domain experts
+  - User satisfaction validation through structured feedback
+```
+
+#### Integration Verification
+- IV1: **Comprehensive regression testing** confirms zero degradation of existing functionality
+- IV2: **Production integration** maintains 95% system reliability with enhanced processing loads
+- IV3: **Enhanced system** achieves >8.5/10 user satisfaction through validated quality improvements
+- **IV4: Integration test suite** covers all enhancement scenarios and error conditions
