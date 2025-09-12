@@ -1,216 +1,302 @@
-# Product Requirements Document: DataRoom Intelligence - Professional Market Intelligence Evolution
+# DataRoom Intelligence Brownfield Enhancement PRD
 
-## 1. Executive Summary
-
-DataRoom Intelligence currently provides basic AI-powered market research but suffers from an inefficient architecture that creates inconsistent outputs and lacks the analytical depth required for professional investment decisions. This brownfield project will re-architect the platform into a Professional Market Intelligence System. We will replace the redundant, separate processes for Slack and full reports with a single, comprehensive analysis pipeline, ensuring consistent, high-quality intelligence across all outputs.
-
-This evolution will introduce a suite of post-analysis tools, transforming static reports into a queryable "living intelligence asset" and enabling automated fact-checking of startup claims against market reality with a new `/verify` command. Key infrastructure upgrades, including Redis-backed session persistence and automated Quality Gates, will ensure reliability and scalability. This strategic enhancement is projected to reduce manual verification work for VC analysts by up to 70%, providing a decisive competitive advantage and unlocking the underserved mid-market VC segment.
-
----
-
-## 2. Problem Statement
-
-#### **Current State**
-DataRoom Intelligence is a functional MVP that successfully automates basic data room analysis and market research using a cost-optimized, streamlined architecture. It processes documents from Google Drive, performs a 3-level hierarchical web search using the Tavily API to gather 24 sources, and delivers a Slack-based summary with a PROCEED/PASS recommendation. Despite a 77% reduction in API calls compared to multi-agent competitors, the platform's output is rated as surface-level (6/10 user satisfaction) and often "doesn't add value to a VC analyst". Key operational limitations include in-memory session management that loses context between commands and an inefficient dual-process architecture for generating Slack summaries and full reports.
-
-#### **The Problem**
-The core problem is that the platform's intelligence capabilities do not meet the standards of professional venture capital due diligence. This manifests in several critical gaps:
-1.  **Lack of Analytical Depth**: The current single-pass synthesis provides generic insights rather than the deep, verifiable analysis required for high-stakes investment decisions.
-2.  **Static Intelligence**: The generated reports are static "snapshots." They cannot be queried, updated, or cross-referenced, failing to become a "living" part of the deal evaluation process.
-3.  **No Claims Verification**: The system cannot automatically validate a startup's claims (e.g., market size, competitive differentiation) against the independently gathered market intelligence, a crucial step in professional due diligence.
-4.  **Architectural Inefficiency**: The dual-pipeline process for generating Slack and Markdown outputs is redundant, costly, and can lead to inconsistencies between the summary and the full report.
-5.  **Poor User Experience**: The lack of session persistence forces users to restart the analysis flow frequently, creating a fragmented and frustrating workflow.
-
-#### **Impact**
-These deficiencies severely limit the platform's value and market potential. The low-depth analysis undermines user trust and credibility, leading to poor user satisfaction (6/10) and positioning the tool as a novelty rather than an essential part of the VC tech stack. The inability to perform critical functions like claims verification means analysts must still perform significant manual work, defeating the platform's primary value proposition. This restricts the addressable market to less sophisticated investors and exposes the platform to competitive threats from both established players adding AI and new AI-native startups.
+**Template**: brownfield-prd-template-v2  
+**Version**: 1.0  
+**Date**: 2025-01-11  
+**Output**: docs/prd.md  
 
 ---
 
-## 3. Proposed Enhancement
+## Intro Project Analysis and Context
 
-#### **Core Concept**
-The proposed enhancement will evolve DataRoom Intelligence from a basic analysis tool into a professional-grade, independent market intelligence platform. The central innovation is the adoption of a **Single Process Architecture**. Instead of running separate, inefficient processes for Slack and full reports, the system will execute one comprehensive, deep analysis using the BMAD framework to generate a 15-20 page professional report. A high-fidelity, intelligent summary for Slack will then be derived from this complete report, ensuring perfect coherence and eliminating redundant API calls. This allows the platform to deliver consultant-level analysis focused on the market's potential, independent of the startup's own documentation quality.
+### Analysis Source
+**IDE-based fresh analysis** - Working with current project state after revert to commit 98d2b80
 
-#### **Key Features & Capabilities**
-1.  **Post-Analysis Intelligence Suite**: A new set of Slack commands will transform static reports into dynamic, "living" intelligence assets.
-    * **`/verify`**: Automatically compares claims made in a startup's dataroom against the independently generated market intelligence report to flag discrepancies and exaggerations.
-    * **`/ask-reports`**: Allows users to ask natural language questions about any report generated within the session, enabling continuous, interactive due diligence.
-    * **`/search`**: Provides ad-hoc, real-time web intelligence with a synthesized summary without needing to run a full analysis.
-    * **`/memo`**: Generates a standardized, investment committee-ready memo by consolidating all gathered intelligence.
-2.  **BMAD Framework Integration**: The analysis engine will be upgraded to use the BMAD methodology for deeper, more structured insights.
-    * **Adaptive Research Types**: The system will dynamically select from 8 different research personas and frameworks based on the startup's stage and market context.
-    * **Structured Prompting**: Analysis will be guided by expert-level, structured prompts to ensure professional quality and depth.
-3.  **Critical Infrastructure Upgrades**: The platform's foundation will be enhanced for reliability and user experience.
-    * **Session Persistence**: User sessions will be moved from volatile in-memory storage to a Redis-backed system, maintaining context across commands and over time (24-hour TTL).
-    * **Intelligent Caching**: A multi-tier caching system will be implemented for search results and competitor data to reduce API costs by an estimated 40-50%.
-    * **Quality Gates System**: An automated validation layer will ensure all analysis outputs meet minimum quality thresholds before being delivered to the user.
+### Current Project State
+**DataRoom Intelligence Bot** is currently a functioning AI-powered data room analysis system for venture capital firms. The system successfully:
 
-#### **Targeted Outcomes**
-* **Improved Output Quality**: Increase user satisfaction with analysis depth and value from 6/10 to a target of 8.5/10.
-* **Increased Analytical Depth**: Elevate reports from 3-4 basic insights to 8-10 actionable, consultant-level insights per analysis.
-* **Enhanced User Efficiency**: Reduce the need for manual claims verification and follow-up research by up to 70% with the new `/verify` and `/ask-reports` commands.
-* **Superior User Experience**: Achieve a 95% session restoration rate, eliminating the frustration of lost context between commands.
-* **Greater Credibility**: Establish the platform as an essential, high-trust tool for professional VC due diligence through verifiable, in-depth, and interactive intelligence.
+- Processes PDF documents from Google Drive links via `/analyze` command
+- Extracts structured information using **primitive regex-based text extraction**
+- Performs market research via `/market-research` command with web search integration
+- Provides Q&A functionality via `/ask` command on analyzed documents
+- Supports additional analysis commands: `/scoring`, `/memo`, `/gaps`
+- Operates with TEST_MODE/PRODUCTION_MODE dual architecture
 
----
+**Current Extraction Limitations** (the problem we're solving):
+- Relies on basic regex patterns for information extraction
+- Cannot analyze visual elements, charts, graphs, or complex layouts
+- Misses contextual information that's visually apparent but textually ambiguous
+- Limited to text-based pattern matching without semantic understanding
 
-## 4. Functional Requirements
+### Enhancement Scope Definition
 
-#### **Epic 1: Platform Stability & User Experience Foundation**
-*Goal: To deliver immediate user value and improve system performance with foundational infrastructure that can support future enhancements.*
+**Enhancement Type**: ✅ **New Feature Addition** + **Major Feature Modification** + **Code Simplification**
 
-* **Story 1.1: Implement Redis-backed Session Persistence**
-    * **As a** VC Analyst, **I want** my analysis session to persist during the entire deal evaluation lifecycle (days or weeks), **so that** I can build upon previous analysis without losing context.
-    * **Acceptance Criteria:**
-        1.  User session data is stored in a Redis cache with a **30-day TTL**.
-        2.  After running `/analyze`, a user can run `/market-research` days or weeks later and the context is retrieved successfully.
-        3.  The `/analyze debug` command correctly displays session information from Redis.
-        4.  Session TTL is automatically extended upon any new command activity.
-        5.  The system gracefully handles expired sessions.
+**Enhancement Description**: 
+Replace the current primitive regex-based deck information extraction with an intelligent visual analysis system using GPT-4V/5V AND eliminate the entire TEST_MODE architecture. The system will analyze PDF pages as images while removing all mock responses, test mode flags, and development/production mode complexity. All development and testing will be done directly with production APIs.
 
-* **Story 1.2: Implement Intelligent Caching for Web Searches**
-* **Story 1.3: Implement Caching for Competitor & Market Data**
+**Impact Assessment**: ✅ **Significant Impact** (substantial existing code changes)
+- Complete removal of TEST_MODE/PRODUCTION_MODE dual architecture from ALL commands
+- Deletion of all mock response systems and test mode handlers (87+ conditional logic points)
+- Simplification of codebase by removing conditional logic throughout all Slack commands
+- New GPT Vision integration with production-only approach
+- Streamlined development workflow with direct API testing
 
-#### **Epic 2: Core Analysis Engine Upgrade**
-*Goal: Re-architect the analysis pipeline and integrate the BMAD framework to produce professional-grade intelligence.*
+### Goals and Background Context
 
-* **Story 2.1: Develop Comprehensive Markdown Report Generator**
-* **Story 2.2: Develop Intelligent Summarizer Module for Slack**
-* **Story 2.3: Integrate New Pipeline and Deprecate Old Architecture**
-* **Story 2.4: Implement BMAD Framework for a Single Research Type (e.g., Competitive Intelligence)**
-* **Story 2.5: Implement Adaptive Selection Logic and Roll Out Remaining Research Types**
+**Goals**:
+• Replace primitive regex extraction with intelligent visual PDF analysis using GPT-4V/5V
+• **ELIMINATE TEST_MODE completely** from ALL commands - remove all mock responses and test mode infrastructure  
+• **Simplify codebase** by removing dual-mode architecture and conditional TEST_MODE logic across entire system
+• **Enhance ALL commands** (`/ask`, `/gaps`, `/scoring`, `/memo`) with improved extraction quality
+• Enable direct production API development and testing workflow
+• Maintain hybrid approach combining visual analysis with existing text extraction capabilities
+• Preserve backward compatibility with current document processing workflow (minus TEST_MODE complexity)
 
-#### **Epic 3: Advanced Intelligence Suite**
-*Goal: Launch the new user-facing commands that leverage the upgraded analysis engine.*
+**Background Context**:
+The current system suffers from two major issues: primitive regex-based extraction AND unnecessary architectural complexity from the TEST_MODE system. The dual-mode approach has created code bloat with mock responses, conditional logic, and development complexity across ALL commands without providing real value.
 
-* **Story 3.1: Implement `/verify` Command for Claims Verification**
-* **Story 3.2: Implement `/ask-reports` Command for Report Querying**
-* **Story 3.3: Implement Automated Quality Gates**
+Professional development should work directly with production APIs, accepting the API costs as a necessary part of building quality software. Eliminating TEST_MODE will simplify the codebase, reduce maintenance burden, and streamline the development process while implementing superior GPT Vision-based extraction that improves response quality across all user-facing commands.
 
 ---
 
-## 5. Non-Functional Requirements (NFRs)
+## Requirements
 
-#### **5.1 Performance**
-* **Analysis Throughput**: The end-to-end single-process analysis for `/market-research` may take up to **5 minutes** for a standard dataroom (up to 15 documents). This is acceptable given the command's infrequent use, provided the user is kept informed with real-time progress tracking.
-* **Command Responsiveness**: Post-analysis commands must meet the following response time targets: `/verify` < 10s, `/ask-reports` < 10s, `/search` < 15s.
-* **Caching Efficiency**: The intelligent caching system must achieve a minimum cache hit rate of 40%.
+### Functional Requirements
 
-#### **5.2 Reliability**
-* **System Uptime**: Must maintain 99.5% uptime.
-* **Analysis Success Rate**: Must be above 95%.
-* **Session Persistence**: Must achieve a 99.9% successful restoration rate for sessions within the **30-day TTL**.
-* **Graceful Degradation**: Must deliver a coherent "Conservative Assessment" on Quality Gate failure.
+**FR1: GPT Vision PDF Analysis Integration**  
+The system shall integrate GPT-4V/5V vision capabilities to analyze PDF pages as images, extracting information that cannot be captured through text-only regex parsing, including charts, graphs, visual layouts, and contextual information.
 
-#### **5.3 Scalability**
-* **Concurrent Users**: While current concurrency is low, the system must support up to 5 simultaneous requests and be architected for future horizontal scaling.
-* **Data Volume**: Must process reports generated from 50+ sources without timeouts.
+**FR2: Hybrid Extraction Architecture**  
+The system shall maintain a hybrid approach combining GPT Vision analysis with existing text extraction capabilities to maximize information capture accuracy and provide validation between visual and textual extraction results.
 
-#### **5.4 Security**
-* **Data Isolation**: Data must be strictly isolated at the Slack channel level.
-* **Credential Management**: API keys must be stored securely as environment variables.
-* **Infrastructure Security**: Redis instance must be secured within the private network.
+**FR3: Universal Command Enhancement**  
+All document analysis commands (`/ask`, `/gaps`, `/scoring`, `/memo`) shall benefit from enhanced visual and textual extraction, with improved response quality and accuracy across all user-facing functionality.
 
-#### **5.5 Responsiveness & User Feedback**
-* **Immediate Acknowledgement**: All Slack commands must provide an initial "Processing..." message to the user in under 2 seconds, with the main task running in the background.
+**FR4: Complete TEST_MODE Architecture Elimination**  
+The system shall completely remove all TEST_MODE and PRODUCTION_MODE conditional logic, mock responses, and dual-mode architecture from ALL Slack commands and infrastructure, operating exclusively with production APIs.
 
----
+**FR5: Enhanced Session Data Integration**  
+The system shall store both visual and textual extraction results in unified user session data accessible to all commands, enabling cross-command data sharing and comprehensive analysis.
 
-## 6. Market Context
+**FR6: Intelligent Document Type Processing**  
+The system shall automatically detect document types (PDF with graphics, PDF text-only, Excel files) and apply appropriate processing methods to optimize extraction quality and cost efficiency.
 
-#### **6.1 Market Overview**
-The market for AI-powered VC due diligence tools is fragmented and in a high-growth phase, driven by an accelerating AI adoption wave across the investment industry. Currently, no single player has more than 20% market share. The landscape is a mix of established VC tech platforms retrofitting AI capabilities and a new class of AI-native startups.
+**FR7: Multi-Format Processing Engine**  
+The system shall handle PDFs, Excel files, and mixed document formats through intelligent processing selection, combining visual analysis, text extraction, and native data processing as appropriate.
 
-#### **6.2 Target Audience**
-The primary target is the underserved **mid-market VC segment**, comprising over 500 firms managing **$50M to $500M in AUM**. These firms typically evaluate **200-500 deals annually** but are priced out of enterprise solutions.
+**FR8: Production-Only Development Workflow**  
+All development, testing, and deployment shall work exclusively with production APIs without mode configuration complexity, requiring only essential API keys for operation.
 
-#### **6.3 Competitive Landscape**
-The platform faces three distinct competitive threats:
-1.  **Incumbent Threat (Affinity)**: Threat of adoption through a massive existing user base (600+ VCs).
-2.  **AI-Native Threat (Harmonic)**: Threat of a focused, agile competitor with a similar AI-first approach.
-3.  **Platform Threat (OpenAI/Microsoft)**: Long-term risk of a tech giant building a similar, deeply integrated solution.
-Our architectural efficiency provides a sustainable cost and quality advantage, allowing us to profitably serve the mid-market.
+### Non-Functional Requirements
 
----
+**NFR1: API Cost Management**  
+The system must implement intelligent cost controls for GPT Vision API calls, including automated decision-making for when vision analysis adds value, with cost monitoring and budget controls.
 
-## 7. User Personas
+**NFR2: Processing Performance**  
+GPT Vision analysis shall not exceed 30 seconds per PDF page to maintain acceptable user experience within Slack interaction timeouts, with fallback to text-only extraction if vision processing fails.
 
-#### **7.1 Primary Persona: Alex, The VC Analyst**
-* **Role**: Senior Associate at a mid-market VC firm.
-* **Goals**: Quickly assess startup viability, reduce manual work, present data-backed recommendations.
-* **Pain Points**: Overwhelmed by high deal flow, fragmented workflows, and the high cost of enterprise tools.
-* **How Enhancement Helps**: The `/verify` command saves hours of manual fact-checking. Session persistence and professional reports streamline the workflow and improve the quality of deliverables to partners.
+**NFR3: Code Complexity Reduction**  
+The elimination of TEST_MODE shall reduce conditional logic complexity by minimum 50%, measured by the removal of 87+ conditional statements across the codebase.
 
-#### **7.2 Secondary Persona: Sam, The Independent Consultant**
-* **Role**: Solo due diligence consultant serving multiple VC firms.
-* **Goals**: Deliver enterprise-grade analysis, scale the practice, and standardize deliverables.
-* **Pain Points**: Lacks access to expensive enterprise tools, and manual processes are a bottleneck.
-* **How Enhancement Helps**: Provides access to previously unaffordable analytical power. The professional reports and adaptive research framework allow for high-quality, tailored deliverables that scale the business.
+**NFR4: Enhanced Response Quality**  
+All commands (`/ask`, `/gaps`, `/scoring`, `/memo`) shall demonstrate improved response quality and accuracy through enhanced extraction, with measurable improvements in information comprehensiveness.
 
----
+**NFR5: Universal Command Compatibility**  
+All existing Slack commands must function identically post-implementation, with enhanced analysis quality but unchanged user interfaces and interaction patterns.
 
-## 8. User Stories / Epics
+**NFR6: Memory and Resource Optimization**  
+GPT Vision integration shall not increase memory usage by more than 25% compared to current text-only processing, with efficient image processing and cleanup.
 
-This project is organized into three core epics. Detailed User Stories and Acceptance Criteria are documented in **Section 4: Functional Requirements**.
+**NFR7: Development Workflow Simplification**  
+The system shall support direct production API development without environment mode configuration, requiring only essential API keys for setup and operation.
 
-* **Epic 1: Platform Stability & User Experience Foundation**: To implement foundational infrastructure like session persistence and caching.
-* **Epic 2: Core Analysis Engine Upgrade**: To re-architect the analysis pipeline and integrate the BMAD framework for professional-grade reports.
-* **Epic 3: Advanced Intelligence Suite**: To launch the new user-facing commands (`/verify`, `/ask-reports`, etc.) that leverage the upgraded engine.
+### Compatibility Requirements
 
----
+**CR1: Existing API Integration Continuity**  
+All current OpenAI GPT-4 and Tavily API integrations must continue working without TEST_MODE conditional logic, maintaining identical functionality with simplified code paths across all commands.
 
-## 9. Technical Specifications
+**CR2: Document Processing Pipeline Compatibility**  
+The current PDF processing workflow via Google Drive integration must remain intact, with GPT Vision analysis added as an enhancement layer without disrupting existing document ingestion.
 
-#### **9.1 Architecture & Design**
-The core enhancement is a shift to a **Single Process Architecture**. This event-driven, asynchronous pipeline will orchestrate the entire analysis flow, supported by new modular services for session management, caching, and quality validation.
+**CR3: Universal Command Compatibility**  
+All Slack commands (`/analyze`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/market-research`, `/reset`, `/health`) must maintain current functionality while removing all TEST_MODE conditional logic.
 
-#### **9.2 Technology Stack**
-* **Existing Stack**: Python 3.11, Flask, Slack Bolt, OpenAI GPT-4, Tavily API.
-* **New Additions**:
-    * **Redis**: For session persistence and multi-tier intelligent caching.
-    * **PostgreSQL**: For long-term storage and versioning of generated intelligence reports.
+**CR4: Session Storage Compatibility**  
+User session management must maintain all current functionality while removing test_mode flags and conditional session handling, preserving document analysis state and market research data accessibility across all commands.
 
-#### **9.3 Data Management**
-* **Session Data**: Stored in Redis with a 30-day TTL.
-* **Cache Data**: API responses and intermediate results stored in Redis with varying TTLs.
-* **Intelligence Reports**: Full Markdown reports stored persistently in PostgreSQL.
-
-#### **9.4 Integration Points**
-* The system maintains existing integrations with Google Drive, OpenAI, Tavily, and Slack.
-* New internal services for Session Management, Caching, and Post-Analysis Commands will be integrated with the main orchestrator and the new data stores (Redis, PostgreSQL).
+**CR5: Environment Configuration Simplification**  
+The system must operate with simplified environment configuration containing only essential API keys (OPENAI_API_KEY, TAVILY_API_KEY, SLACK_*) without TEST_MODE or PRODUCTION_MODE variables.
 
 ---
 
-## 10. Risks and Mitigation
+## Technical Constraints and Integration Requirements
 
-#### **10.1 Technical Risks**
-* **Risk**: The core architectural refactor could lead to delays and introduce new bugs.
-    * **Mitigation**: A phased rollout using feature flags will be employed, along with comprehensive regression testing before deprecating the old pipeline.
-* **Risk**: Introducing new dependencies (Redis, PostgreSQL) adds operational complexity.
-    * **Mitigation**: Infrastructure will be managed via IaC, with robust monitoring, alerting, and load testing implemented before production.
+### Existing Technology Stack
+**Languages**: Python 3.8+  
+**Frameworks**: Flask, Slack Bolt Framework  
+**Database**: In-memory user sessions (dict-based storage)  
+**Infrastructure**: Railway deployment, Google Drive API integration  
+**External Dependencies**: OpenAI GPT-4/Vision API, Tavily Search API, PyPDF2, pdfplumber, pandas, openpyxl  
 
-#### **10.2 Product Risks**
-* **Risk**: "Living intelligence" features (`/ask-reports`, `/verify`) may not achieve the required accuracy to be trustworthy.
-    * **Mitigation**: Launch features in a closed beta to gather feedback and refine accuracy. Clearly communicate confidence levels and cite sources to manage user expectations.
-* **Risk**: Automated Quality Gates could be improperly calibrated.
-    * **Mitigation**: Initially launch in a "logging-only" mode to calibrate thresholds on real-world data without impacting users.
+### Integration Approach
+**GPT Vision Integration Strategy**: Add vision processing as complementary layer to existing text extraction, with intelligent decision-making for when to apply vision analysis based on document content analysis.
 
-#### **10.3 Market Risks**
-* **Risk**: Competitors may release similar AI features faster, neutralizing our advantage.
-    * **Mitigation**: Prioritize and accelerate the development of unique, defensible features like `/verify`. Focus go-to-market messaging on our superior cost-efficiency and claims verification capabilities.
+**API Integration Strategy**: Eliminate dual-mode complexity while maintaining all current OpenAI and Tavily integrations, with simplified error handling and unified response processing.
+
+**Session Management Strategy**: Enhance existing user session storage to include both text and visual extraction results in unified data structure accessible across all commands.
+
+**Command Enhancement Strategy**: Modify all command handlers to remove TEST_MODE logic while enhancing functionality through improved extraction data access.
+
+### Code Organization and Standards
+**File Structure Approach**: Maintain existing structure while adding GPT Vision processing modules and removing test mode infrastructure files.
+
+**Processing Decision Architecture**: Implement intelligent document analysis to determine optimal extraction method (text-only, vision-enhanced, or hybrid) based on content complexity.
+
+**Error Handling Consolidation**: Unified error handling without TEST_MODE branching, consistent responses across all operational scenarios.
+
+**Session Data Enhancement**: Extended user session schema incorporating visual extraction results alongside existing text data.
+
+### Deployment and Operations
+**Environment Simplification**: Remove TEST_MODE and PRODUCTION_MODE variables, requiring only essential API keys for all environments.
+
+**Cost Monitoring Integration**: Real-time API cost tracking for development budget management without impacting user experience.
+
+**Performance Monitoring**: Processing time and extraction quality metrics for optimization and validation of enhancement benefits.
+
+**Railway Integration**: Simplified deployment without mode-based configuration complexity.
+
+### Risk Assessment and Mitigation
+**Technical Risks**: GPT Vision API rate limits, processing timeouts, increased API costs during development.  
+**Integration Risks**: Session data compatibility, command response format consistency, backward compatibility maintenance.  
+**Deployment Risks**: Environment configuration changes, API key management simplification.  
+**Mitigation Strategies**: Intelligent cost controls, graceful fallbacks to text extraction, comprehensive testing of all commands, phased implementation approach.
 
 ---
 
-## 11. Success Metrics
+## Epic and Story Structure
 
-#### **11.1 Product & User Metrics**
-* **User Satisfaction**: Increase user satisfaction rating from **6/10 to 8.5/10** within 3 months of launch.
-* **Analysis Quality**: Increase actionable insights per report from an average of **3-4 to 8-10**.
-* **User Efficiency**: Achieve a **70% reduction in time spent on manual claims verification**.
-* **Feature Adoption**: Achieve **50% adoption** of `/verify` and `/ask-reports` among active users within 6 weeks of launch.
+### Epic Approach
+**Epic Structure Decision**: **Single Comprehensive Epic** - The integration of GPT Vision and elimination of TEST_MODE are interrelated changes that must be implemented coordinately to maintain system integrity and maximize impact across all commands.
 
-#### **11.2 Business & Platform Metrics**
-* **System Reliability**: Increase analysis success rate from **85% to over 95%**.
-* **User Experience**: Achieve a **95% successful session restoration rate**.
-* **Cost Efficiency**: Reduce cost-per-analysis by **25%** through caching.
-* **Business Impact**: Contribute to a **10% increase in pilot customer conversion rate**.
+### Epic 1: Intelligent Visual Document Extraction & Complete Architecture Simplification
+
+**Epic Goal**: Transform the document extraction system from primitive regex-based processing to intelligent visual analysis using GPT-4V/5V while completely eliminating TEST_MODE complexity from ALL commands, ensuring enhanced extraction improves response quality across `/ask`, `/gaps`, `/scoring`, `/memo`, and all user-facing functionality.
+
+**Integration Requirements**: 
+- All Slack commands must function without ANY TEST_MODE conditional logic
+- Enhanced extraction data must improve ALL commands that analyze document content
+- GPT Vision insights must be available throughout the entire analysis pipeline
+- Complete elimination of mock responses, test flags, and dual-mode architecture
+
+### Story 1.1: Complete TEST_MODE Infrastructure Elimination
+
+**User Story**:
+As a **VC analyst developer**,  
+I want **all TEST_MODE and PRODUCTION_MODE conditional logic removed from ALL commands and infrastructure**,  
+so that **every command (`/analyze`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/market-research`) works exclusively with production APIs, eliminating architectural complexity**.
+
+**Acceptance Criteria**:
+1. **All Command TEST_MODE Removal**: Eliminate TEST_MODE checks from `/analyze`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/market-research` handlers
+2. **Session Storage Cleanup**: Remove all `test_mode` flags from user session data structure across all commands
+3. **Agent Infrastructure Cleanup**: Remove TEST_MODE logic from all agent classes (MarketResearchOrchestrator, BaseAgent, AIAnalyzer)
+4. **Handler Cleanup**: Remove PRODUCTION_MODE checks from all handlers (market_research_handler.py, ai_analyzer.py)
+5. **Mock Response Elimination**: Delete all mock response methods and test mode return values
+6. **Environment Variables Cleanup**: Remove TEST_MODE and PRODUCTION_MODE from all configuration and startup logging
+
+**Integration Verification**:
+- **IV1**: Command `/gaps` executes ai_analyzer.analyze_gaps() without TEST_MODE conditional logic
+- **IV2**: Command `/ask` processes questions using only production AI analysis without test mode branches  
+- **IV3**: All commands store and access session data without test_mode flags or conditional behavior
+
+### Story 1.2: GPT Vision Infrastructure Integration
+
+**User Story**:
+As a **VC analyst**,  
+I want **GPT-4V/5V vision capabilities integrated into the document processing pipeline**,  
+so that **charts, graphs, and complex visual layouts enhance analysis quality for `/ask`, `/gaps`, and all document-based commands**.
+
+**Acceptance Criteria**:
+1. **GPT Vision Client Setup**: OpenAI client configured for vision API calls with proper error handling
+2. **Visual Content Detection**: Automatic detection of visual elements requiring GPT Vision analysis
+3. **Image Processing Pipeline**: PDF pages converted to images for vision analysis when needed
+4. **Cost Control Implementation**: Intelligent decision system to use vision only when adding value
+5. **Enhanced Session Integration**: Vision results stored in user sessions accessible to all commands
+6. **Cross-Command Data Access**: All commands can access both text and visual extraction results
+
+**Integration Verification**:
+- **IV1**: `/gaps` command identifies missing information using both text and visual document analysis
+- **IV2**: `/ask` command can answer questions about charts and visual elements using GPT Vision data
+- **IV3**: Vision-extracted data integrates seamlessly with existing AI analysis pipeline for all commands
+
+### Story 1.3: Enhanced Document Analysis for All Commands
+
+**User Story**:
+As a **VC analyst using any analysis command**,  
+I want **all document analysis commands (`/ask`, `/gaps`, `/scoring`, `/memo`) to benefit from enhanced visual and textual extraction**,  
+so that **every command provides more accurate and comprehensive insights based on complete document understanding**.
+
+**Acceptance Criteria**:
+1. **AI Analyzer Enhancement**: ai_analyzer.analyze_gaps() incorporates both text and visual extraction results
+2. **Cross-Command Data Sharing**: Enhanced extraction results available to analyze_gaps(), generate_investment_memo(), and all analysis methods
+3. **Session Data Integration**: User sessions contain unified extraction results accessible across all commands
+4. **Quality Improvement Validation**: `/gaps` identifies missing information more accurately using visual context
+5. **Response Enhancement**: All commands reference enhanced extraction data in their outputs
+6. **Backward Compatibility**: Existing command interfaces remain unchanged while providing improved results
+
+**Integration Verification**:
+- **IV1**: `/gaps` command identifies visual information gaps (missing charts, incomplete diagrams) that text-only analysis would miss
+- **IV2**: `/ask` questions about specific charts or visual elements receive accurate responses based on GPT Vision analysis
+- **IV3**: `/scoring` and `/memo` commands incorporate insights from both textual and visual document analysis
+
+### Story 1.4: Intelligent Multi-Format Processing
+
+**User Story**:
+As a **VC analyst**,  
+I want **automatic document type detection and optimal processing for PDFs (visual/text), Excel files, and mixed formats**,  
+so that **all document types provide maximum information extraction that enhances every analysis command**.
+
+**Acceptance Criteria**:
+1. **Document Type Classification**: Automatic detection of visual complexity and content type per document
+2. **Processing Strategy Selection**: Smart routing to GPT Vision, text extraction, or native Excel processing
+3. **Hybrid Result Synthesis**: Intelligent combination of extraction results from multiple methods
+4. **Format-Specific Optimization**: PDF graphics prioritize vision, Excel prioritizes native, text-only optimizes for speed  
+5. **Quality Validation**: Cross-validation between extraction methods for accuracy
+6. **Universal Command Access**: All processing results available to every analysis command
+
+**Integration Verification**:
+- **IV1**: Mixed document sessions (PDF + Excel) provide comprehensive data accessible to `/gaps`, `/ask`, and all commands
+- **IV2**: Processing decisions optimize for quality vs. cost based on document analysis and command requirements
+- **IV3**: `/gaps` command can identify information gaps across all document formats and processing methods
+
+### Story 1.5: Production-Only Development Workflow
+
+**User Story**:
+As a **development team**,  
+I want **simplified production-only development and testing workflow**,  
+so that **all development, testing, and deployment works exclusively with production APIs without mode complexity**.
+
+**Acceptance Criteria**:
+1. **Environment Simplification**: Only essential API keys required (OPENAI_API_KEY, TAVILY_API_KEY, SLACK_*)
+2. **Startup Simplification**: Remove all TEST_MODE/PRODUCTION_MODE logging and configuration complexity
+3. **Development Workflow**: All development and testing done directly with production APIs
+4. **Documentation Update**: Update CLAUDE.md to reflect production-only approach
+5. **Deployment Simplification**: Railway deployment without mode-based configuration
+6. **Cost Monitoring**: Implement API cost tracking for development budget management
+
+**Integration Verification**:
+- **IV1**: Application startup logs only essential system information without mode detection complexity
+- **IV2**: All commands function identically in development and deployed environments
+- **IV3**: Developer workflow uses production APIs directly with cost monitoring and control
+
+---
+
+## Change Log
+
+| Change | Date | Version | Description | Author |
+|--------|------|---------|-------------|---------|
+| Initial Creation | 2025-01-11 | 1.0 | Complete brownfield PRD for intelligent visual extraction and TEST_MODE elimination | John (PM Agent) |
+
+---
+
+**🎯 This PRD provides comprehensive planning for transforming DataRoom Intelligence from primitive regex extraction to intelligent visual analysis while eliminating architectural complexity, ensuring all commands benefit from enhanced document understanding.**
