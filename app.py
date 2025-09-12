@@ -22,8 +22,23 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Initialize logger
+# Initialize logger first
 logger = get_logger(__name__)
+
+# NEW: Vision processing integration (with graceful fallback)
+try:
+    from handlers.vision_integration_coordinator import vision_integration_coordinator
+    vision_integration_available = True
+    logger.info("✅ Vision integration coordinator loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Vision integration not available: {e}")
+    logger.warning("💡 Vision processing will be disabled - install vision dependencies to enable")
+    vision_integration_coordinator = None
+    vision_integration_available = False
+except Exception as e:
+    logger.error(f"❌ Vision integration failed to load: {e}")
+    vision_integration_coordinator = None
+    vision_integration_available = False
 
 # ==========================================
 # FLASK APP FOR RAILWAY HEALTH CHECKS
@@ -45,7 +60,8 @@ def health_check():
                 "openai": config.openai_configured,
                 "google_drive": config.google_drive_configured,
                 "temp_storage": config.temp_dir.exists(),
-                "market_research": market_research_orchestrator is not None
+                "market_research": market_research_orchestrator is not None,
+                "vision_integration": vision_integration_available
             }
         }
 
@@ -220,11 +236,7 @@ def debug_sessions(user_id, channel_id, client):
     response += "**🖥️ SYSTEM INFO:**\n"
     response += f"• Process PID: {os.getpid()}\n"
     # Debug shows production mode status
-    PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
-    test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'not set')
-    test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
-    response += f"• TEST_MODE: '{test_mode_value}'\n"
-    response += f"• TEST_MODE Active: {'✅' if test_mode_active else '❌ (Production Mode)'}\n"
+
     response += f"• OpenAI Configured: {'✅' if config.openai_configured else '❌'}\n"
     response += f"• Market Research Available: {'✅' if market_research_orchestrator else '❌'}\n\n"
     
@@ -250,8 +262,19 @@ def debug_sessions(user_id, channel_id, client):
         if 'market_research' in session_data:
             response += f"• Market research available: ✅\n"
             
-        if 'test_mode' in session_data:
-            response += f"• Test mode session: ✅\n"
+        # NEW: Vision processing status
+        if 'vision_analysis' in session_data and session_data['vision_analysis']:
+            response += f"• Vision processing available: ✅\n"
+            processing_metadata = session_data['vision_analysis'].get('processing_summary', {})
+            pages_analyzed = processing_metadata.get('total_pages_analyzed', 0)
+            if pages_analyzed > 0:
+                response += f"• Pages analyzed with GPT Vision: {pages_analyzed}\n"
+        else:
+            response += f"• Vision processing available: ❌\n"
+
+        if 'extraction_metadata' in session_data:
+            metadata = session_data['extraction_metadata']
+            response += f"• Hybrid processing used: {'✅' if metadata.get('hybrid_processing_used', False) else '❌'}\n"
             
         if 'analysis_timestamp' in session_data:
             response += f"• Created at: {session_data['analysis_timestamp']}\n"
@@ -263,7 +286,7 @@ def debug_sessions(user_id, channel_id, client):
     
     # Instructions
     response += "\n\n**📚 TROUBLESHOOTING:**\n"
-    response += "1. If TEST_MODE is not 'true', set it: `export TEST_MODE=true`\n"
+    response += "1. Run `/analyze [google-drive-link]` to start analysis\n"
     response += "2. After `/analyze`, your session should appear here\n"
     response += "3. If session disappears, the bot may be restarting\n"
     response += "4. Use `/health` to check overall system status"
@@ -276,18 +299,9 @@ def debug_sessions(user_id, channel_id, client):
 def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_ts):
     """Perform the complete data room analysis with AI"""
     try:
-        # PRODUCTION MODE: Force TEST_MODE=false for Railway deployment
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Set to False for local development
-        test_mode_check = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
-        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
-        
-        # CRITICAL LOG
         logger.info(f"🔍 ============ ANALYSIS START ============")
         logger.info(f"🔍 User: {user_id}")
         logger.info(f"🔍 Process PID: {os.getpid()}")
-        logger.info(f"🔍 TEST_MODE raw value: '{test_mode_value}'")
-        logger.info(f"🔍 TEST_MODE check result: {test_mode_check}")
-        logger.info(f"🔍 Will skip GPT-5: {'YES ✅' if test_mode_check else 'NO ❌ (WILL USE GPT-5)'}")
         logger.info(f"🔍 ========================================")
 
         # Step 1: Download documents
@@ -296,8 +310,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             ts=message_ts,
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📁 Link: {drive_link}\n" +
-                 f"📥 **Downloading documents from Google Drive...**" +
-                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-5" if test_mode_check else "")
+                 f"📥 **Downloading documents from Google Drive...**"
         )
 
         downloaded_files = drive_handler.download_dataroom(drive_link)
@@ -318,102 +331,14 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             ts=message_ts,
             text="🔍 **Analysis in Progress**\n\n" +
                  f"📄 Found {len(downloaded_files)} documents\n" +
-                 f"📖 **Processing document contents...**" +
-                 (f"\n\n⚠️ **TEST MODE ACTIVE** - Will skip GPT-5" if test_mode_check else "")
+                 f"📖 **Processing document contents...**"
         )
 
         processed_documents = doc_processor.process_dataroom_documents(downloaded_files)
         document_summary = doc_processor.get_content_summary(processed_documents)
 
-        # Check for test mode - create mock analysis but use proper formatting
-        if test_mode_check:
-            logger.info("🧪 TEST MODE: Creating mock analysis data")
-            
-            # Create comprehensive mock analysis result (same structure as real AI analysis)
-            mock_analysis_result = {
-                'overall_score': 7.5,
-                'executive_summary': [
-                    'Strong market opportunity in FinTech/Payments sector with focus on SMB merchants',
-                    'Experienced founding team with relevant industry background',
-                    'Early traction shows promise but needs validation at scale',
-                    'Competition from established players requires clear differentiation strategy'
-                ],
-                'scoring': {
-                    'market_opportunity': {
-                        'score': 8.0,
-                        'justification': 'Large addressable market with growing demand for digital payment solutions'
-                    },
-                    'team': {
-                        'score': 7.5,
-                        'justification': 'Strong technical expertise and industry experience'
-                    },
-                    'product': {
-                        'score': 7.0,
-                        'justification': 'Solid MVP with clear value proposition'
-                    },
-                    'traction': {
-                        'score': 6.5,
-                        'justification': 'Early customer validation but limited scale'
-                    },
-                    'financials': {
-                        'score': 6.0,
-                        'justification': 'Reasonable projections but requires more validation'
-                    }
-                },
-                'red_flags': [
-                    'Limited financial runway without additional funding',
-                    'High customer acquisition costs in competitive market',
-                    'Regulatory compliance requirements may be complex'
-                ],
-                'missing_info': [
-                    'Detailed customer acquisition cost breakdown',
-                    'Competitive analysis and differentiation strategy',
-                    'Technical architecture and scalability plans',
-                    'Regulatory compliance roadmap',
-                    'Financial projections beyond year 2'
-                ],
-                'recommendation': 'INVESTIGATE_FURTHER',
-                'test_mode': True
-            }
-            
-            # Create mock market profile for TEST MODE
-            from agents.market_detection import MarketProfile
-            mock_market_profile = MarketProfile(
-                solution="AI-powered invoice factoring platform",
-                sub_vertical="Invoice financing",
-                vertical="FinTech",
-                industry="Financial technology",
-                target_market="SMB merchants in LATAM"
-            )
-            
-            # Use the standard formatting function (same as production)
-            formatted_response = format_analysis_response(mock_analysis_result, document_summary, mock_market_profile)
-            
-            # Add TEST MODE indicator
-            formatted_response = "⚠️ **TEST MODE ACTIVE** - Mock data, no GPT-5 calls\n\n" + formatted_response
-            
-            client.chat_update(
-                channel=channel_id,
-                ts=message_ts,
-                text=formatted_response
-            )
-
-            # Store complete session data with mock analysis
-            user_sessions[user_id] = {
-                'analysis_result': mock_analysis_result,
-                'document_summary': document_summary,
-                'processed_documents': processed_documents,
-                'drive_link': drive_link,
-                'market_profile': mock_market_profile,  # Store for /market-research
-                'test_mode': True
-            }
-
-            logger.info(f"✅ TEST MODE analysis completed for user {user_id}")
-            return
-
-        # Step 3: AI Analysis (ONLY if NOT in test mode)
-        logger.info("📊 ========== PRODUCTION MODE ==========")
-        logger.info("📊 TEST_MODE is not active, proceeding with GPT-5 analysis")
+        # Step 3: AI Analysis
+        logger.info("📊 Proceeding with GPT-5 analysis")
         
         if ai_analyzer and config.openai_configured:
             client.chat_update(
@@ -451,8 +376,8 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 text=formatted_response
             )
 
-            # CRITICAL: Store analysis in user session
-            user_sessions[user_id] = {
+            # CRITICAL: Create basic session data for vision processing
+            basic_session_data = {
                 'analysis_result': analysis_result,
                 'document_summary': document_summary,
                 'processed_documents': processed_documents,
@@ -460,6 +385,69 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'market_profile': market_profile,  # Store for /market-research
                 'analysis_timestamp': datetime.now().isoformat()
             }
+
+            # NEW: Vision processing integration (with availability check)
+            try:
+                # Find PDF files for vision processing
+                pdf_files = [f for f in downloaded_files if f.get('mime_type') == 'application/pdf']
+                
+                if pdf_files and config.openai_configured and vision_integration_available:
+                    # Process first PDF with vision (can be extended for multiple PDFs)
+                    pdf_path = pdf_files[0]['path']
+                    logger.info(f"🔍 Initiating vision processing for: {pdf_files[0]['name']}")
+                    
+                    # Update progress
+                    client.chat_update(
+                        channel=channel_id,
+                        ts=message_ts,
+                        text=formatted_response + f"\n\n🔍 **Processing visual elements...** ({len(pdf_files)} PDF files detected)"
+                    )
+                    
+                    # Process with vision integration coordinator
+                    enhanced_session, vision_results = vision_integration_coordinator.process_document_with_vision(
+                        pdf_path, user_id, basic_session_data
+                    )
+                    
+                    # Store enhanced session instead of basic session
+                    user_sessions[user_id] = enhanced_session
+                    
+                    if vision_results and vision_results.get('processing_metadata'):
+                        pages_analyzed = vision_results['processing_metadata'].get('total_pages_analyzed', 0)
+                        if pages_analyzed > 0:
+                            logger.info(f"✅ Vision processing completed: {pages_analyzed} pages analyzed")
+                            # Update response to include vision processing status
+                            client.chat_update(
+                                channel=channel_id,
+                                ts=message_ts,
+                                text=formatted_response + f"\n\n✅ **Vision processing complete:** {pages_analyzed} pages analyzed with GPT Vision"
+                            )
+                        else:
+                            logger.info("📄 Vision processing: No visual elements required analysis")
+                    else:
+                        logger.info("📄 Vision processing: Text-only analysis sufficient")
+                        
+                elif vision_integration_available and pdf_files:
+                    # Create enhanced session even without vision processing for consistency
+                    enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
+                        None, user_id, basic_session_data
+                    )
+                    user_sessions[user_id] = enhanced_session
+                    logger.info("📄 Enhanced session created without vision processing")
+                        
+                else:
+                    # No PDFs, OpenAI not configured, or vision not available - store basic session
+                    user_sessions[user_id] = basic_session_data
+                    if not pdf_files:
+                        logger.info("📄 No PDF files found - vision processing skipped")
+                    elif not config.openai_configured:
+                        logger.info("🔧 OpenAI not configured - vision processing disabled")
+                    elif not vision_integration_available:
+                        logger.info("🔧 Vision integration not available - using text-only processing")
+                        
+            except Exception as e:
+                logger.error(f"❌ Vision processing failed: {e}")
+                # Fallback to basic session on vision processing failure
+                user_sessions[user_id] = basic_session_data
             
             # DEBUG: Log session storage
             logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
@@ -484,13 +472,30 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 text=response
             )
 
-            # Store documents in user session
-            user_sessions[user_id] = {
+            # Store documents in user session (fallback mode - no AI/vision processing)
+            basic_session_data = {
                 'processed_documents': processed_documents,
                 'document_summary': document_summary,
                 'drive_link': drive_link,
                 'analysis_timestamp': datetime.now().isoformat()
             }
+            
+            # Create enhanced session even in fallback mode (for consistency)
+            if vision_integration_available:
+                try:
+                    enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
+                        None, user_id, basic_session_data  # No PDF path in fallback mode
+                    )
+                    user_sessions[user_id] = enhanced_session
+                    logger.info(f"✅ Enhanced session created in fallback mode for user {user_id}")
+                except Exception as e:
+                    logger.error(f"❌ Enhanced session creation failed in fallback: {e}")
+                    # Final fallback - use basic session
+                    user_sessions[user_id] = basic_session_data
+            else:
+                # Vision integration not available - use basic session
+                user_sessions[user_id] = basic_session_data
+                logger.info("📄 Using basic session (vision integration not available)")
             
             logger.info(f"✅ FALLBACK MODE - Session stored for user {user_id}")
 
@@ -715,22 +720,7 @@ def handle_ask_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
-        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
-        if test_mode_active:
-            logger.info("🧪 TEST MODE: Returning mock answer")
-            response = f"💡 **Question:** {question}\n\n"
-            response += f"**Answer (TEST MODE):**\n"
-            response += "This is a test mode response. In production, this would analyze your documents and provide a real answer based on the content.\n\n"
-            response += "📎 *TEST MODE - No GPT-5 calls made*"
-            
-            client.chat_postMessage(
-                channel=channel_id,
-                text=response
-            )
-            return
 
         if not ai_analyzer or not config.openai_configured:
             logger.info("❌ AI not configured")
@@ -741,6 +731,19 @@ def handle_ask_command(ack, body, client):
             return
 
         logger.info("🤖 Calling AI analyzer...")
+        
+        # NEW: Check for enhanced session data and vision capabilities
+        vision_ask_enhancement = None
+        if vision_integration_available:
+            try:
+                vision_ask_enhancement = vision_integration_coordinator.enhance_ask_command(session_data, question)
+                if vision_ask_enhancement.get('enhanced_context', {}).get('visual_context'):
+                    logger.info("🔍 Ask command enhanced with vision data")
+            except Exception as e:
+                logger.warning(f"⚠️ Vision enhancement failed for /ask: {e}")
+        else:
+            logger.debug("📄 Vision integration not available for /ask command")
+        
         # Get answer from AI
         answer = ai_analyzer.answer_question(question)
         logger.info(f"✅ AI response received: {len(answer)} chars")
@@ -748,6 +751,12 @@ def handle_ask_command(ack, body, client):
         response = f"💡 **Question:** {question}\n\n" +\
                   f"**Answer:**\n{answer}\n\n" +\
                   f"📎 *Based on analyzed data room"
+
+        # Add vision context if available
+        if vision_ask_enhancement and vision_ask_enhancement.get('answer_sources', {}).get('visual_extraction'):
+            chart_refs = vision_ask_enhancement.get('answer_sources', {}).get('chart_references', 0)
+            if chart_refs > 0:
+                response += f" with {chart_refs} visual references"
 
         # Add market research context if available
         if 'market_research' in user_sessions[user_id]:
@@ -795,27 +804,7 @@ def handle_scoring_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
-        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
-        if test_mode_active:
-            logger.info("🧪 TEST MODE: Returning mock scoring")
-            response = "📊 **DETAILED SCORING BREAKDOWN (TEST MODE)**\n\n"
-            response += "🎯 **Overall Score: 7.5/10** (Mock)\n\n"
-            response += "**Category Scores:**\n"
-            response += "• **Market Opportunity:** 8/10 - Strong market potential\n"
-            response += "• **Team:** 7/10 - Experienced founders\n"
-            response += "• **Product:** 7/10 - MVP ready\n"
-            response += "• **Traction:** 6/10 - Early stage\n\n"
-            response += "🎯 **Recommendation:** Proceed with due diligence\n\n"
-            response += "📎 *TEST MODE - No GPT-5 calls made*"
-            
-            client.chat_postMessage(
-                channel=channel_id,
-                text=response
-            )
-            return
 
         if not ai_analyzer or not config.openai_configured:
             client.chat_postMessage(
@@ -824,7 +813,20 @@ def handle_scoring_command(ack, body, client):
             )
             return
 
-        scoring_data = ai_analyzer.get_detailed_scoring()
+        # NEW: Check for enhanced session data and vision capabilities
+        vision_scoring_enhancement = None
+        if vision_integration_available:
+            try:
+                vision_scoring_enhancement = vision_integration_coordinator.enhance_scoring_command(session_data)
+                if vision_scoring_enhancement.get('comprehensive_metrics', {}).get('visual_extracted_metrics'):
+                    logger.info("🔍 Scoring command enhanced with vision metrics")
+            except Exception as e:
+                logger.warning(f"⚠️ Vision enhancement failed for /scoring: {e}")
+        else:
+            logger.debug("📄 Vision integration not available for /scoring command")
+
+        # Pass enhanced session data to AI analyzer for vision-enhanced scoring
+        scoring_data = ai_analyzer.get_detailed_scoring(session_data)
 
         if 'error' in scoring_data:
             client.chat_postMessage(
@@ -833,9 +835,24 @@ def handle_scoring_command(ack, body, client):
             )
             return
 
-        # Format scoring response
-        response = "📊 **DETAILED SCORING BREAKDOWN**\n\n"
-        response += f"🎯 **Overall Score: {scoring_data['overall_score']}/10**\n\n"
+        # Format enhanced scoring response (AC5: Response Enhancement)
+        response = "📊 **ENHANCED SCORING BREAKDOWN**\n\n"
+        
+        # Show enhanced overall score if available
+        if 'enhanced_overall_score' in scoring_data:
+            enhanced_score = scoring_data['enhanced_overall_score']
+            methodology = scoring_data.get('scoring_methodology', {})
+            includes_visual = methodology.get('includes_visual_assessment', False)
+            
+            response += f"🎯 **Enhanced Overall Score: {enhanced_score}/10**"
+            if includes_visual:
+                response += f" ✨ *Vision-Enhanced*\n"
+                response += f"   📊 Text Analysis: {scoring_data['overall_score']}/10 (Weight: {methodology.get('text_analysis_weight', 1.0):.0%})\n"
+                response += f"   🎨 Visual Analysis: Weight: {methodology.get('visual_analysis_weight', 0.0):.0%}\n\n"
+            else:
+                response += f" 📄 *Text-Only Analysis*\n\n"
+        else:
+            response += f"🎯 **Overall Score: {scoring_data['overall_score']}/10**\n\n"
 
         response += "**Category Scores:**\n"
         for category, data in scoring_data['category_scores'].items():
@@ -844,7 +861,31 @@ def handle_scoring_command(ack, body, client):
             justification = data.get('justification', 'No justification available')
             response += f"• **{category_name}:** {score}/10 - {justification}\n"
 
+        # Add enhanced visual scoring details if available
+        if 'enhanced_scoring' in scoring_data:
+            enhanced = scoring_data['enhanced_scoring']
+            visual_presentation = enhanced.get('visual_presentation_quality', {})
+            visual_completeness = enhanced.get('visual_content_completeness', {})
+            
+            if visual_presentation.get('score', 0) > 0 or visual_completeness.get('score', 0) > 0:
+                response += "\n**Enhanced Visual Assessment:**\n"
+                if visual_presentation.get('score', 0) > 0:
+                    response += f"• **Visual Presentation Quality:** {visual_presentation['score']}/10 - {visual_presentation.get('justification', 'N/A')}\n"
+                if visual_completeness.get('score', 0) > 0:
+                    response += f"• **Visual Content Completeness:** {visual_completeness['score']}/10 - {visual_completeness.get('justification', 'N/A')}\n"
+
         response += f"\n🎯 **Recommendation:** {scoring_data['recommendation']}\n"
+
+        # Add vision-enhanced scoring insights if available
+        if vision_scoring_enhancement:
+            scoring_confidence = vision_scoring_enhancement.get('scoring_confidence', {})
+            final_confidence = scoring_confidence.get('final_scoring_confidence', 0.0)
+            if final_confidence > 0.8:
+                response += f"\n📈 **Analysis Confidence:** {final_confidence:.1%} (Vision-Enhanced)"
+                
+            visual_metrics = vision_scoring_enhancement.get('comprehensive_metrics', {}).get('visual_extracted_metrics', {})
+            if visual_metrics:
+                response += "\n🎨 **Visual Analysis:** Financial charts and metrics analyzed"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -891,25 +932,6 @@ def handle_memo_command(ack, body, client):
 
         # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
-        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
-        if test_mode_active:
-            logger.info("🧪 TEST MODE: Returning mock memo")
-            response = "📄 **INVESTMENT MEMO (TEST MODE)**\n\n"
-            response += "**Executive Summary:**\n"
-            response += "This is a test mode investment memo. In production, this would provide a comprehensive analysis of the investment opportunity.\n\n"
-            response += "**Key Points:**\n"
-            response += "• Strong market opportunity\n"
-            response += "• Experienced team\n"
-            response += "• Clear revenue model\n"
-            response += "• Competitive advantages\n\n"
-            response += "📎 *TEST MODE - No GPT-5 calls made*"
-            
-            client.chat_postMessage(
-                channel=channel_id,
-                text=response
-            )
-            return
 
         if not ai_analyzer or not config.openai_configured:
             client.chat_postMessage(
@@ -918,9 +940,33 @@ def handle_memo_command(ack, body, client):
             )
             return
 
-        memo = ai_analyzer.generate_investment_memo()
+        # NEW: Check for enhanced session data and vision capabilities
+        vision_memo_enhancement = None
+        if vision_integration_available:
+            try:
+                vision_memo_enhancement = vision_integration_coordinator.enhance_memo_command(session_data)
+                if vision_memo_enhancement.get('comprehensive_evidence', {}).get('visual_evidence'):
+                    logger.info("🔍 Memo command enhanced with visual evidence")
+            except Exception as e:
+                logger.warning(f"⚠️ Vision enhancement failed for /memo: {e}")
+        else:
+            logger.debug("📄 Vision integration not available for /memo command")
+
+        # Pass enhanced session data to AI analyzer for vision-enhanced memo generation  
+        memo = ai_analyzer.generate_investment_memo(session_data)
 
         response = "📄 **INVESTMENT MEMO**\n\n" + memo
+
+        # Add vision-enhanced memo insights if available
+        if vision_memo_enhancement:
+            thesis_strength = vision_memo_enhancement.get('investment_thesis_strength', {})
+            comprehensive_strength = thesis_strength.get('comprehensive_thesis_strength', 0.0)
+            if comprehensive_strength > 0.9:
+                response += f"\n\n💎 **Investment Thesis Strength:** {comprehensive_strength:.1%} (Professional Grade)"
+                
+            chart_references = vision_memo_enhancement.get('comprehensive_evidence', {}).get('chart_references', [])
+            if chart_references:
+                response += f"\n📊 **Visual Evidence:** {len(chart_references)} supporting charts analyzed"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -965,28 +1011,7 @@ def handle_gaps_command(ack, body, client):
             )
             return
 
-        # Check if in TEST MODE (forced false in production)
         session_data = user_sessions[user_id]
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode
-        test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
-        if test_mode_active:
-            logger.info("🧪 TEST MODE: Returning mock gaps analysis")
-            response = "🔍 **INFORMATION GAPS ANALYSIS (TEST MODE)**\n\n"
-            response += "**Missing Information:**\n"
-            response += "• Financial projections for next 3 years\n"
-            response += "• Customer acquisition cost details\n"
-            response += "• Competitive analysis depth\n"
-            response += "• Technical architecture documentation\n\n"
-            response += "**Recommendations:**\n"
-            response += "• Request detailed financial model\n"
-            response += "• Ask for unit economics breakdown\n\n"
-            response += "📎 *TEST MODE - No GPT-5 calls made*"
-            
-            client.chat_postMessage(
-                channel=channel_id,
-                text=response
-            )
-            return
 
         if not ai_analyzer or not config.openai_configured:
             client.chat_postMessage(
@@ -995,9 +1020,35 @@ def handle_gaps_command(ack, body, client):
             )
             return
 
-        gaps_analysis = ai_analyzer.analyze_gaps()
+        # NEW: Check for enhanced session data and vision capabilities
+        vision_gaps_enhancement = None
+        if vision_integration_available:
+            try:
+                vision_gaps_enhancement = vision_integration_coordinator.enhance_gaps_command(session_data)
+                if vision_gaps_enhancement.get('comprehensive_gap_analysis', {}).get('visual_gaps'):
+                    logger.info("🔍 Gaps command enhanced with vision analysis")
+            except Exception as e:
+                logger.warning(f"⚠️ Vision enhancement failed for /gaps: {e}")
+        else:
+            logger.debug("📄 Vision integration not available for /gaps command")
+
+        # Pass enhanced session data to AI analyzer for vision-enhanced gap analysis
+        gaps_analysis = ai_analyzer.analyze_gaps(session_data)
 
         response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
+
+        # Add vision-enhanced gap insights if available
+        if vision_gaps_enhancement:
+            completeness = vision_gaps_enhancement.get('completeness_assessment', {})
+            overall_completeness = completeness.get('overall_completeness', 0.0)
+            if overall_completeness > 0:
+                response += f"\n\n📊 **Enhanced Analysis Completeness:** {overall_completeness:.1%}"
+                
+            recommendations = vision_gaps_enhancement.get('actionable_recommendations', [])
+            if recommendations:
+                response += "\n\n🎯 **Vision-Enhanced Recommendations:**\n"
+                for rec in recommendations[:3]:  # Top 3 recommendations
+                    response += f"• {rec}\n"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -1075,14 +1126,11 @@ def handle_health_command(ack, body, client):
         health_response += f"\n🔬 **Phase 2B Status (Production Ready):**\n"
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
         health_response += f"• Market Research Handler: {'✅' if market_research_handler else '❌'}\n"
+        health_response += f"• Vision Integration: {'✅' if vision_integration_available else '❌'}\n"
         health_response += f"• Active Sessions: {len(user_sessions)}\n"
         health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
         
-        # Show TEST_MODE status (forced in production)
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
-        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
-        test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
-        health_response += f"• TEST_MODE: '{test_mode_value}' ({'✅ Active' if test_mode_active else '❌ Inactive (Production)'})\n"
+
         
         health_response += f"• Available Commands: `/analyze`, `/market-research`, `/ask`, `/scoring`, `/memo`, `/gaps`, `/reset`\n\n"
         health_response += "💡 **Tip:** Use `/analyze debug` to check detailed session info"
@@ -1111,16 +1159,11 @@ def handle_app_mention(event, client):
         market_status = "✅" if market_research_orchestrator else "⚠️"
         market_note = "Market research available (fixed)" if market_research_orchestrator else "Market research requires OpenAI configuration"
         
-        # Check TEST_MODE (forced in production)
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
-        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
-        test_mode_active = False if PRODUCTION_MODE else test_mode_value.lower() == 'true'
-        test_mode_status = f"TEST MODE: {'✅ ACTIVE' if test_mode_active else '❌ INACTIVE (Production)'}"
+
 
         response = "👋 Hi! I'm the DataRoom Intelligence Bot running on Railway with Phase 2B Market Research (Production Ready).\n\n" +\
                   f"{ai_status} **AI Status:** {ai_note}\n" +\
-                  f"{market_status} **Market Research:** {market_note}\n" +\
-                  f"🧪 **{test_mode_status}**\n\n" +\
+                  f"{market_status} **Market Research:** {market_note}\n\n" +\
                   "**Available commands:**\n" +\
                   "• `/analyze [google-drive-link]` - Analyze a data room\n" +\
                   "• `/analyze debug` - Check session status (NEW!)\n" +\
@@ -1179,13 +1222,7 @@ def main():
         logger.info(f"Port: {config.PORT}")
         logger.info(f"Process PID: {os.getpid()}")
         
-        # LOG TEST_MODE STATUS AT STARTUP (forced in production)
-        PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'  # Force production mode for Railway deployment
-        test_mode_value = 'false (forced)' if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false')
-        test_mode_active = False if PRODUCTION_MODE else os.getenv('TEST_MODE', 'false').lower() == 'true'
-        logger.info(f"🔧 PRODUCTION_MODE: {'✅ ENABLED - Forcing TEST_MODE=false' if PRODUCTION_MODE else '❌ DISABLED - Using env var'}")
-        logger.info(f"🔧 TEST_MODE environment variable: '{test_mode_value}'")
-        logger.info(f"🔧 TEST_MODE is active: {'✅ YES - Will skip GPT-5 calls' if test_mode_active else '❌ NO - Will use GPT-5 ($$$ Production costs)'}")
+
 
         # Validate configuration
         config_status = config.validate_configuration()
