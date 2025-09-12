@@ -39,3 +39,4 @@ node_modules/
 .claude/
 .gemini/
 .serena/
+.bugs/

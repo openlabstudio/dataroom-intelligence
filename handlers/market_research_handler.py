@@ -29,24 +29,17 @@ class MarketResearchHandler:
         self.orchestrator = orchestrator
         self.user_sessions = user_sessions
         
-    def handle_command(self, ack, body: Dict, client) -> None:
+    def handle_command_post_ack(self, body: Dict, client) -> None:
         """
-        Handle /market-research command with proper acknowledgment
+        Handle /market-research command AFTER acknowledgment (called from app.py)
         
         Args:
-            ack: Slack acknowledgment function
             body: Request body from Slack
             client: Slack client instance
         """
-        # CRITICAL: Acknowledge immediately to prevent dispatch_failed
-        try:
-            ack()
-            logger.info("✅ Command acknowledged successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to acknowledge command: {e}")
-            return
+        # Acknowledgment already done in app.py - proceed with command logic
         
-        # Now handle the command in a separate try block
+        # Now handle the command logic
         try:
             user_id = body['user_id']
             channel_id = body['channel_id']
@@ -137,6 +130,22 @@ class MarketResearchHandler:
                 )
             except:
                 pass  # Fail silently if we can't send error message
+
+    def handle_command(self, ack, body: Dict, client) -> None:
+        """
+        DEPRECATED: Legacy method that includes ack() - kept for compatibility
+        Use handle_command_post_ack() for new implementations
+        """
+        # CRITICAL: Acknowledge immediately to prevent dispatch_failed
+        try:
+            ack()
+            logger.info("✅ Command acknowledged successfully (legacy method)")
+        except Exception as e:
+            logger.error(f"❌ Failed to acknowledge command: {e}")
+            return
+        
+        # Delegate to post-ack method
+        self.handle_command_post_ack(body, client)
     
     def _get_test_mode_response(self) -> str:
         """Get a test mode response for market research"""

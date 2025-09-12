@@ -139,8 +139,25 @@ if market_research_orchestrator:
 @app.command("/analyze")
 def handle_analyze_command(ack, body, client):
     """Handle /analyze command - Complete data room analysis with AI"""
-    ack()
+    # CRITICAL: Acknowledge immediately to prevent dispatch_failed
+    try:
+        ack()
+        logger.info("✅ Command acknowledged successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to acknowledge command: {e}")
+        return
+    
+    # IMMEDIATE: Send progress message before ANY complex processing
+    try:
+        channel_id = body['channel_id']
+        client.chat_postMessage(
+            channel=channel_id,
+            text="🔍 **Analysis Request Received**\n\n⏳ Processing your data room analysis request..."
+        )
+    except:
+        pass  # Don't fail if progress message fails
 
+    # DEFERRED: All complex processing after immediate response
     try:
         user_id = body['user_id']
         channel_id = body['channel_id']
@@ -150,15 +167,13 @@ def handle_analyze_command(ack, body, client):
         if drive_link.lower() == 'debug':
             return debug_sessions(user_id, channel_id, client)
 
-        # NUEVO: Debug logs para capturar el problema
+        # Debug logs after immediate acknowledgment
         logger.info(f"🎯 ANALYZE COMMAND - Starting for user {user_id}")
         logger.info(f"🎯 ANALYZE COMMAND - Channel: {channel_id}")
         logger.info(f"🎯 ANALYZE COMMAND - Drive link: {drive_link}")
 
         if not drive_link:
             logger.info("🎯 ANALYZE COMMAND - No drive link provided")
-
-        if not drive_link:
             client.chat_postMessage(
                 channel=channel_id,
                 text="❌ Please provide a Google Drive folder link.\n\nUsage: `/analyze [google-drive-link]`\n\n💡 **Debug tip:** Use `/analyze debug` to check active sessions"
@@ -172,7 +187,7 @@ def handle_analyze_command(ack, body, client):
             )
             return
 
-        # Send initial response
+        # Send detailed initial response with drive link
         initial_response = client.chat_postMessage(
             channel=channel_id,
             text="🔍 **Analysis Request Received**\n\n" +
@@ -592,15 +607,32 @@ def format_size(size):
 
 @app.command("/market-research")
 def handle_market_research_command(ack, body, client):
-    """Handle /market-research command - Uses new handler to fix dispatch_failed"""
-    logger.info("📨 Received /market-research command")
+    """Handle /market-research command - CRITICAL: ack() immediately to prevent dispatch_failed"""
+    # CRITICAL: Acknowledge IMMEDIATELY before any other processing
+    try:
+        ack()
+        logger.info("✅ /market-research command acknowledged successfully")
+    except Exception as e:
+        logger.error(f"❌ CRITICAL: Failed to acknowledge /market-research command: {e}")
+        return
+
+    # Log after acknowledgment
+    logger.info("📨 Processing /market-research command")
     logger.info(f"📨 Current active sessions: {list(user_sessions.keys())}")
     logger.info(f"📨 User requesting: {body.get('user_id')}")
     
+    # Process command after acknowledgment
     if market_research_handler:
-        market_research_handler.handle_command(ack, body, client)
+        # Don't pass ack since we already acknowledged
+        try:
+            market_research_handler.handle_command_post_ack(body, client)
+        except Exception as e:
+            logger.error(f"❌ Error in market research handler: {e}")
+            client.chat_postMessage(
+                channel=body['channel_id'],
+                text=f"❌ Error in market analysis: {str(e)}"
+            )
     else:
-        ack()
         client.chat_postMessage(
             channel=body['channel_id'],
             text="❌ Market research functionality is not available. OpenAI configuration required."
