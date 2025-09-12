@@ -703,30 +703,18 @@ def _scrape_real_web_content(url, title):
             return text.strip()
         else:
             logger.warning(f"⚠️ Insufficient content scraped from {url}")
-            # CRITICAL: Never use mock content in production mode
-            if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                return _generate_intelligent_mock_content_contextual(url, title)
-            else:
-                logger.error(f"❌ PRODUCTION MODE: Cannot use mock content for {url}")
-                return f"Unable to access content from {title} ({url}). Source unavailable for analysis."
+            logger.error(f"❌ Unable to access content from {url}")
+            return f"Unable to access content from {title} ({url}). Source unavailable for analysis."
             
     except requests.RequestException as e:
         logger.warning(f"❌ Request failed for {url}: {e}")
-        # CRITICAL: Never use mock content in production mode
-        if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            return _generate_intelligent_mock_content_contextual(url, title)
-        else:
-            logger.error(f"❌ PRODUCTION MODE: Cannot use mock content for failed request {url}")
-            return f"Network error accessing {title} ({url}). Source unavailable for analysis."
+        logger.error(f"❌ Network error accessing {url}: {e}")
+        return f"Network error accessing {title} ({url}). Source unavailable for analysis."
         
     except Exception as e:
         logger.error(f"❌ Content scraping failed for {url}: {e}")
-        # CRITICAL: Never use mock content in production mode
-        if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            return _generate_intelligent_mock_content_contextual(url, title)
-        else:
-            logger.error(f"❌ PRODUCTION MODE: Cannot use mock content for scraping failure {url}")
-            return f"Error accessing {title} ({url}). Source unavailable for analysis."
+        logger.error(f"❌ Error accessing content from {url}")
+        return f"Error accessing {title} ({url}). Source unavailable for analysis."
 
 def _extract_relevant_content(text, keywords):
     """Extract content sections most relevant to the keywords"""
@@ -756,62 +744,7 @@ def _extract_relevant_content(text, keywords):
     
     return '. '.join(content_parts) + '.' if content_parts else None
 
-def _generate_intelligent_mock_content_contextual(url, title):
-    """Generate context-aware mock content as fallback when web scraping fails"""
-    import os
-    from utils.logger import get_logger
-    
-    logger = get_logger(__name__)
-    logger.info(f"🔄 Generating context-aware fallback content for: {title}")
-    
-    # Analyze URL and title for sector context
-    url_lower = url.lower()
-    title_lower = title.lower()
-    
-    # Detect sector from URL and title
-    fintech_indicators = ['fintech', 'payment', 'vat', 'tax', 'refund', 'finance', 'banking', 'digital payment']
-    healthcare_indicators = ['health', 'medical', 'pharma', 'biotech', 'therapeutic', 'clinical', 'patient']
-    cleantech_indicators = ['clean', 'green', 'sustainable', 'renewable', 'carbon', 'climate', 'environmental']
-    
-    sector = "general"
-    if any(indicator in url_lower or indicator in title_lower for indicator in fintech_indicators):
-        sector = "fintech"
-    elif any(indicator in url_lower or indicator in title_lower for indicator in healthcare_indicators):
-        sector = "healthcare"
-    elif any(indicator in url_lower or indicator in title_lower for indicator in cleantech_indicators):
-        sector = "cleantech"
-    
-    # Generate sector-appropriate content
-    if sector == "fintech":
-        return f"""
-        {title} - The fintech payments sector shows robust growth with digital payment adoption accelerating globally. 
-        Market analysis indicates the VAT refund automation market is estimated at $2.1 billion globally, with European 
-        markets leading adoption due to regulatory complexity. Key growth drivers include increasing cross-border 
-        e-commerce and SME digitization trends. Competitive landscape includes established players and emerging 
-        automation solutions targeting mid-market businesses seeking operational efficiency.
-        """.strip()
-    elif sector == "healthcare":
-        return f"""
-        {title} - Healthcare technology market demonstrates strong fundamentals with increasing digital transformation. 
-        The sector shows sustained growth driven by aging demographics and regulatory support for innovation. 
-        Investment activity remains robust with venture funding focused on patient care solutions and operational 
-        efficiency tools. Market consolidation trends favor platforms with proven clinical outcomes and scalable 
-        business models.
-        """.strip()
-    elif sector == "cleantech":
-        return f"""
-        {title} - Clean technology sector benefits from regulatory tailwinds and corporate sustainability commitments. 
-        Market research indicates growing enterprise demand for environmental solutions with measurable ROI. 
-        Funding landscape shows increased investor interest in scalable technologies with clear commercial applications. 
-        Competitive dynamics favor solutions addressing immediate operational needs while delivering environmental benefits.
-        """.strip()
-    else:
-        return f"""
-        {title} - Market analysis indicates sector growth supported by technological advancement and changing business needs. 
-        Industry trends show increasing adoption of innovative solutions addressing operational challenges. 
-        Competitive landscape remains dynamic with opportunities for differentiated approaches. 
-        Investment interest continues in solutions demonstrating clear value proposition and scalability potential.
-        """.strip()
+
 
 def format_expert_market_validation_with_refs(validation_data, references, reference_counter) -> str:
     """Format market validation with numbered references"""
@@ -1170,27 +1103,7 @@ def synthesize_market_intelligence_with_gpt4(references, market_profile=None):
         logger.warning("⚠️ No market profile context provided to synthesis function")
     
     # Check if we're in test mode
-    if os.getenv('TEST_MODE', 'false').lower() == 'true':
-        # Generate sector-aware mock response (Story 2)
-        if market_profile:
-            sector_name = market_profile.vertical.lower()
-            if "fintech" in sector_name or "financial" in sector_name:
-                market_focus = "tax-free shopping and VAT refund technology"
-                market_size = "$2.8 billion VAT refund market"
-                competitors = "Global Blue, Planet Payment, and Refundit"
-            elif "health" in sector_name or "medical" in sector_name:
-                market_focus = "healthcare technology solutions"
-                market_size = "$4.1 billion healthcare IT market"
-                competitors = "Epic Systems, Cerner, and Allscripts"
-            elif "clean" in sector_name or "environment" in sector_name:
-                market_focus = "environmental and clean technology"
-                market_size = "$1.9 billion cleantech market"
-                competitors = "Tesla Energy, First Solar, and Vestas"
-            else:
-                market_focus = f"{market_profile.vertical.lower()} technology solutions"
-                market_size = f"${market_profile.vertical} market"
-                competitors = f"{market_profile.vertical} industry leaders"
-        else:
+
             # Fallback to generic (should not happen with Story 1 complete)
             market_focus = "technology solutions"
             market_size = "$6.2 billion market"
@@ -1232,12 +1145,8 @@ From an investment perspective, strategic investors are increasingly active in t
         
         for url, ref_data in list(references.items())[:6]:  # Limit to top 6 to avoid token limits
             try:
-                # TEST MODE: Use mock content
-                if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                    content = _generate_intelligent_mock_content(url, ref_data['title'])
-                else:
-                    # PRODUCTION MODE: Scrape real content
-                    content = _scrape_real_web_content(url, ref_data['title'])
+                # Scrape real content
+                content = _scrape_real_web_content(url, ref_data['title'])
                     
                 scraped_content.append(f"SOURCE [{ref_data['number']}]: {ref_data['title']}\n{content}\n")
                 references_list.append(f"[{ref_data['number']}] {ref_data['title']} - {url}")
@@ -1277,15 +1186,15 @@ From an investment perspective, strategic investors are increasingly active in t
         logger.info(f"📚 General sources: {general_sources}")
         
         # Apply sector validation filtering for PRODUCTION MODE
-        if os.getenv('TEST_MODE', 'false').lower() == 'false' and market_profile:
+        if market_profile:
             filtered_content = _filter_content_by_sector_relevance(scraped_content, market_profile)
             logger.info(f"🎯 Sector validation applied: {len(scraped_content)} sources → {len(filtered_content)} relevant sources")
         else:
             filtered_content = scraped_content
-            logger.info("📝 TEST_MODE: Skipping sector validation, using all content")
+            logger.info("📝 Using all content - no market profile available")
         
         # Filter references to match filtered content  
-        if os.getenv('TEST_MODE', 'false').lower() == 'false' and market_profile:
+        if market_profile:
             # Only include references for sources that passed content filtering
             filtered_ref_numbers = set()
             for content in filtered_content:
@@ -1368,7 +1277,7 @@ REFERENCE MAPPING INSTRUCTIONS:
         final_output += improved_synthesis
         
         # Only include references that are actually cited in the text and passed sector validation
-        if os.getenv('TEST_MODE', 'false').lower() == 'false' and market_profile:
+        if market_profile:
             # Filter cited references to only include sector-relevant ones
             cited_refs = _extract_cited_references(synthesis, references)
             sector_filtered_refs = {}
@@ -1482,31 +1391,7 @@ def _filter_content_by_sector_relevance(scraped_content: list, market_profile) -
     
     return filtered_content
 
-def _generate_intelligent_mock_content(url: str, title: str) -> str:
-    """Generate intelligent mock content based on URL patterns and titles"""
-    
-    # Extract domain and content type for intelligent mocking
-    domain = url.split('/')[2] if len(url.split('/')) > 2 else ""
-    title_lower = title.lower()
-    
-    # Market research content patterns
-    if 'mordorintelligence' in domain or 'market' in title_lower:
-        return f"""Market Analysis Report: The global water treatment technology market is projected to reach $211.3 billion by 2027, growing at a CAGR of 7.2%. Key growth drivers include increasing regulatory pressure, aging infrastructure, and rising water scarcity concerns. North America represents 40% of the market, followed by Europe at 28%. Key players include Veralto Corporation, SUEZ, and emerging electrochemical treatment providers. Average Series A funding in this sector is $8-12M with recent deals showing strong investor interest from corporate VCs."""
-    
-    elif 'chunkerowaterplant' in domain or 'water treatment' in title_lower:
-        return f"""Industry Report: Top 10 water treatment companies are increasingly focused on electrochemical solutions. Market consolidation is accelerating with 3 major acquisitions in 2024. Industrial clients are pilot-testing new technologies, creating opportunities for innovative solutions. Regulatory timeline shows EPA tightening standards through 2026, driving demand for advanced treatment methods."""
-    
-    elif 'explodingtopics' in domain or 'cleantech' in title_lower or 'startups' in title_lower:
-        return f"""Startup Analysis: 17 booming cleantech companies raised $180M+ in 2024. Water treatment startups are attracting corporate VCs including Shell Ventures and Caterpillar Inc. Most successful companies focus on B2B industrial solutions rather than consumer markets. Average Series A valuation is $25-40M with clear paths to acquisition by utilities at 3-4x revenue multiples."""
-    
-    elif 'market.us' in domain or 'growth' in title_lower:
-        return f"""Market Growth Report: Water and wastewater treatment market showing 5.5% CAGR with strong fundamentals. Geographic expansion opportunities in Asia-Pacific growing fastest. Technology adoption curves show electrochemical methods gaining traction in industrial applications. Customer acquisition costs averaging $45K with lifetime values exceeding $200K."""
-    
-    elif 'corporateknights' in domain or 'sustainable' in title_lower:
-        return f"""Sustainability Report: Corporate sustainability mandates driving water treatment technology adoption. Fortune 500 companies increasingly require suppliers to demonstrate advanced treatment capabilities. ESG investment criteria favoring companies with proven environmental impact. Market timing appears favorable as regulatory pressure increases globally."""
-    
-    else:
-        return f"""Market Intelligence: Industry analysis shows positive trends in water treatment technology adoption. Competitive landscape includes established players and emerging innovators. Funding environment remains active with strategic investors showing interest. Regulatory environment supportive of advanced treatment technologies."""
+
 
 def _improve_synthesis_formatting(synthesis):
     """Improve readability of synthesis with better spacing"""
@@ -1561,10 +1446,9 @@ def _extract_cited_references(text: str, all_references: dict) -> dict:
     for match in matches:
         cited_numbers.add(int(match))
     
-    # PRODUCTION_MODE FIX: Always include [1] if we have references and are not in test mode
-    # This fixes the bug where GPT-4 doesn't properly cite [1] in production
-    if (os.getenv('TEST_MODE', 'false').lower() != 'true' and 
-        all_references and 
+    # Always include [1] if we have references and other citations
+    # This fixes the bug where GPT-4 doesn't properly cite [1]
+    if (all_references and 
         len(cited_numbers) > 0 and 
         1 not in cited_numbers):
         # Add [1] if it exists in all_references and we have other citations

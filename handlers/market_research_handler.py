@@ -69,26 +69,7 @@ class MarketResearchHandler:
             
             session_data = self.user_sessions[user_id]
             
-            # Check if in TEST MODE (forced false in production)
-            PRODUCTION_MODE = os.getenv('PRODUCTION_MODE', 'false').lower() == 'true'
-            test_mode_active = False if PRODUCTION_MODE else session_data.get('test_mode', False)
-            if test_mode_active:
-                logger.info("🧪 TEST MODE: Performing mock market research")
-                # Send immediate response for TEST MODE
-                test_response = self._get_test_mode_response()
-                client.chat_postMessage(
-                    channel=channel_id,
-                    text=test_response
-                )
-                
-                # Store mock market research in session
-                self.user_sessions[user_id]['market_research'] = {
-                    'result': {'test_mode': True},
-                    'timestamp': datetime.now().isoformat(),
-                    'analysis_type': 'test_mode_mock'
-                }
-                logger.info("✅ TEST MODE market research completed")
-                return
+
             
             # Validate session has required data
             if 'processed_documents' not in session_data or 'document_summary' not in session_data:
@@ -147,45 +128,7 @@ class MarketResearchHandler:
         # Delegate to post-ack method
         self.handle_command_post_ack(body, client)
     
-    def _get_test_mode_response(self) -> str:
-        """Get a test mode response for market research"""
-        response = "✅ **MARKET RESEARCH ANALYSIS COMPLETED (TEST MODE)**\n\n"
-        
-        # MEJORAS CALIDAD: Market Taxonomy TEST MODE
-        response += "📊 **MARKET TAXONOMY** (9.0/10)\n"
-        response += "• **Solution:** AI-powered invoice factoring platform\n"
-        response += "• **Sub-vertical:** Invoice financing\n"
-        response += "• **Vertical:** FinTech\n"
-        response += "• **Industry:** Financial technology\n"
-        response += "• **Target:** SMB merchants in LATAM\n\n"
-        
-        # FASE 2A: Enhanced Competitive Landscape (TEST MODE)
-        response += "🏢 **COMPETITIVE LANDSCAPE** (High risk - 6 sources)\n"
-        response += "• **Market leaders:** Stripe ($95B valuation), MercadoPago\n"
-        response += "• **Similar play:** FactorX - Failed to raise B\n"
-        response += "• **Key risk:** 3 of 5 similar AI factoring startups failed in 18 months\n\n"
-        
-        # FASE 2B: Enhanced Market Validation (TEST MODE)
-        response += "📈 **MARKET VALIDATION** (medium confidence - 3 sources)\n"
-        response += "• **Expert:** McKinsey 2024: 48h approval technically feasible but requires regulatory pre-approval\n"
-        response += "• **Precedent:** QuickFactor - Failed - regulatory issues\n"
-        response += "• **Assessment:** Feasible but regulatory-dependent\n\n"
-        
-        # FASE 2C: Enhanced Funding Benchmarks (TEST MODE)
-        response += "💰 **FUNDING BENCHMARKS** (medium confidence - 8 sources)\n"
-        response += "• **Market:** TechCrunch 2024: FinTech Series A rounds averaging $8M, down 30% from 2022\n"
-        response += "• **Recent:** PayFlow - Raised $12M Series A at $60M valuation\n"
-        response += "• **Climate:** Cautious - 25% down from peak\n\n"
-        
-        
-        response += "🧠 **KEY INSIGHT:**\n"
-        response += "⚠️ Strong market opportunity but regulatory complexity varies significantly across target countries.\n\n"
-        
-        response += "📋 `/ask` `/scoring` `/memo` `/gaps` `/reset`\n\n"
-        
-        response += "📎 *TEST MODE - No GPT-5 calls made*"
-        
-        return response
+
     
     def _perform_analysis(self, client, channel_id: str, user_id: str, message_ts: str) -> None:
         """

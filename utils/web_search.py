@@ -220,65 +220,7 @@ class TavilyProvider(SearchProvider):
             return []
 
 
-class MockSearchProvider(SearchProvider):
-    """Mock search provider for TEST_MODE"""
-    
-    def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Return mock search results for testing"""
-        
-        # Generate contextual mock results based on query
-        mock_results = []
-        
-        if 'competitor' in query.lower():
-            mock_results.extend([
-                {
-                    'title': 'FactorX - AI-Powered Invoice Factoring Platform',
-                    'url': 'https://techcrunch.com/2024/factorx-series-a',
-                    'snippet': 'Startup FactorX raised $15M Series A for AI invoice factoring. Claims 48h approval but averages 72h in practice due to regulatory requirements.'
-                },
-                {
-                    'title': 'PaymentFlow Expands Invoice Factoring to LATAM',
-                    'url': 'https://fintech-news.com/paymentflow-latam-expansion',
-                    'snippet': 'Company PaymentFlow, a competitor in AI-driven invoice factoring, expanded to LATAM markets with 60-hour approval times for SMEs.'
-                },
-                {
-                    'title': 'Clearwater Technologies - Water Treatment Leader',
-                    'url': 'https://clearwater-tech.com/about',
-                    'snippet': 'Clearwater Technologies Inc is a leading supplier of electrochemical water treatment systems for pharmaceutical and cosmetics industries.'
-                }
-            ])
-        
-        if 'expert' in query.lower() or 'opinion' in query.lower():
-            mock_results.extend([
-                {
-                    'title': 'McKinsey SME Working Capital Report 2024',
-                    'url': 'https://mckinsey.com/sme-working-capital-2024',
-                    'snippet': 'Industry analysis shows 72-96 hour standard for invoice factoring approval. Sub-48h requires pre-established regulatory frameworks.'
-                },
-                {
-                    'title': 'Expert Analysis: AI in Financial Services',
-                    'url': 'https://harvard-business.com/ai-fintech-analysis',
-                    'snippet': 'Harvard Business Review: AI can reduce approval times by 40% but regulatory compliance remains the bottleneck.'
-                }
-            ])
-        
-        if 'failed' in query.lower() or 'succeeded' in query.lower():
-            mock_results.append({
-                'title': 'Case Study: QuickFactor Shutdown After Regulatory Issues',
-                'url': 'https://fintech-failures.com/quickfactor-case',
-                'snippet': 'QuickFactor promised 24h invoice factoring but shut down after failing to meet regulatory requirements in multiple markets.'
-            })
-        
-        # Default fallback result
-        if not mock_results:
-            mock_results.append({
-                'title': 'General Market Analysis for Query',
-                'url': 'https://market-research.com/analysis',
-                'snippet': f'Market analysis related to: {query[:100]}. Industry trends show increasing competition and regulatory scrutiny.'
-            })
-        
-        logger.info(f"Mock search for '{query}' returned {len(mock_results)} results")
-        return mock_results[:max_results]
+
 
 
 class WebSearchEngine:
@@ -297,33 +239,26 @@ class WebSearchEngine:
         """
         self.provider_name = provider
         
-        # Check if TEST_MODE is active
-        if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            logger.info("🧪 TEST MODE: Using mock search provider")
-            self.provider = MockSearchProvider()
-        else:
-            # Production mode - use real search provider
-            if provider == 'tavily':
-                # Check if Tavily API key is available
-                if os.getenv('TAVILY_API_KEY'):
-                    logger.info("🔍 Using Tavily search provider")
-                    self.provider = TavilyProvider()
-                else:
-                    logger.warning("TAVILY_API_KEY not found, falling back to DuckDuckGo")
-                    self.provider = DuckDuckGoProvider()
-            elif provider == 'duckduckgo':
-                logger.info("🦆 Using DuckDuckGo search provider")
-                self.provider = DuckDuckGoProvider()
-            elif provider == 'mock':
-                self.provider = MockSearchProvider()
+        # Use real search provider
+        if provider == 'tavily':
+            # Check if Tavily API key is available
+            if os.getenv('TAVILY_API_KEY'):
+                logger.info("🔍 Using Tavily search provider")
+                self.provider = TavilyProvider()
             else:
-                # Default to Tavily if available, otherwise DuckDuckGo
-                if os.getenv('TAVILY_API_KEY'):
-                    logger.info(f"Unknown provider {provider}, defaulting to Tavily")
-                    self.provider = TavilyProvider()
-                else:
-                    logger.warning(f"Unknown provider {provider}, defaulting to DuckDuckGo")
-                    self.provider = DuckDuckGoProvider()
+                logger.warning("TAVILY_API_KEY not found, falling back to DuckDuckGo")
+                self.provider = DuckDuckGoProvider()
+        elif provider == 'duckduckgo':
+            logger.info("🦆 Using DuckDuckGo search provider")
+            self.provider = DuckDuckGoProvider()
+        else:
+            # Default to Tavily if available, otherwise DuckDuckGo
+            if os.getenv('TAVILY_API_KEY'):
+                logger.info(f"Unknown provider {provider}, defaulting to Tavily")
+                self.provider = TavilyProvider()
+            else:
+                logger.warning(f"Unknown provider {provider}, defaulting to DuckDuckGo")
+                self.provider = DuckDuckGoProvider()
     
     def search_multiple(self, queries: List[str], max_results_per_query: int = 3) -> Dict[str, Any]:
         """
@@ -346,8 +281,8 @@ class WebSearchEngine:
             all_results.extend(results)
             search_terms_used.append(query)
             
-            # Small delay to avoid rate limiting (not needed for mock)
-            if self.provider_name != 'mock' and os.getenv('TEST_MODE', 'false').lower() != 'true':
+            # Small delay to avoid rate limiting
+            if self.provider_name != 'mock':
                 time.sleep(0.5)
         
         elapsed_time = time.time() - start_time

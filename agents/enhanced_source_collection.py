@@ -88,9 +88,7 @@ class EnhancedSourceCollector:
             logger.info(f"🔍 Enhanced Source Collection: Target {target_sources} high-quality sources")
             start_time = time.time()
             
-            # Check TEST_MODE
-            if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                return self._create_mock_enhanced_sources(target_sources)
+
             
             # Reset diversity tracking
             self.collected_domains.clear()
@@ -198,8 +196,7 @@ class EnhancedSourceCollector:
                         enhanced_sources.append(enhanced_source)
                 
                 # Rate limiting
-                if os.getenv('TEST_MODE', 'false').lower() != 'true':
-                    time.sleep(0.3)  # Reduced delay for faster collection
+                time.sleep(0.3)  # Rate limiting for API calls
                     
             except Exception as e:
                 logger.error(f"Search failed for query '{query}': {e}")
@@ -516,58 +513,7 @@ class EnhancedSourceCollector:
             'content_relevance': source.quality_metrics.content_relevance
         }
     
-    def _create_mock_enhanced_sources(self, target_sources: int) -> Dict[str, Any]:
-        """Create mock enhanced sources for TEST_MODE"""
-        logger.info(f"🧪 TEST_MODE: Creating {target_sources} mock enhanced sources")
-        
-        mock_sources = []
-        for i in range(target_sources):
-            category = ['competitive', 'validation', 'funding', 'regulatory'][i % 4]
-            source_type = ['professional', 'news', 'industry', 'academic'][i % 4]
-            
-            mock_source = {
-                'url': f'https://mock-source-{i+1}.com/analysis',
-                'title': f'Mock Analysis {i+1}: Market Intelligence Report',
-                'content': f'Mock content for source {i+1} providing {category} intelligence...',
-                'quality_score': 0.75 + (i % 3) * 0.08,  # Vary quality scores
-                'source_type': source_type,
-                'source_category': category,
-                'search_query': f'mock query for {category}',
-                'domain_authority': 0.8 if source_type == 'professional' else 0.6,
-                'content_relevance': 0.7 + (i % 4) * 0.05
-            }
-            mock_sources.append(mock_source)
-        
-        return {
-            'enhanced_sources': mock_sources,
-            'quality_summary': {
-                'total_sources': target_sources,
-                'average_quality': 0.81,
-                'professional_sources': target_sources // 4,
-                'high_quality_sources': target_sources // 2
-            },
-            'diversity_metrics': {
-                'domain_diversity': min(target_sources, 25),
-                'source_type_diversity': 4,
-                'professional_source_percentage': 25.0,
-                'diversity_score': 0.85
-            },
-            'collection_metadata': {
-                'total_sources_collected': target_sources,
-                'sources_after_filtering': target_sources,
-                'final_source_count': target_sources,
-                'collection_time_seconds': 2.5,
-                'target_achieved': True,
-                'average_quality_score': 0.81,
-                'test_mode': True
-            },
-            'cost_summary': {
-                'api_calls_made': 0,
-                'estimated_cost_usd': 0.0,
-                'test_mode': True,
-                'within_cost_limits': True
-            }
-        }
+
     
     def _check_cost_limits(self) -> bool:
         """Check if cost and API call limits are within acceptable range"""

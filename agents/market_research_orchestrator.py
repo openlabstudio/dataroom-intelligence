@@ -18,77 +18,7 @@ from .bmad_framework import BMADFramework, BMADAnalysisRequest, BMADSynthesisRes
 
 logger = get_logger(__name__)
 
-def get_mock_market_intelligence_result():
-    """Return mock data for testing without GPT-5 calls"""
-    from dataclasses import dataclass
-    from typing import Dict, Any
 
-    @dataclass
-    class MockMarketProfile:
-        primary_vertical: str = "cleantech"
-        sub_vertical: str = "water treatment"
-        business_model: str = "Direct-to-Business, Technology Licensing"
-        target_market: str = "B2B, specifically pharmaceutical and cosmetics industries"
-        geographic_focus: str = "Europe, expanding to North America"
-        confidence_score: float = 0.85
-        clarity_score: int = 9
-        consistency_score: int = 8
-        specificity_score: int = 9
-        data_quality_score: int = 7
-
-    @dataclass
-    class MockResult:
-        market_profile: MockMarketProfile = MockMarketProfile()
-        critical_assessment: Dict[str, str] = None
-        funding_benchmarks: Dict[str, Any] = None  # TASK-003: Added funding benchmarks
-        web_intelligence: Dict[str, Any] = None  # TASK-005: Added web search intelligence
-        intelligence_summary: str = "Mock analysis completed"
-
-        def __post_init__(self):
-            if self.critical_assessment is None:
-                self.critical_assessment = {
-                    "market_reality_check": "The startup's claim of TAM €1.6B seems optimistic but not unreasonable for the water treatment sector. However, the path from €40M SOM to €15M revenue in 5 years requires aggressive market penetration that may face regulatory and adoption challenges.",
-                    "competitive_concern": "No mention of major competitors like Veolia, Suez, or emerging cleantech players. The 60% energy reduction claim needs independent validation. Patents pending status creates IP risk if not granted.",
-                    "business_model_assessment": "B2B licensing model is sound but requires significant upfront investment in customer education and regulatory compliance. Revenue projections seem aggressive for hardware sales in conservative pharmaceutical industry."
-                }
-            if self.funding_benchmarks is None:
-                self.funding_benchmarks = {
-                    "stage": "Series A",
-                    "amount_raised": "$5M",
-                    "valuation": "$25M",
-                    "industry_benchmarks": {
-                        "typical_raise": "$2M-$15M",
-                        "typical_valuation": "$10M-$50M",
-                        "median_revenue_multiple": "8x",
-                        "median_growth_rate": "150% YoY"
-                    },
-                    "metrics_comparison": {
-                        "valuation_percentile": "35th",
-                        "efficiency_score": "Below Average",
-                        "burn_multiple": "2.5x (High)"
-                    },
-                    "runway_analysis": "10-12 months - fundraising needed"
-                }
-            if self.web_intelligence is None:
-                self.web_intelligence = {
-                    'competitors_found': [
-                        'Veolia Water Technologies (Large incumbent)',
-                        'Suez Water Solutions (Direct competitor)', 
-                        'BioMicrobics (Similar technology)'
-                    ],
-                    'expert_insights': [
-                        'Frost & Sullivan CleanTech 2024: Water treatment market growing 12% CAGR',
-                        'Industry Report: Pharma water compliance becoming stricter in EU',
-                        'Expert opinion: Energy reduction claims require third-party validation'
-                    ],
-                    'sources_count': 6,
-                    'search_terms_used': [
-                        'cleantech water treatment competitors analysis',
-                        'pharmaceutical water treatment expert opinion'
-                    ]
-                }
-
-    return MockResult()
 
 class MarketIntelligenceResult:
     """Comprehensive market intelligence analysis result"""
@@ -158,9 +88,7 @@ class MarketResearchOrchestrator(BaseAgent):
 
             # Check if we're in test mode
             import os
-            if os.getenv('TEST_MODE', 'false').lower() == 'true':
-                logger.info("🧪 TEST MODE: Using mock data with simulated progress")
-                return self._perform_test_mode_analysis()
+
 
             result = MarketIntelligenceResult()
 
@@ -189,8 +117,7 @@ class MarketResearchOrchestrator(BaseAgent):
             # Realistic progress timing - show phase for at least 8 seconds (skip in test mode)
             import time
             import os
-            if os.getenv('TEST_MODE', 'false').lower() != 'true':
-                time.sleep(8)
+            time.sleep(8)
             
             self.progress_tracker.phases[0].status = "completed"
             self.progress_tracker.phases[0].end_time = datetime.now()
@@ -223,8 +150,7 @@ class MarketResearchOrchestrator(BaseAgent):
                     self.progress_tracker.phases[phase_idx].start_time = datetime.now()
                 
                 # Show progress for each phase (reduced time since collection is unified)
-                if os.getenv('TEST_MODE', 'false').lower() != 'true':
-                    time.sleep(3)  # Reduced from 10s since collection is more efficient
+                time.sleep(3)  # Processing delay for progress UX
                 
                 self.progress_tracker.phases[phase_idx].status = "completed"
                 self.progress_tracker.phases[phase_idx].end_time = datetime.now()
@@ -314,8 +240,7 @@ class MarketResearchOrchestrator(BaseAgent):
             }
             
             # Show progress for 5 seconds after work is done but before marking complete (this phase does most work)
-            if os.getenv('TEST_MODE', 'false').lower() != 'true':
-                time.sleep(5)
+            time.sleep(5)
             
             self.progress_tracker.phases[4].status = "completed"
             self.progress_tracker.phases[4].end_time = datetime.now()
@@ -339,37 +264,7 @@ class MarketResearchOrchestrator(BaseAgent):
             result.processing_steps.append(f"ERROR: {str(e)}")
             return result
 
-    def _perform_test_mode_analysis(self) -> Any:
-        """Perform simulated analysis in TEST_MODE with progress tracking"""
-        logger.info("🧪 Running TEST_MODE analysis with simulated progress")
-        
-        # Simulate all 5 phases
-        phases_simulation = [
-            ("market_detection", "FinTech/Payments", 0.5),
-            ("competitive_intelligence", "Analyzing competitors", 0.5),
-            ("market_validation", "Validating TAM/SAM", 0.5),
-            ("funding_benchmarking", "Benchmarking metrics", 0.5),
-            ("critical_synthesis", "Generating assessment", 0.5)
-        ]
-        
-        for i, (phase_id, description, delay) in enumerate(phases_simulation):
-            self.progress_tracker.phases[i].status = "running"
-            self.progress_tracker.phases[i].start_time = datetime.now()
-            
-            if i == 0:  # Set detected market in first phase
-                self.progress_tracker.detected_market = "FinTech/Payments"
-            
-            logger.info(f"🔄 Phase {i+1}/5: {description}")
-            time.sleep(delay)  # Simulate processing
-            
-            self.progress_tracker.phases[i].status = "completed"
-            self.progress_tracker.phases[i].end_time = datetime.now()
-            self.progress_tracker.current_phase_index = i + 1
-            
-            logger.info(f"✅ Phase {i+1} complete")
-        
-        logger.info("🧪 TEST_MODE analysis complete with all phases simulated")
-        return get_mock_market_intelligence_result()
+
 
     def _generate_critical_assessment(self, market_profile: MarketProfile,
                                      processed_documents: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -512,8 +407,8 @@ Be brutally honest - this analysis will be used for investment decisions.
         # Simple BMAD-inspired analysis result
         research_results = []
         
-        # Create mock research result
-        mock_research_result = BMADResearchResult(
+        # Create fallback research result
+        fallback_research_result = BMADResearchResult(
             research_type=None,
             expert_persona=None,
             findings={"sources_analyzed": len(all_web_sources), "analysis_type": "fallback"},
@@ -537,7 +432,7 @@ Be brutally honest - this analysis will be used for investment decisions.
             ]
         )
         
-        research_results.append(mock_research_result)
+        research_results.append(fallback_research_result)
         
         # Create synthesis result
         synthesis_result = BMADSynthesisResult(

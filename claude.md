@@ -45,9 +45,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Session Management**: User sessions stored in-memory (`user_sessions` dict) containing document analysis state and market research data.
 
-**TEST MODE Architecture**: Critical dual-mode system for development:
-- `TEST_MODE=true` - Mock responses, no API costs
-- `TEST_MODE=false` - Real GPT-4/Tavily API calls (costly)
+**Production-Only Architecture**: Streamlined development workflow:
+- All development uses production APIs directly
+- Cost monitoring implemented for development budget management
+- No mock responses or dual-mode complexity
 
 ## Common Development Commands
 
@@ -61,33 +62,33 @@ pip install -r requirements.txt
 # Copy environment template
 cp .env.example .env
 
-# Run application (TEST MODE enabled by default)
+# Run application (production APIs only)
 python app.py
 ```
 
-### Testing Commands
+### Development Commands
 ```bash
-# Note: Previous test files have been removed during Phase 3 preparation
-# Current development uses direct system testing with TEST_MODE=false
+# Note: Previous test files and mock responses have been removed during Phase 3
+# All development now uses production APIs directly
 
-# Test market research in development mode
-export TEST_MODE=true
+# Run application for development
 python app.py
 
-# Production testing (Phase 3 development - COSTS MONEY!)
-export TEST_MODE=false
-python app.py
+# Monitor API costs during development
+# Check logs for actual API usage and costs
 ```
 
 ### Environment Management
 ```bash
-# Development (default - no API costs)
-export TEST_MODE=true
-python app.py
+# Simplified environment setup - production APIs only
+# Required environment variables:
+export OPENAI_API_KEY=sk-...
+export TAVILY_API_KEY=tvly-...
+export SLACK_BOT_TOKEN=xoxb-...
+export SLACK_APP_TOKEN=xapp-...
+export SLACK_SIGNING_SECRET=...
+export GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
-# Production testing (COSTS MONEY!)
-export TEST_MODE=false
-export PRODUCTION_MODE=true
 python app.py
 ```
 
@@ -170,12 +171,7 @@ class NewAgent(BaseAgent):
         super().__init__("Agent Name")
 
     def analyze(self, processed_documents, document_summary):
-        # ALWAYS check TEST_MODE first
-        import os
-        if os.getenv('TEST_MODE', 'false').lower() == 'true':
-            return self._get_mock_response()
-
-        # Real implementation
+        # Direct implementation with production APIs
         return self._real_analysis(processed_documents)
 ```
 
@@ -339,11 +335,11 @@ result['cost_summary'] = enhanced_collection['cost_summary']
 
 ## Key Architectural Principles
 
-**TEST MODE First**: All new features must work in TEST_MODE before real API integration
+**Production-First Development**: All development uses production APIs directly with cost monitoring
 
 **Session Persistence**: Commands depend on session state - always check `user_id in user_sessions`
 
-**Transparent Error Handling**: Never return mock data in production - show clear error messages when services fail
+**Transparent Error Handling**: Show clear error messages when services fail, no mock data fallbacks
 
 **Dual Command Purpose**:
 - `/analyze` - What does the startup claim in their documents?
@@ -364,15 +360,14 @@ TAVILY_API_KEY=tvly-...
 # Google Drive
 GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
-# Deployment Mode
-TEST_MODE=true           # Development default
-PRODUCTION_MODE=false    # Railway sets to true
+# Note: TEST_MODE and PRODUCTION_MODE have been eliminated
+# All environments use production APIs directly
 ```
 
 ## Development Workflow
 
-1. **Always start with TEST_MODE=true** - Protects against API costs
-2. **Implement mock responses first** - Validates UX before real integration
+1. **Direct production API development** - All development uses real APIs with cost monitoring
+2. **Incremental development and testing** - Build features incrementally with real API feedback
 3. **Test session persistence** - Use `/analyze debug` frequently
 4. **One agent at a time** - Incremental development and testing
 5. **Commit working increments** - Stability over features
