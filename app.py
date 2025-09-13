@@ -368,13 +368,6 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             # Enhanced response to mention market research
             if market_research_orchestrator:
                 formatted_response += "\n\nUse `/market-research` for comprehensive market intelligence analysis."
-            
-
-            client.chat_update(
-                channel=channel_id,
-                ts=message_ts,
-                text=formatted_response
-            )
 
             # CRITICAL: Create basic session data for vision processing
             basic_session_data = {
@@ -386,7 +379,10 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'analysis_timestamp': datetime.now().isoformat()
             }
 
-            # NEW: Vision processing integration (with availability check)
+            # NEW: Vision processing integration (BEFORE showing final response)
+            final_session_data = basic_session_data  # Default fallback
+            vision_status_message = ""
+            
             try:
                 # Find PDF files for vision processing
                 pdf_files = [f for f in downloaded_files if f.get('mime_type') == 'application/pdf']
@@ -394,60 +390,84 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 if pdf_files and config.openai_configured and vision_integration_available:
                     # Process first PDF with vision (can be extended for multiple PDFs)
                     pdf_path = pdf_files[0]['path']
-                    logger.info(f"🔍 Initiating vision processing for: {pdf_files[0]['name']}")
+                    logger.info(f"🔍 Starting vision processing for: {pdf_files[0]['name']}")
                     
-                    # Update progress
+                    # Update progress with processing message
                     client.chat_update(
                         channel=channel_id,
                         ts=message_ts,
-                        text=formatted_response + f"\n\n🔍 **Processing visual elements...** ({len(pdf_files)} PDF files detected)"
+                        text="🔍 **Analysis in Progress**\n\n" +
+                             f"📄 Found {len(downloaded_files)} documents\n" +
+                             f"📊 AI analysis complete\n" +
+                             f"🔍 **Processing visual elements...** ({len(pdf_files)} PDF files detected)"
                     )
                     
-                    # Process with vision integration coordinator
-                    enhanced_session, vision_results = vision_integration_coordinator.process_document_with_vision(
-                        pdf_path, user_id, basic_session_data
-                    )
-                    
-                    # Store enhanced session instead of basic session
-                    user_sessions[user_id] = enhanced_session
-                    
-                    if vision_results and vision_results.get('processing_metadata'):
-                        pages_analyzed = vision_results['processing_metadata'].get('total_pages_analyzed', 0)
-                        if pages_analyzed > 0:
-                            logger.info(f"✅ Vision processing completed: {pages_analyzed} pages analyzed")
-                            # Update response to include vision processing status
-                            client.chat_update(
-                                channel=channel_id,
-                                ts=message_ts,
-                                text=formatted_response + f"\n\n✅ **Vision processing complete:** {pages_analyzed} pages analyzed with GPT Vision"
-                            )
+                    # Process with vision integration coordinator (with timeout protection)
+                    try:
+                        enhanced_session, vision_results = vision_integration_coordinator.process_document_with_vision(
+                            pdf_path, user_id, basic_session_data
+                        )
+                        
+                        # Use enhanced session as final session
+                        final_session_data = enhanced_session
+                        
+                        if vision_results and vision_results.get('processing_metadata'):
+                            pages_analyzed = vision_results['processing_metadata'].get('total_pages_analyzed', 0)
+                            if pages_analyzed > 0:
+                                logger.info(f"✅ Vision processing completed: {pages_analyzed} pages analyzed")
+                                vision_status_message = f"\n\n✅ **Vision Enhanced:** {pages_analyzed} pages analyzed with GPT Vision"
+                            else:
+                                logger.info("📄 Vision processing: No visual elements required analysis")
+                                vision_status_message = "\n\n📄 **Text Analysis:** No visual processing required"
                         else:
-                            logger.info("📄 Vision processing: No visual elements required analysis")
-                    else:
-                        logger.info("📄 Vision processing: Text-only analysis sufficient")
+                            logger.info("📄 Vision processing: Text-only analysis sufficient")
+                            vision_status_message = "\n\n📄 **Text-Only Analysis:** Visual processing not needed"
+                            
+                    except Exception as vision_error:
+                        logger.error(f"❌ Vision processing failed: {vision_error}")
+                        vision_status_message = "\n\n⚠️ **Note:** Vision processing unavailable, using text-only analysis"
+                        # Keep basic session data as fallback
                         
                 elif vision_integration_available and pdf_files:
                     # Create enhanced session even without vision processing for consistency
-                    enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
-                        None, user_id, basic_session_data
-                    )
-                    user_sessions[user_id] = enhanced_session
-                    logger.info("📄 Enhanced session created without vision processing")
+                    try:
+                        enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
+                            None, user_id, basic_session_data
+                        )
+                        final_session_data = enhanced_session
+                        logger.info("📄 Enhanced session created without vision processing")
+                        vision_status_message = "\n\n📄 **Text-Only Analysis:** Vision processing not needed"
+                    except Exception as e:
+                        logger.error(f"❌ Enhanced session creation failed: {e}")
+                        vision_status_message = "\n\n⚠️ **Note:** Using basic text analysis"
                         
                 else:
-                    # No PDFs, OpenAI not configured, or vision not available - store basic session
-                    user_sessions[user_id] = basic_session_data
+                    # No PDFs, OpenAI not configured, or vision not available - use basic session
                     if not pdf_files:
                         logger.info("📄 No PDF files found - vision processing skipped")
+                        vision_status_message = "\n\n📄 **Document Analysis:** Non-PDF documents processed"
                     elif not config.openai_configured:
                         logger.info("🔧 OpenAI not configured - vision processing disabled")
+                        vision_status_message = "\n\n🔧 **Configuration:** Vision processing disabled"
                     elif not vision_integration_available:
                         logger.info("🔧 Vision integration not available - using text-only processing")
+                        vision_status_message = "\n\n📄 **Text-Only Mode:** Vision integration unavailable"
                         
             except Exception as e:
-                logger.error(f"❌ Vision processing failed: {e}")
-                # Fallback to basic session on vision processing failure
-                user_sessions[user_id] = basic_session_data
+                logger.error(f"❌ Vision processing pipeline failed: {e}")
+                vision_status_message = "\n\n⚠️ **Note:** Vision processing error, using text-only analysis"
+                # final_session_data already defaults to basic_session_data
+            
+            # Store the final session data (enhanced or basic)
+            user_sessions[user_id] = final_session_data
+            
+            # Show final response with vision status
+            final_response = formatted_response + vision_status_message
+            client.chat_update(
+                channel=channel_id,
+                ts=message_ts,
+                text=final_response
+            )
             
             # DEBUG: Log session storage
             logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
