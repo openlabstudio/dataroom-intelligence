@@ -24,6 +24,9 @@ pytesseract==0.3.10
 pdf2image==1.17.0
 Pillow>=10.0.0
 
+# Vision Integration (GPT Vision + PDF processing)
+PyMuPDF==1.23.14
+
 # Web Search
 tavily-python==0.7.11
 
