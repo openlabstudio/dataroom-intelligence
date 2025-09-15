@@ -247,8 +247,9 @@ class EnhancedSessionManager:
     # Helper methods for data processing
     def _count_processed_pages(self, basic_session_data: Dict[str, Any]) -> int:
         """Count total pages processed from basic session data"""
-        processed_docs = basic_session_data.get('processed_documents', {})
-        return sum(doc.get('page_count', 0) for doc in processed_docs.values())
+        processed_docs = basic_session_data.get('processed_documents', [])
+        # processed_documents is a list, not a dict
+        return sum(doc.get('page_count', 0) for doc in processed_docs)
     
     def _extract_chart_insights(self, vision_results: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract chart and graph insights from vision results"""
