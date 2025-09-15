@@ -40,14 +40,14 @@ class VisionIntegrationCoordinator:
         logger.info(f"   Vision Processing: {'Enabled' if self.vision_enabled else 'Disabled'}")
         logger.info(f"   Auto Command Enhancement: {'Enabled' if self.auto_enhance_commands else 'Disabled'}")
     
-    def process_document_with_vision(self, pdf_path: str, user_id: str, 
+    def process_document_with_vision(self, pdf_path: Optional[str], user_id: str, 
                                    basic_session_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Complete vision processing pipeline for document analysis.
         Integrates with existing document processing workflow.
         
         Args:
-            pdf_path: Path to PDF document
+            pdf_path: Path to PDF document (None to skip vision processing)
             user_id: User identifier for session management
             basic_session_data: Existing session data from text processing
             
@@ -55,8 +55,9 @@ class VisionIntegrationCoordinator:
             Tuple of (enhanced_session_data, vision_processing_results)
         """
         
-        if not self.vision_enabled:
-            logger.info("📄 Vision processing disabled - using text-only analysis")
+        # Quick exit for disabled vision or None path
+        if not self.vision_enabled or pdf_path is None:
+            logger.info("📄 Vision processing disabled or skipped - creating enhanced session without vision")
             enhanced_session = self.session_manager.create_enhanced_session(
                 user_id, basic_session_data, None
             )
