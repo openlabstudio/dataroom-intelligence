@@ -158,7 +158,7 @@ class MarketResearchHandler:
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
                      "📊 **Phase 1/5:** Market Detection & Taxonomy\n" +
                      "🎯 Identifying 4-level hierarchy (Solution → Sub-vertical → Vertical → Industry)\n" +
-                     "⏳ Status: Processing documents with GPT-5..."
+                     "⏳ Status: Processing documents with AI..."
             )
             
             # Simulate some processing time
@@ -202,7 +202,7 @@ class MarketResearchHandler:
                 channel=channel_id,
                 ts=message_ts,
                 text="🔍 **Market Research Analysis in Progress**\n\n" +
-                     "📊 **Phase 5/5:** GPT-5 Market Intelligence Synthesis\n" +
+                     "📊 **Phase 5/5:** AI Market Intelligence Synthesis\n" +
                      "🤖 AI synthesis of all collected data into professional investment analysis\n" +
                      "⏳ **Note:** This phase may take 1-2 minutes - synthesizing all intelligence..."
             )

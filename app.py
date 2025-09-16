@@ -188,13 +188,14 @@ def handle_analyze_command(ack, body, client):
             )
             return
 
-        # Send detailed initial response with drive link
+        # Send detailed initial response with drive link and time estimate
         initial_response = client.chat_postMessage(
             channel=channel_id,
             text="🔍 **Analysis Request Received**\n\n" +
                  f"📁 Link: *{drive_link}*\n" +
                  f"⏳ Starting comprehensive data room analysis...\n\n" +
-                 f"🚧 Processing documents and generating AI insights..."
+                 f"🚧 Processing documents and generating AI insights...\n" +
+                 f"⌛ **Estimated time: 1-2 minutes** (depending on document size)"
         )
 
         # Start background processing using threading (proven to work)
@@ -314,7 +315,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
         document_summary = doc_processor.get_content_summary(processed_documents)
 
         # Step 3: AI Analysis
-        logger.info("📊 Proceeding with GPT-5 analysis")
+        logger.info("📊 Proceeding with AI analysis")
         
         if ai_analyzer and config.openai_configured:
             client.chat_update(
@@ -322,7 +323,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 ts=message_ts,
                 text="🔍 **Analysis in Progress**\n\n" +
                      f"📄 Processed {document_summary['successful_processing']} documents\n" +
-                     f"🧠 **Analyzing with AI (GPT-5)...**"
+                     f"🧠 **Analyzing with AI...**"
             )
 
             analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
@@ -400,7 +401,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             
             # DEBUG: Log session storage
             logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
-            logger.info(f"✅ PRODUCTION MODE - With GPT-5 analysis results")
+            logger.info(f"✅ PRODUCTION MODE - With AI analysis results")
             logger.info(f"✅ PRODUCTION MODE - Active sessions: {list(user_sessions.keys())}")
 
         else:
@@ -881,7 +882,7 @@ def handle_gaps_command(ack, body, client):
             return
 
         # Generate gaps analysis
-        gaps_analysis = ai_analyzer.analyze_gaps(session_data)
+        gaps_analysis = ai_analyzer.analyze_gaps()
 
         response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
 

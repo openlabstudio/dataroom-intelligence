@@ -103,7 +103,7 @@ class DocumentProcessor:
         try:
             # GPT-4o Direct PDF Processing (primary method)
             if self.gpt4o_processor:
-                logger.info(f"📄 Processing PDF with GPT-4o Direct: {file_name}")
+                logger.info(f"📄 Processing PDF with AI Direct: {file_name}")
                 try:
                     gpt4o_result = self.gpt4o_processor.process_pdf_document(file_path, file_name)
 
@@ -113,7 +113,7 @@ class DocumentProcessor:
                         len(gpt4o_result['content']) > 50 and  # Lower threshold for acceptance
                         not gpt4o_result.get('metadata', {}).get('fallback_required', False)):
 
-                        logger.info(f"✅ GPT-4o Direct processing successful: {len(gpt4o_result['content'])} chars")
+                        logger.info(f"✅ AI Direct processing successful: {len(gpt4o_result['content'])} chars")
                         return gpt4o_result
                     else:
                         logger.warning(f"⚠️ GPT-4o processing failed or returned insufficient content")

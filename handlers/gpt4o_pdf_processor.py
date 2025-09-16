@@ -30,7 +30,7 @@ class GPT4oDirectProcessor:
         Returns:
             Dictionary with structured extraction results
         """
-        logger.info(f"🔵 Starting GPT-4o Direct processing for: {file_name}")
+        logger.info(f"🔵 Starting AI processing for: {file_name}")
         start_time = time.time()
         
         try:
@@ -45,7 +45,7 @@ class GPT4oDirectProcessor:
             logger.info(f"✅ File uploaded successfully: {uploaded_file.id}")
             
             # Step 2: Process with GPT-4o
-            logger.info("🧠 Processing with GPT-4o...")
+            logger.info("🧠 Processing with AI...")
             extraction_result = self._extract_structured_data(uploaded_file.id, file_name)
             
             # Step 3: Cleanup uploaded file
@@ -57,7 +57,7 @@ class GPT4oDirectProcessor:
             
             # Step 4: Format results
             processing_time = time.time() - start_time
-            logger.info(f"✅ GPT-4o processing completed in {processing_time:.2f}s")
+            logger.info(f"✅ AI processing completed in {processing_time:.2f}s")
             
             return {
                 'name': file_name,

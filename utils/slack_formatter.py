@@ -54,6 +54,30 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
             response += f"• {point}\n"
         response += "\n"
 
+    # Enhanced Financial Extraction (NEW - High Priority)
+    financial_highlights = analysis_result.get('financial_highlights', [])
+    if financial_highlights:
+        response += "💰 **FINANCIAL HIGHLIGHTS:**\n"
+        for highlight in financial_highlights[:6]:  # Show up to 6 financial points
+            response += f"• {highlight}\n"
+        response += "\n"
+
+    # Traction Context (NEW - High Priority)
+    traction_context = analysis_result.get('traction_context', [])
+    if traction_context:
+        response += "🚀 **TRACTION CONTEXT:**\n"
+        for context in traction_context[:5]:  # Show up to 5 traction points
+            response += f"• {context}\n"
+        response += "\n"
+
+    # Competitive Analysis (NEW - High Priority)
+    competitive_analysis = analysis_result.get('competitive_analysis', [])
+    if competitive_analysis:
+        response += "⚔️ **COMPETITIVE ANALYSIS:**\n"
+        for analysis_point in competitive_analysis[:4]:  # Show up to 4 competitive points
+            response += f"• {analysis_point}\n"
+        response += "\n"
+
     # Complete Scoring Overview (all categories with justifications)
     if scoring:
         response += "📊 **COMPLETE SCORING:**\n"
@@ -85,9 +109,22 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
             response += f"• {gap}\n"
         response += "\n"
 
-    # Recommendation
-    recommendation = analysis_result.get('recommendation', 'INVESTIGATE_FURTHER')
-    response += f"🎯 **RECOMMENDATION:** {recommendation}\n\n"
+    # Recommendation with Score-Based Rationale
+    recommendation = analysis_result.get('recommendation', 'PENDING_ANALYSIS')
+    recommendation_rationale = analysis_result.get('recommendation_rationale', 'Analysis incomplete')
+
+    # Format recommendation based on type
+    if recommendation == 'PASS':
+        rec_emoji = "✅"
+    elif recommendation == 'NO_GO':
+        rec_emoji = "❌"
+    elif recommendation == 'INVESTIGATE_FURTHER':
+        rec_emoji = "🔍"
+    else:
+        rec_emoji = "⏳"
+
+    response += f"{rec_emoji} **RECOMMENDATION:** {recommendation}\n"
+    response += f"📝 **Rationale:** {recommendation_rationale}\n\n"
 
     # Action buttons/commands
     response += "**Next Steps:**\n"

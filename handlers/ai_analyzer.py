@@ -1,6 +1,6 @@
 """
 AI Analysis handler for DataRoom Intelligence Bot
-Integrates with OpenAI GPT-5 to analyze data room documents
+Integrates with OpenAI GPT-4 to analyze data room documents
 """
 
 import json
@@ -14,7 +14,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 class AIAnalyzer:
-    """Handles AI-powered analysis of data room documents using OpenAI GPT-5"""
+    """Handles AI-powered analysis of data room documents using OpenAI GPT-4"""
 
     def __init__(self):
         self.client = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -24,7 +24,7 @@ class AIAnalyzer:
 
     def analyze_dataroom(self, processed_documents: List[Dict[str, Any]],
                         document_summary: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform comprehensive data room analysis using GPT-5"""
+        """Perform comprehensive data room analysis using GPT-4"""
         try:
             logger.info("🧠 Starting AI analysis of data room...")
 
@@ -45,7 +45,7 @@ class AIAnalyzer:
                 extracted_financials=formatted_financials
             )
 
-            # Call GPT-5 for analysis
+            # Call GPT-4 for analysis
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -108,7 +108,7 @@ class AIAnalyzer:
         }
 
     def _parse_analysis_response(self, analysis_text: str) -> Dict[str, Any]:
-        """Parse GPT-5 analysis response into structured format with robust scoring extraction"""
+        """Parse GPT-4 analysis response into structured format with robust scoring extraction"""
         try:
             import re
 
@@ -127,7 +127,8 @@ class AIAnalyzer:
                 'red_flags': [],
                 'missing_info': [],
                 'key_questions': [],
-                'recommendation': 'INVESTIGATE_FURTHER'
+                'recommendation': 'PENDING_ANALYSIS',
+                'recommendation_rationale': 'Analysis not completed'
             }
 
             # Extract executive summary
@@ -139,14 +140,44 @@ class AIAnalyzer:
                     if line.startswith(('-', '•', '*')) and len(line) > 5:
                         analysis['executive_summary'].append(line[1:].strip())
 
-            # Extract scoring with improved regex
+            # Extract Financial Highlights (NEW - Section 2)
+            financial_match = re.search(r'2\.\s*FINANCIAL EXTRACTION HIGHLIGHTS.*?:(.*?)(?=3\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            analysis['financial_highlights'] = []
+            if financial_match:
+                financial_content = financial_match.group(1)
+                for line in financial_content.split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['financial_highlights'].append(line[1:].strip())
+
+            # Extract Traction Context (NEW - Section 3)
+            traction_match = re.search(r'3\.\s*TRACTION CONTEXT EXTRACTION.*?:(.*?)(?=4\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            analysis['traction_context'] = []
+            if traction_match:
+                traction_content = traction_match.group(1)
+                for line in traction_content.split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['traction_context'].append(line[1:].strip())
+
+            # Extract Competitive Analysis (NEW - Section 4)
+            competitive_match = re.search(r'4\.\s*COMPETITIVE ANALYSIS EXTRACTION.*?:(.*?)(?=5\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            analysis['competitive_analysis'] = []
+            if competitive_match:
+                competitive_content = competitive_match.group(1)
+                for line in competitive_content.split('\n'):
+                    line = line.strip()
+                    if line.startswith(('-', '•', '*')) and len(line) > 5:
+                        analysis['competitive_analysis'].append(line[1:].strip())
+
+            # Extract scoring with improved regex (section 5 now)
             scoring_patterns = {
                 'team_management': [r'Team\s*&?\s*Management:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Business Model|$)'],
                 'business_model': [r'Business Model:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Financials|$)'],
                 'financials_traction': [r'Financials?\s*&?\s*Traction:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Market|$)'],
                 'market_competition': [r'Market\s*&?\s*Competition:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Technology|$)'],
                 'technology_product': [r'Technology/?Product:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Legal|$)'],
-                'legal_compliance': [r'Legal\s*&?\s*Compliance:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|3\.|$)']
+                'legal_compliance': [r'Legal\s*&?\s*Compliance:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|6\.|$)']
             }
 
             for category, patterns in scoring_patterns.items():
@@ -171,42 +202,62 @@ class AIAnalyzer:
                 analysis['overall_score'] = round(sum(scores) / len(scores), 1)
                 logger.info(f"📊 Calculated overall score: {analysis['overall_score']}/10")
 
-            # Extract red flags
-            red_flags_match = re.search(r'3\.\s*RED FLAGS.*?:(.*?)(?=4\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            # Extract red flags (now section 6)
+            red_flags_match = re.search(r'6\.\s*RED FLAGS.*?:(.*?)(?=7\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
             if red_flags_match:
                 for line in red_flags_match.group(1).split('\n'):
                     line = line.strip()
                     if line.startswith(('-', '•', '*')) and len(line) > 5:
                         analysis['red_flags'].append(line[1:].strip())
 
-            # Extract missing information
-            missing_match = re.search(r'4\.\s*CRITICAL MISSING.*?:(.*?)(?=5\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            # Extract missing information (now section 7)
+            missing_match = re.search(r'7\.\s*CRITICAL MISSING.*?:(.*?)(?=8\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
             if missing_match:
                 for line in missing_match.group(1).split('\n'):
                     line = line.strip()
                     if line.startswith(('-', '•', '*')) and len(line) > 5:
                         analysis['missing_info'].append(line[1:].strip())
 
-            # Extract key questions
-            questions_match = re.search(r'5\.\s*KEY QUESTIONS.*?:(.*?)(?=6\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
+            # Extract key questions (now section 8)
+            questions_match = re.search(r'8\.\s*KEY QUESTIONS.*?:(.*?)(?=9\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
             if questions_match:
                 for line in questions_match.group(1).split('\n'):
                     line = line.strip()
                     if line.startswith(('-', '•', '*')) and len(line) > 5:
                         analysis['key_questions'].append(line[1:].strip())
 
-            # Extract recommendation
-            rec_match = re.search(r'6\.\s*PRELIMINARY RECOMMENDATION.*?:\s*-?\s*(PASS|INVESTIGATE[^/]*|NO GO)', analysis_text, re.IGNORECASE)
-            if rec_match:
-                analysis['recommendation'] = rec_match.group(1).strip().upper()
+            # Calculate score-based recommendation (replacing default INVESTIGATE_FURTHER)
+            overall_score = analysis.get('overall_score', 0)
+            if overall_score >= 7.1:
+                analysis['recommendation'] = 'PASS'
+                analysis['recommendation_rationale'] = f'High quality opportunity (Score: {overall_score}/10) - Strong fundamentals across key areas'
+            elif overall_score >= 4.1:
+                analysis['recommendation'] = 'INVESTIGATE_FURTHER'
+                analysis['recommendation_rationale'] = f'Mixed quality signals (Score: {overall_score}/10) - Requires deeper analysis'
+            else:
+                analysis['recommendation'] = 'NO_GO'
+                analysis['recommendation_rationale'] = f'Low quality opportunity (Score: {overall_score}/10) - Significant concerns identified'
+
+            # Still check for explicit recommendation from text but don't override unless specific
+            rec_match = re.search(r'9\.\s*PRELIMINARY RECOMMENDATION.*?:\s*-?\s*(PASS|INVESTIGATE[^/]*|NO GO)', analysis_text, re.IGNORECASE)
+            if rec_match and overall_score > 0:
+                text_recommendation = rec_match.group(1).strip().upper()
+                # Only override if score-based and text-based align or text provides specific reasoning
+                if (text_recommendation == 'PASS' and overall_score >= 6.0) or \
+                   (text_recommendation == 'NO GO' and overall_score <= 5.0):
+                    analysis['recommendation'] = text_recommendation
 
             # Log parsing results
             logger.info(f"📋 Parsing results:")
             logger.info(f"   Executive summary: {len(analysis['executive_summary'])} points")
+            logger.info(f"   Financial highlights: {len(analysis.get('financial_highlights', []))} points")
+            logger.info(f"   Traction context: {len(analysis.get('traction_context', []))} points")
+            logger.info(f"   Competitive analysis: {len(analysis.get('competitive_analysis', []))} points")
             logger.info(f"   Scoring: {sum(1 for v in analysis['scoring'].values() if v['score'] > 0)}/6 categories")
             logger.info(f"   Red flags: {len(analysis['red_flags'])}")
             logger.info(f"   Missing info: {len(analysis['missing_info'])}")
             logger.info(f"   Overall score: {analysis['overall_score']}/10")
+            logger.info(f"   Recommendation: {analysis['recommendation']}")
 
             return analysis
 
@@ -294,37 +345,96 @@ class AIAnalyzer:
             return f"❌ Sorry, I couldn't generate the memo due to a technical error: {str(e)}"
 
     def analyze_gaps(self) -> str:
-        """Analyze information gaps for due diligence"""
+        """Analyze information gaps for due diligence using comprehensive analysis data"""
         try:
             if not self.current_analysis or not self.analysis_context:
                 return "❌ No data room has been analyzed yet. Please run /analyze first."
 
-            logger.info("🔍 Analyzing information gaps...")
+            logger.info("🔍 Analyzing information gaps with enhanced context...")
 
             # Extract financial data deterministically
             from utils.financial_extractor import extract_financial_data, format_financial_data_for_prompt
             financial_data = extract_financial_data(self.analysis_context['full_content'])
             formatted_financials = format_financial_data_for_prompt(financial_data)
 
-            # Create gaps prompt
-            gaps_prompt = GAPS_PROMPT.format(
-                available_documents=self.analysis_context['documents_summary'],
-                content_summary=json.dumps(self.current_analysis.get('missing_info', []), indent=2),
-                extracted_financials=formatted_financials
-            )
+            # Prepare comprehensive analysis summary for gaps analysis
+            analysis_summary = {
+                'overall_score': self.current_analysis.get('overall_score', 0),
+                'recommendation': self.current_analysis.get('recommendation', 'UNKNOWN'),
+                'executive_summary': self.current_analysis.get('executive_summary', []),
+                'financial_highlights': self.current_analysis.get('financial_highlights', []),
+                'traction_context': self.current_analysis.get('traction_context', []),
+                'competitive_analysis': self.current_analysis.get('competitive_analysis', []),
+                'scoring': self.current_analysis.get('scoring', {}),
+                'red_flags': self.current_analysis.get('red_flags', []),
+                'missing_info_from_analysis': self.current_analysis.get('missing_info', [])
+            }
+
+            # Enhanced gaps prompt with comprehensive context
+            enhanced_gaps_prompt = f"""
+You are a senior VC analyst who has just completed a comprehensive analysis of a startup's data room. Your task is to identify REAL information gaps based on what was ACTUALLY analyzed.
+
+DOCUMENTS ANALYZED:
+{self.analysis_context['documents_summary']}
+
+EXTRACTED FINANCIAL DATA (CONFIRMED PRESENT):
+{formatted_financials}
+
+COMPLETE ANALYSIS RESULTS:
+{json.dumps(analysis_summary, indent=2)}
+
+CURRENT ANALYSIS STATUS:
+- Overall Score: {analysis_summary['overall_score']}/10
+- Recommendation: {analysis_summary['recommendation']}
+- Financial Highlights Found: {len(analysis_summary['financial_highlights'])} items
+- Traction Context Found: {len(analysis_summary['traction_context'])} items
+- Competitive Analysis Found: {len(analysis_summary['competitive_analysis'])} items
+
+STAGE ASSESSMENT GUIDANCE:
+- €2M funding = SEED stage (not Series B/C)
+- €12M pre-money valuation = SEED/early Series A maximum
+- Look at actual funding amounts to determine stage accurately
+
+CRITICAL INSTRUCTIONS:
+1. DO NOT suggest that financial data is missing if it appears in FINANCIAL HIGHLIGHTS above
+2. DO NOT suggest team info is missing if it appears in TRACTION CONTEXT above
+3. DO NOT suggest competitive analysis is missing if it appears in COMPETITIVE ANALYSIS above
+4. Focus on ACTUAL documentation gaps, not data that was successfully extracted
+5. Assess stage based on ACTUAL funding data (€2M = Seed, not Series B/C)
+6. Be SPECIFIC about what documents are genuinely missing for this stage
+
+Based on the comprehensive analysis above, identify what information is genuinely missing for proper due diligence at this company's actual stage.
+
+RESPONSE FORMAT:
+
+**STAGE ASSESSMENT:**
+[Based on funding amounts and metrics, determine actual stage]
+
+**INFORMATION ALREADY AVAILABLE:**
+- Financial Data: [List specific data found]
+- Team Information: [List team data found]
+- Traction Metrics: [List metrics found]
+- Market Analysis: [List competitive data found]
+
+**GENUINE GAPS FOR THIS STAGE:**
+[Only list information that is truly missing and needed for this stage]
+
+**PRIORITY RECOMMENDATIONS:**
+[Rank gaps by actual importance for investment decision]
+"""
 
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a VC expert identifying critical missing information for due diligence."},
-                    {"role": "user", "content": gaps_prompt}
+                    {"role": "system", "content": "You are an expert VC analyst who provides accurate gap analysis based on comprehensive startup analysis data. You never suggest that information is missing if it was already found and extracted."},
+                    {"role": "user", "content": enhanced_gaps_prompt}
                 ],
-                max_tokens=1000,
+                max_tokens=1200,
                 temperature=0.2
             )
 
             gaps_analysis = response.choices[0].message.content
-            logger.info("✅ Gaps analysis completed successfully")
+            logger.info("✅ Enhanced gaps analysis completed successfully")
             return gaps_analysis
 
         except Exception as e:
