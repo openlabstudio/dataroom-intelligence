@@ -60,6 +60,11 @@ class AIAnalyzer:
 
             # Parse and structure the analysis
             analysis_result = response.choices[0].message.content
+
+            # Debug: Log the raw AI response to understand the format
+            logger.info(f"🔍 RAW AI RESPONSE (first 1000 chars):")
+            logger.info(f"{analysis_result[:1000]}...")
+
             structured_analysis = self._parse_analysis_response(analysis_result)
             # Store for future Q&A
             self.current_analysis = structured_analysis
@@ -115,149 +120,109 @@ class AIAnalyzer:
             # Initialize default structure
             analysis = {
                 'executive_summary': [],
-                'scoring': {
-                    'team_management': {'score': 0, 'justification': 'Not analyzed'},
-                    'business_model': {'score': 0, 'justification': 'Not analyzed'},
-                    'financials_traction': {'score': 0, 'justification': 'Not analyzed'},
-                    'market_competition': {'score': 0, 'justification': 'Not analyzed'},
-                    'technology_product': {'score': 0, 'justification': 'Not analyzed'},
-                    'legal_compliance': {'score': 0, 'justification': 'Not analyzed'}
-                },
-                'overall_score': 0,
-                'red_flags': [],
-                'missing_info': [],
-                'key_questions': [],
-                'recommendation': 'PENDING_ANALYSIS',
-                'recommendation_rationale': 'Analysis not completed'
+                'value_proposition': [],
+                'market_analysis': [],
+                'competitors': [],
+                'product_roadmap': [],
+                'go_to_market_strategy': [],
+                'financial_highlights': []
             }
 
-            # Extract executive summary
-            exec_match = re.search(r'1\.\s*EXECUTIVE SUMMARY.*?:(.*?)(?=2\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            if exec_match:
-                exec_content = exec_match.group(1)
-                for line in exec_content.split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['executive_summary'].append(line[1:].strip())
+            # Improved semantic parsing - look for concepts, not exact format
+            def extract_semantic_content(text, keywords, section_name):
+                """Extract content semantically using multiple approaches"""
+                points = []
 
-            # Extract Financial Highlights (NEW - Section 2)
-            financial_match = re.search(r'2\.\s*FINANCIAL EXTRACTION HIGHLIGHTS.*?:(.*?)(?=3\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            analysis['financial_highlights'] = []
-            if financial_match:
-                financial_content = financial_match.group(1)
-                for line in financial_content.split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['financial_highlights'].append(line[1:].strip())
+                # Approach 1: Look for sections with keywords (with or without numbers)
+                for keyword in keywords:
+                    patterns = [
+                        # With numbers: "1. EXECUTIVE SUMMARY:"
+                        rf'\d+\.\s*{keyword}.*?:(.*?)(?=\d+\.|[A-Z]{{3,}}.*?:|$)',
+                        # Without numbers: "EXECUTIVE SUMMARY:"
+                        rf'^{keyword}.*?:(.*?)(?=^[A-Z]{{3,}}.*?:|$)',
+                        # Markdown style: "**EXECUTIVE SUMMARY**"
+                        rf'\*\*{keyword}\*\*(.*?)(?=\*\*|$)',
+                        # Hash headers: "## EXECUTIVE SUMMARY"
+                        rf'## {keyword}(.*?)(?=##|$)',
+                        # Simple keyword match: "EXECUTIVE SUMMARY"
+                        rf'{keyword}:(.*?)(?=[A-Z]{{3,}}:|$)'
+                    ]
 
-            # Extract Traction Context (NEW - Section 3)
-            traction_match = re.search(r'3\.\s*TRACTION CONTEXT EXTRACTION.*?:(.*?)(?=4\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            analysis['traction_context'] = []
-            if traction_match:
-                traction_content = traction_match.group(1)
-                for line in traction_content.split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['traction_context'].append(line[1:].strip())
+                    for pattern in patterns:
+                        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE | re.MULTILINE)
+                        if match:
+                            content = match.group(1).strip()
+                            # Extract bullet points
+                            for line in content.split('\n'):
+                                line = line.strip()
+                                if line.startswith(('-', '•', '*')) and len(line) > 5:
+                                    points.append(line[1:].strip())
+                            if points:
+                                logger.info(f"📍 Found {section_name} using pattern: {keyword}")
+                                return points
 
-            # Extract Competitive Analysis (NEW - Section 4)
-            competitive_match = re.search(r'4\.\s*COMPETITIVE ANALYSIS EXTRACTION.*?:(.*?)(?=5\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            analysis['competitive_analysis'] = []
-            if competitive_match:
-                competitive_content = competitive_match.group(1)
-                for line in competitive_content.split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['competitive_analysis'].append(line[1:].strip())
+                # Approach 2: If no structured format, extract sentences containing keywords
+                sentences = re.split(r'[.!?]+', text)
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if len(sentence) > 20 and any(keyword.lower() in sentence.lower() for keyword in keywords):
+                        points.append(sentence)
+                        if len(points) >= 5:  # Limit to avoid too much content
+                            break
 
-            # Extract scoring with improved regex (section 5 now)
-            scoring_patterns = {
-                'team_management': [r'Team\s*&?\s*Management:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Business Model|$)'],
-                'business_model': [r'Business Model:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Financials|$)'],
-                'financials_traction': [r'Financials?\s*&?\s*Traction:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Market|$)'],
-                'market_competition': [r'Market\s*&?\s*Competition:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Technology|$)'],
-                'technology_product': [r'Technology/?Product:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|Legal|$)'],
-                'legal_compliance': [r'Legal\s*&?\s*Compliance:?\s*(\d+)/10\s*--?\s*(.*?)(?=\n|6\.|$)']
-            }
+                return points[:5]  # Maximum 5 points per section
 
-            for category, patterns in scoring_patterns.items():
-                for pattern in patterns:
-                    match = re.search(pattern, analysis_text, re.DOTALL | re.IGNORECASE)
-                    if match:
-                        try:
-                            score = int(match.group(1))
-                            justification = match.group(2).strip()
-                            analysis['scoring'][category] = {
-                                'score': max(0, min(10, score)),  # Ensure score is 0-10
-                                'justification': justification if justification else f"Score: {score}/10"
-                            }
-                            logger.debug(f"✅ Extracted {category}: {score}/10")
-                        except (ValueError, IndexError) as e:
-                            logger.debug(f"⚠️ Failed to parse {category}: {e}")
-                        break
+            # Extract each section using semantic approach
+            analysis['executive_summary'] = extract_semantic_content(analysis_text,
+                ['EXECUTIVE SUMMARY', 'SUMMARY', 'OVERVIEW'], 'Executive Summary')
 
-            # Calculate overall score
-            scores = [data.get('score', 0) for data in analysis['scoring'].values()]
-            if scores and any(s > 0 for s in scores):
-                analysis['overall_score'] = round(sum(scores) / len(scores), 1)
-                logger.info(f"📊 Calculated overall score: {analysis['overall_score']}/10")
+            analysis['value_proposition'] = extract_semantic_content(analysis_text,
+                ['VALUE PROPOSITION', 'VALUE', 'PROPOSITION', 'UNIQUE SELLING'], 'Value Proposition')
 
-            # Extract red flags (now section 6)
-            red_flags_match = re.search(r'6\.\s*RED FLAGS.*?:(.*?)(?=7\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            if red_flags_match:
-                for line in red_flags_match.group(1).split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['red_flags'].append(line[1:].strip())
+            analysis['market_analysis'] = extract_semantic_content(analysis_text,
+                ['MARKET ANALYSIS', 'MARKET', 'TAM', 'SAM', 'OPPORTUNITY'], 'Market Analysis')
 
-            # Extract missing information (now section 7)
-            missing_match = re.search(r'7\.\s*CRITICAL MISSING.*?:(.*?)(?=8\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            if missing_match:
-                for line in missing_match.group(1).split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['missing_info'].append(line[1:].strip())
+            analysis['competitors'] = extract_semantic_content(analysis_text,
+                ['COMPETITORS', 'COMPETITIVE', 'COMPETITION', 'BENCHMARK'], 'Competitors')
 
-            # Extract key questions (now section 8)
-            questions_match = re.search(r'8\.\s*KEY QUESTIONS.*?:(.*?)(?=9\.|$)', analysis_text, re.DOTALL | re.IGNORECASE)
-            if questions_match:
-                for line in questions_match.group(1).split('\n'):
-                    line = line.strip()
-                    if line.startswith(('-', '•', '*')) and len(line) > 5:
-                        analysis['key_questions'].append(line[1:].strip())
+            analysis['product_roadmap'] = extract_semantic_content(analysis_text,
+                ['PRODUCT ROADMAP', 'ROADMAP', 'DEVELOPMENT', 'FEATURES'], 'Product Roadmap')
 
-            # Calculate score-based recommendation (replacing default INVESTIGATE_FURTHER)
-            overall_score = analysis.get('overall_score', 0)
-            if overall_score >= 7.1:
-                analysis['recommendation'] = 'PASS'
-                analysis['recommendation_rationale'] = f'High quality opportunity (Score: {overall_score}/10) - Strong fundamentals across key areas'
-            elif overall_score >= 4.1:
-                analysis['recommendation'] = 'INVESTIGATE_FURTHER'
-                analysis['recommendation_rationale'] = f'Mixed quality signals (Score: {overall_score}/10) - Requires deeper analysis'
-            else:
-                analysis['recommendation'] = 'NO_GO'
-                analysis['recommendation_rationale'] = f'Low quality opportunity (Score: {overall_score}/10) - Significant concerns identified'
+            analysis['go_to_market_strategy'] = extract_semantic_content(analysis_text,
+                ['GO-TO-MARKET', 'GO TO MARKET', 'GTM', 'STRATEGY', 'SALES'], 'Go-to-Market Strategy')
 
-            # Still check for explicit recommendation from text but don't override unless specific
-            rec_match = re.search(r'9\.\s*PRELIMINARY RECOMMENDATION.*?:\s*-?\s*(PASS|INVESTIGATE[^/]*|NO GO)', analysis_text, re.IGNORECASE)
-            if rec_match and overall_score > 0:
-                text_recommendation = rec_match.group(1).strip().upper()
-                # Only override if score-based and text-based align or text provides specific reasoning
-                if (text_recommendation == 'PASS' and overall_score >= 6.0) or \
-                   (text_recommendation == 'NO GO' and overall_score <= 5.0):
-                    analysis['recommendation'] = text_recommendation
+            analysis['financial_highlights'] = extract_semantic_content(analysis_text,
+                ['FINANCIAL', 'REVENUE', 'FUNDING', 'GROWTH', 'METRICS'], 'Financial Highlights')
+
+
+            # Fallback: If parsing failed completely, extract basic information
+            total_points = sum(len(v) for v in analysis.values())
+            if total_points == 0:
+                logger.warning("⚠️ All sections empty - using fallback parsing")
+                # Split response into sentences and distribute among sections
+                sentences = [s.strip() for s in analysis_text.split('.') if len(s.strip()) > 20]
+                if sentences:
+                    # Distribute sentences across sections
+                    section_count = len(analysis)
+                    per_section = max(1, len(sentences) // section_count)
+
+                    sections = list(analysis.keys())
+                    for i, section in enumerate(sections):
+                        start_idx = i * per_section
+                        end_idx = min((i + 1) * per_section, len(sentences))
+                        analysis[section] = sentences[start_idx:end_idx]
+
+                    logger.info(f"🔄 Fallback: Distributed {len(sentences)} sentences across sections")
 
             # Log parsing results
             logger.info(f"📋 Parsing results:")
             logger.info(f"   Executive summary: {len(analysis['executive_summary'])} points")
+            logger.info(f"   Value proposition: {len(analysis.get('value_proposition', []))} points")
+            logger.info(f"   Market analysis: {len(analysis.get('market_analysis', []))} points")
+            logger.info(f"   Competitors: {len(analysis.get('competitors', []))} points")
+            logger.info(f"   Product roadmap: {len(analysis.get('product_roadmap', []))} points")
+            logger.info(f"   Go-to-market strategy: {len(analysis.get('go_to_market_strategy', []))} points")
             logger.info(f"   Financial highlights: {len(analysis.get('financial_highlights', []))} points")
-            logger.info(f"   Traction context: {len(analysis.get('traction_context', []))} points")
-            logger.info(f"   Competitive analysis: {len(analysis.get('competitive_analysis', []))} points")
-            logger.info(f"   Scoring: {sum(1 for v in analysis['scoring'].values() if v['score'] > 0)}/6 categories")
-            logger.info(f"   Red flags: {len(analysis['red_flags'])}")
-            logger.info(f"   Missing info: {len(analysis['missing_info'])}")
-            logger.info(f"   Overall score: {analysis['overall_score']}/10")
-            logger.info(f"   Recommendation: {analysis['recommendation']}")
 
             return analysis
 
@@ -312,37 +277,6 @@ class AIAnalyzer:
             logger.error(f"❌ Failed to answer question: {e}")
             return f"❌ Sorry, I couldn't answer that question due to a technical error: {str(e)}"
 
-    def generate_investment_memo(self) -> str:
-        """Generate a structured investment memo"""
-        try:
-            if not self.current_analysis or not self.analysis_context:
-                return "❌ No data room has been analyzed yet. Please run /analyze first."
-
-            logger.info("📄 Generating investment memo...")
-
-            # Create memo prompt
-            memo_prompt = MEMO_PROMPT.format(
-                analysis_summary=json.dumps(self.current_analysis, indent=2),
-                document_context=self.analysis_context['documents_summary']
-            )
-
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a senior partner at a VC firm writing a comprehensive investment memo."},
-                    {"role": "user", "content": memo_prompt}
-                ],
-                max_tokens=1500,
-                temperature=0.3
-            )
-
-            memo = response.choices[0].message.content
-            logger.info("✅ Investment memo generated successfully")
-            return memo
-
-        except Exception as e:
-            logger.error(f"❌ Failed to generate memo: {e}")
-            return f"❌ Sorry, I couldn't generate the memo due to a technical error: {str(e)}"
 
     def analyze_gaps(self) -> str:
         """Analyze information gaps for due diligence using comprehensive analysis data"""
@@ -359,15 +293,13 @@ class AIAnalyzer:
 
             # Prepare comprehensive analysis summary for gaps analysis
             analysis_summary = {
-                'overall_score': self.current_analysis.get('overall_score', 0),
-                'recommendation': self.current_analysis.get('recommendation', 'UNKNOWN'),
                 'executive_summary': self.current_analysis.get('executive_summary', []),
-                'financial_highlights': self.current_analysis.get('financial_highlights', []),
-                'traction_context': self.current_analysis.get('traction_context', []),
-                'competitive_analysis': self.current_analysis.get('competitive_analysis', []),
-                'scoring': self.current_analysis.get('scoring', {}),
-                'red_flags': self.current_analysis.get('red_flags', []),
-                'missing_info_from_analysis': self.current_analysis.get('missing_info', [])
+                'value_proposition': self.current_analysis.get('value_proposition', []),
+                'market_analysis': self.current_analysis.get('market_analysis', []),
+                'competitors': self.current_analysis.get('competitors', []),
+                'product_roadmap': self.current_analysis.get('product_roadmap', []),
+                'go_to_market_strategy': self.current_analysis.get('go_to_market_strategy', []),
+                'financial_highlights': self.current_analysis.get('financial_highlights', [])
             }
 
             # Enhanced gaps prompt with comprehensive context
@@ -384,11 +316,13 @@ COMPLETE ANALYSIS RESULTS:
 {json.dumps(analysis_summary, indent=2)}
 
 CURRENT ANALYSIS STATUS:
-- Overall Score: {analysis_summary['overall_score']}/10
-- Recommendation: {analysis_summary['recommendation']}
-- Financial Highlights Found: {len(analysis_summary['financial_highlights'])} items
-- Traction Context Found: {len(analysis_summary['traction_context'])} items
-- Competitive Analysis Found: {len(analysis_summary['competitive_analysis'])} items
+- Executive Summary: {len(analysis_summary['executive_summary'])} items
+- Value Proposition: {len(analysis_summary['value_proposition'])} items
+- Market Analysis: {len(analysis_summary['market_analysis'])} items
+- Competitors: {len(analysis_summary['competitors'])} items
+- Product Roadmap: {len(analysis_summary['product_roadmap'])} items
+- Go-to-Market Strategy: {len(analysis_summary['go_to_market_strategy'])} items
+- Financial Highlights: {len(analysis_summary['financial_highlights'])} items
 
 STAGE ASSESSMENT GUIDANCE:
 - €2M funding = SEED stage (not Series B/C)
@@ -397,8 +331,8 @@ STAGE ASSESSMENT GUIDANCE:
 
 CRITICAL INSTRUCTIONS:
 1. DO NOT suggest that financial data is missing if it appears in FINANCIAL HIGHLIGHTS above
-2. DO NOT suggest team info is missing if it appears in TRACTION CONTEXT above
-3. DO NOT suggest competitive analysis is missing if it appears in COMPETITIVE ANALYSIS above
+2. DO NOT suggest competitive info is missing if it appears in COMPETITORS above
+3. DO NOT suggest market data is missing if it appears in MARKET ANALYSIS above
 4. Focus on ACTUAL documentation gaps, not data that was successfully extracted
 5. Assess stage based on ACTUAL funding data (€2M = Seed, not Series B/C)
 6. Be SPECIFIC about what documents are genuinely missing for this stage
@@ -411,10 +345,12 @@ RESPONSE FORMAT:
 [Based on funding amounts and metrics, determine actual stage]
 
 **INFORMATION ALREADY AVAILABLE:**
-- Financial Data: [List specific data found]
-- Team Information: [List team data found]
-- Traction Metrics: [List metrics found]
-- Market Analysis: [List competitive data found]
+- Financial Data: [List specific data found in Financial Highlights]
+- Value Proposition: [List value prop elements found]
+- Market Analysis: [List market data found]
+- Competitive Intelligence: [List competitor info found]
+- Product Development: [List roadmap info found]
+- Go-to-Market: [List strategy elements found]
 
 **GENUINE GAPS FOR THIS STAGE:**
 [Only list information that is truly missing and needed for this stage]
@@ -441,23 +377,6 @@ RESPONSE FORMAT:
             logger.error(f"❌ Failed to analyze gaps: {e}")
             return f"❌ Sorry, I couldn't analyze gaps due to a technical error: {str(e)}"
 
-    def get_detailed_scoring(self) -> Dict[str, Any]:
-        """Get detailed scoring breakdown"""
-        if not self.current_analysis:
-            return {"error": "No analysis available. Please run /analyze first."}
-
-        logger.info("📊 Generating detailed scoring breakdown...")
-
-        # Base scoring from existing analysis
-        base_scoring = {
-            'overall_score': self.current_analysis.get('overall_score', 0),
-            'category_scores': self.current_analysis.get('scoring', {}),
-            'recommendation': self.current_analysis.get('recommendation', 'UNKNOWN'),
-            'summary': self.current_analysis.get('executive_summary', [])
-        }
-
-
-        return base_scoring
 
     def reset_analysis(self):
         """Reset current analysis context"""

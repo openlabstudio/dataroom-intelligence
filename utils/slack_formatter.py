@@ -17,19 +17,6 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
     # Documents first
     response += f"📄 **Documents Analyzed: {document_summary.get('successful_processing', 0)}**\n\n"
     
-    # Overall score with individual aspects breakdown
-    overall_score = analysis_result.get('overall_score', 0)
-    scoring = analysis_result.get('scoring', {})
-    
-    # Calculate component scores from existing scoring data
-    if scoring:
-        scores = [data.get('score', 0) for data in scoring.values()]
-        calculated_overall = sum(scores) / len(scores) if scores else overall_score
-    else:
-        calculated_overall = overall_score
-    
-    response += f"📊 **Overall Score: {calculated_overall:.1f}/10**\n"
-    response += f"*For detailed breakdown, see 'Complete Scoring' section below*\n\n"
     
     # Market Taxonomy (if available)
     if market_profile:
@@ -54,83 +41,58 @@ def format_analysis_response(analysis_result: Dict[str, Any], document_summary: 
             response += f"• {point}\n"
         response += "\n"
 
-    # Enhanced Financial Extraction (NEW - High Priority)
+    # Value Proposition
+    value_proposition = analysis_result.get('value_proposition', [])
+    if value_proposition:
+        response += "💡 **VALUE PROPOSITION:**\n"
+        for point in value_proposition:
+            response += f"• {point}\n"
+        response += "\n"
+
+    # Market Analysis
+    market_analysis = analysis_result.get('market_analysis', [])
+    if market_analysis:
+        response += "📊 **MARKET ANALYSIS:**\n"
+        for point in market_analysis:
+            response += f"• {point}\n"
+        response += "\n"
+
+    # Competitors
+    competitors = analysis_result.get('competitors', [])
+    if competitors:
+        response += "⚔️ **COMPETITORS:**\n"
+        for point in competitors:
+            response += f"• {point}\n"
+        response += "\n"
+
+    # Product Roadmap
+    product_roadmap = analysis_result.get('product_roadmap', [])
+    if product_roadmap:
+        response += "🛣️ **PRODUCT ROADMAP:**\n"
+        for point in product_roadmap:
+            response += f"• {point}\n"
+        response += "\n"
+
+    # Go-to-Market Strategy
+    go_to_market_strategy = analysis_result.get('go_to_market_strategy', [])
+    if go_to_market_strategy:
+        response += "🚀 **GO-TO-MARKET STRATEGY:**\n"
+        for point in go_to_market_strategy:
+            response += f"• {point}\n"
+        response += "\n"
+
+    # Financial Highlights
     financial_highlights = analysis_result.get('financial_highlights', [])
     if financial_highlights:
         response += "💰 **FINANCIAL HIGHLIGHTS:**\n"
-        for highlight in financial_highlights[:6]:  # Show up to 6 financial points
+        for highlight in financial_highlights:
             response += f"• {highlight}\n"
         response += "\n"
 
-    # Traction Context (NEW - High Priority)
-    traction_context = analysis_result.get('traction_context', [])
-    if traction_context:
-        response += "🚀 **TRACTION CONTEXT:**\n"
-        for context in traction_context[:5]:  # Show up to 5 traction points
-            response += f"• {context}\n"
-        response += "\n"
-
-    # Competitive Analysis (NEW - High Priority)
-    competitive_analysis = analysis_result.get('competitive_analysis', [])
-    if competitive_analysis:
-        response += "⚔️ **COMPETITIVE ANALYSIS:**\n"
-        for analysis_point in competitive_analysis[:4]:  # Show up to 4 competitive points
-            response += f"• {analysis_point}\n"
-        response += "\n"
-
-    # Complete Scoring Overview (all categories with justifications)
-    if scoring:
-        response += "📊 **COMPLETE SCORING:**\n"
-        for category, data in scoring.items():
-            category_name = category.replace('_', ' ').title()
-            score = data.get('score', 0)
-            justification = data.get('justification', 'Information not available')
-            # Replace "not analyzed" with "information not available"
-            justification = justification.replace('not analyzed', 'information not available')
-            justification = justification.replace('Not analyzed', 'Information not available')
-            response += f"• **{category_name}:** {score}/10 - {justification}\n"
-        response += "\n"
-
-    # Red Flags
-    red_flags = analysis_result.get('red_flags', [])
-    if red_flags:
-        response += "⚠️ **KEY RED FLAGS:**\n"
-        for flag in red_flags[:3]:  # Limit to 3 flags
-            response += f"• {flag}\n"
-        if len(red_flags) > 3:
-            response += f"• *...and {len(red_flags) - 3} more*\n"
-        response += "\n"
-
-    # Complete Missing Information (same as /gaps command)
-    missing_info = analysis_result.get('missing_info', [])
-    if missing_info:
-        response += "❓ **INFORMATION GAPS ANALYSIS:**\n"
-        for gap in missing_info:  # Show all gaps, not just first 3
-            response += f"• {gap}\n"
-        response += "\n"
-
-    # Recommendation with Score-Based Rationale
-    recommendation = analysis_result.get('recommendation', 'PENDING_ANALYSIS')
-    recommendation_rationale = analysis_result.get('recommendation_rationale', 'Analysis incomplete')
-
-    # Format recommendation based on type
-    if recommendation == 'PASS':
-        rec_emoji = "✅"
-    elif recommendation == 'NO_GO':
-        rec_emoji = "❌"
-    elif recommendation == 'INVESTIGATE_FURTHER':
-        rec_emoji = "🔍"
-    else:
-        rec_emoji = "⏳"
-
-    response += f"{rec_emoji} **RECOMMENDATION:** {recommendation}\n"
-    response += f"📝 **Rationale:** {recommendation_rationale}\n\n"
 
     # Action buttons/commands
     response += "**Next Steps:**\n"
     response += "💬 Ask questions: `/ask [your question]`\n"
-    response += "📊 Full scoring: `/scoring`\n"
-    response += "📄 Investment memo: `/memo`\n"
     response += "🔍 Gap analysis: `/gaps`\n"
     response += "🔄 New analysis: `/reset`"
 
@@ -196,7 +158,7 @@ def format_error_response(command: str, error_message: str) -> str:
         response += "**Example:** `/ask What is the company's current runway?`\n\n"
         response += "**Note:** You must run `/analyze` first before asking questions.\n"
 
-    elif command in ["scoring", "memo", "gaps"]:
+    elif command == "gaps":
         response += f"**Note:** You must run `/analyze` first before using `/{command}`.\n"
 
     response += "\n💡 **Need help?** Use `/health` to check system status."

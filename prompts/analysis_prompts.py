@@ -25,53 +25,49 @@ ANALYSIS REQUIRED:
 - Main strengths identified
 - Primary risk identified
 
-2. FINANCIAL EXTRACTION HIGHLIGHTS (extract ALL specific numbers):
+2. VALUE PROPOSITION (extract key value elements):
+- Core value proposition and unique selling points
+- Problem being solved and target customer pain points
+- Key differentiators and competitive advantages
+- Value delivery mechanism and customer benefits
+
+3. MARKET ANALYSIS (comprehensive market assessment):
+- Market size and opportunity (TAM, SAM, SOM with specific figures)
+- Market trends and growth drivers
+- Target customer segments and characteristics
+- Market timing and adoption factors
+
+4. COMPETITORS (competitive landscape analysis):
+- Direct competitors mentioned (company names and positioning)
+- Competitive advantages cited (technical moats, first-mover advantages)
+- Market differentiation factors (feature comparisons, pricing advantages)
+- Blue Ocean positioning (untapped markets, unique approaches)
+
+5. PRODUCT ROADMAP (product development strategy):
+- Current product features and capabilities
+- Product development milestones and timeline
+- Technology stack and technical differentiation
+- Future product vision and innovation plans
+
+6. GO-TO-MARKET STRATEGY (customer acquisition and growth):
+- Customer acquisition channels and strategies
+- Sales and marketing approach
+- Partnership and distribution strategies
+- Growth tactics and scaling plans
+
+7. FINANCIAL HIGHLIGHTS (extract ALL specific numbers):
 - Revenue figures (current, historical, projections - with specific amounts like €77M, $14M, etc.)
 - Growth rates (percentage figures like 250% growth, 400% YoY, etc.)
 - Unit economics (CAC, LTV, CPL, conversion rates - exact figures)
 - Funding history (previous rounds with amounts like €2M seed, $12M valuation, etc.)
 - Key performance metrics (users, transactions, GMV - specific numbers)
-- Market position indicators (market share %, competitive metrics)
-
-3. TRACTION CONTEXT EXTRACTION:
-- Accelerator programs (name specific programs like Techstars, Y Combinator, etc.)
-- Strategic partnerships (identify key corporate partners, integrations)
-- Geographic presence (specific markets, countries, expansion plans)
-- Customer base characteristics (enterprise vs SMB, market segments)
-- Team credentials (previous exits, notable experience, university backgrounds)
-
-4. COMPETITIVE ANALYSIS EXTRACTION:
-- Direct competitors mentioned (company names and positioning)
-- Blue Ocean positioning (untapped markets, unique approaches)
-- Competitive advantages cited (technical moats, first-mover advantages)
-- Market differentiation factors (feature comparisons, pricing advantages)
-
-5. DETAILED SCORING (scale 1-10 with justification):
-- Team & Management: [score]/10 -- [brief justification with specific credentials found]
-- Business Model: [score]/10 -- [brief justification with unit economics if available]
-- Financials & Traction: [score]/10 -- [justification citing SPECIFIC NUMBERS from section 2]
-- Market & Competition: [score]/10 -- [justification referencing competitive analysis]
-- Technology/Product: [score]/10 -- [justification with technical differentiation factors]
-- Legal & Compliance: [score]/10 -- [justification with specific compliance mentions]
-
-6. RED FLAGS IDENTIFIED:
-- [Specific list of risks found in the documents]
-
-7. CRITICAL MISSING INFORMATION:
-- [Specific gaps that should be in a data room of this stage]
-
-8. KEY QUESTIONS FOR DUE DILIGENCE:
-- [5-7 specific questions that arise from the analysis]
-
-9. PRELIMINARY RECOMMENDATION:
-- [Based on overall score and analysis findings]
 
 CRITICAL INSTRUCTIONS:
-1. ALWAYS extract SPECIFIC FINANCIAL NUMBERS (€77M, 250% growth, €2M seed, etc.) in section 2
-2. ALWAYS identify SPECIFIC TRACTION ELEMENTS (accelerators, partners, geography) in section 3
+1. ALWAYS extract SPECIFIC FINANCIAL NUMBERS (€77M, 250% growth, €2M seed, etc.) in section 7
+2. ALWAYS identify SPECIFIC VALUE PROPOSITION ELEMENTS in section 2
 3. ALWAYS extract COMPETITIVE INTELLIGENCE (competitors, positioning, advantages) in section 4
-4. Use the EXTRACTED FINANCIAL DATA section but ALSO scan document contents for additional financial details
-5. Base ALL scoring justifications on SPECIFIC EXTRACTED DATA from sections 2-4
+4. ALWAYS detail GO-TO-MARKET STRATEGIES and customer acquisition approaches in section 6
+5. Use the EXTRACTED FINANCIAL DATA section but ALSO scan document contents for additional financial details
 6. Do NOT provide generic analysis - cite SPECIFIC numbers, names, and details found
 
 Provide your analysis in a clear, structured format that a VC partner can quickly digest with actionable data points.
