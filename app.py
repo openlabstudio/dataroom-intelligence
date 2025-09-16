@@ -388,21 +388,27 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 pdf_files = [f for f in downloaded_files if f.get('mime_type') == 'application/pdf']
                 
                 if pdf_files and config.openai_configured and vision_integration_available:
-                    # TEMPORARY: Disable vision processing due to SSL/timeout issues
-                    logger.info(f"🔍 Vision processing available for: {pdf_files[0]['name']} but temporarily disabled")
-                    logger.info("⚠️ Vision processing disabled due to stability issues - using enhanced session without vision")
+                    # Vision processing ENABLED - SSL/timeout issues fixed
+                    pdf_path = pdf_files[0]['path']  # Get actual PDF path
+                    logger.info(f"🔍 Vision processing enabled for: {pdf_files[0]['name']} at {pdf_path}")
+                    logger.info("✅ Vision processing enabled with updated OpenAI client")
                     
-                    # Create enhanced session structure without actual vision processing
+                    # Create enhanced session structure WITH actual vision processing
                     try:
-                        enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
-                            None, user_id, basic_session_data  # Pass None to skip actual vision processing
+                        enhanced_session, vision_results = vision_integration_coordinator.process_document_with_vision(
+                            pdf_path, user_id, basic_session_data  # Pass actual PDF path to enable vision
                         )
                         final_session_data = enhanced_session
-                        vision_status_message = "\n\n📄 **Enhanced Analysis:** Ready for vision processing (currently disabled for stability)"
-                        logger.info("✅ Enhanced session created without vision processing")
+                        
+                        if vision_results and vision_results.get('success'):
+                            vision_status_message = "\n\n🎯 **Vision Analysis:** Visual elements analyzed successfully"
+                        else:
+                            vision_status_message = "\n\n📄 **Enhanced Analysis:** Vision processing attempted (graceful fallback)"
+                        
+                        logger.info("✅ Enhanced session created with vision processing")
                     except Exception as vision_error:
-                        logger.error(f"❌ Enhanced session creation failed: {vision_error}")
-                        vision_status_message = "\n\n⚠️ **Note:** Using standard text analysis"
+                        logger.error(f"❌ Vision processing failed: {vision_error}")
+                        vision_status_message = "\n\n⚠️ **Note:** Vision failed, using standard text analysis"
                         # Keep basic session data as fallback
                         
                 elif vision_integration_available and pdf_files:

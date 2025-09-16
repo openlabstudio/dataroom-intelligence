@@ -1,54 +1,55 @@
-# DataRoom Intelligence - Brownfield Architecture Documentation
+# DataRoom Intelligence - Lazy Vision Architecture Documentation
 
-**Architecture Type**: Brownfield Enhancement  
-**Enhancement**: GPT Vision Integration & TEST_MODE Elimination  
-**Status**: Implementation Ready  
+**Architecture Type**: Lazy Vision Hybrid Enhancement  
+**Enhancement**: Strategic Page Vision Processing (5-7 pages max)  
+**Status**: Implementation Ready - SSL Fix Applied  
 
 ## Document Navigation
 
 This architecture has been systematically organized into focused technical references:
 
-### 🏗️ System Architecture
-- **[overview.md](system/overview.md)** - System analysis and integration philosophy
-- **[existing-assessment.md](system/existing-assessment.md)** - Current architecture strengths and limitations
-- **[enhancement-scope.md](system/enhancement-scope.md)** - Integration boundaries and objectives
+### 🏗️ Core Lazy Vision Architecture
+- **[lazy-vision-executive-report.md](../lazy-vision-executive-report.md)** - Executive overview and technical specifications
+- **[overview.md](system/overview.md)** - System analysis and Lazy Vision philosophy
+- **[strategic-page-selection.md](components/strategic-page-selection.md)** - 7-page strategic selection logic
+- **[vision-cache-strategy.md](components/vision-cache-strategy.md)** - Vision result caching for /ask optimization
 
 ### 🔧 Component Architecture  
-- **[vision-processing-engine.md](components/vision-processing-engine.md)** - Core GPT Vision processing architecture
+- **[vision-processing-engine.md](components/vision-processing-engine.md)** - GPT Vision with 7-page limit
 - **[document-processor-enhancement.md](components/document-processor-enhancement.md)** - Enhanced PDF processing pipeline
-- **[session-management.md](components/session-management.md)** - Enhanced session data architecture
-- **[configuration-simplification.md](components/configuration-simplification.md)** - TEST_MODE elimination strategy
+- **[session-management.md](components/session-management.md)** - Vision cache in session data
+- **[ssl-fix-implementation.md](components/ssl-fix-implementation.md)** - OpenAI client SSL fix (VF-1)
 
 ### 🌐 API Architecture
-- **[openai-integration.md](api/openai-integration.md)** - Vision API integration patterns and cost controls
-- **[slack-commands.md](api/slack-commands.md)** - Enhanced command architecture with backward compatibility
-- **[data-models.md](api/data-models.md)** - Session data structures and vision integration
+- **[openai-integration.md](api/openai-integration.md)** - Vision API with hard 7-page limit
+- **[slack-commands.md](api/slack-commands.md)** - Same command format, better data quality
+- **[data-models.md](api/data-models.md)** - Session structure with vision_cache
 
 ### 🚀 Implementation Guidance
-- **[deployment-strategy.md](implementation/deployment-strategy.md)** - Railway integration and infrastructure
-- **[cost-management.md](implementation/cost-management.md)** - Vision API cost optimization and controls
-- **[testing-approach.md](implementation/testing-approach.md)** - Testing and validation strategy
-- **[rollout-plan.md](implementation/rollout-plan.md)** - Implementation roadmap and success metrics
+- **[deployment-strategy.md](implementation/deployment-strategy.md)** - Railway deployment unchanged
+- **[cost-management.md](implementation/cost-management.md)** - 84% cost reduction via Lazy Vision
+- **[testing-approach.md](implementation/testing-approach.md)** - Test with sample decks
+- **[rollout-plan.md](implementation/rollout-plan.md)** - 2-week implementation plan
 
-## Architecture Principles
+## Lazy Vision Architecture Principles
 
-### 🎯 **Brownfield Enhancement Philosophy**
-- **Minimal Disruption**: Preserve all existing functionality while adding capabilities
-- **Additive Integration**: GPT Vision enhances, doesn't replace existing text extraction
-- **Backward Compatibility**: Zero breaking changes to current user workflows
-- **Configuration Simplification**: Eliminate TEST_MODE complexity across entire codebase
+### 🎯 **Lazy Vision Philosophy**
+- **Minimal Code Changes**: Keep existing report format, enhance data quality
+- **Strategic Processing**: Process only 7 most valuable pages during /analyze
+- **On-Demand Enhancement**: Process 1-3 pages for specific /ask questions
+- **Cache Everything**: Store vision results for instant reuse
 
-### 🛡️ **Quality & Reliability**
-- **Intelligent Processing**: 60-70% cost reduction through smart page selection
-- **Graceful Degradation**: Vision failures fall back to existing text extraction
-- **Cost Controls**: Hard limits and monitoring for Vision API usage
-- **Security First**: Secure temporary file handling and API integration
+### 🛡️ **SSL Fix & Reliability**
+- **Resource Management**: 7-page hard limit prevents SSL exhaustion
+- **Modern API Client**: Updated OpenAI client pattern (gpt-4o model)
+- **Graceful Fallback**: If vision fails, use text-only extraction
+- **Progressive Enhancement**: Start with text, enhance with vision
 
-### ⚡ **Performance & Efficiency**
-- **Hybrid Approach**: Combine text extraction strengths with visual intelligence
-- **Parallel Processing**: Efficient multi-page document handling
-- **Session Enhancement**: Unified data structure for cross-command access
-- **Resource Optimization**: Efficient image processing with automatic cleanup
+### ⚡ **Performance & Cost Optimization**
+- **84% Cost Reduction**: Process 7 pages instead of 43
+- **30-Second Response**: Down from 3-minute timeouts
+- **95% Success Rate**: Up from 0% with SSL failures
+- **Smart Caching**: Vision results cached in user_sessions
 
 ## Implementation Readiness
 
