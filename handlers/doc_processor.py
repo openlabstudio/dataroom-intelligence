@@ -1,20 +1,44 @@
 """
 Document processing handler for DataRoom Intelligence Bot
-Extracts content from PDFs, Excel, Word, and other document types
+Extracts content from PDFs (GPT-4o Direct only), Excel, Word, and other document types
+
+PDF Processing Architecture: GPT-4o Direct Only
+- Traditional methods (PyPDF2/pdfplumber/OCR) removed for superior structured extraction
+- GPT-4o provides contextual financial data extraction vs raw text
+- Simplified maintenance with single processing pipeline
 """
 
 import os
 # import pandas as pd  # COMENTAR TEMPORALMENTE
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-import PyPDF2
+# import PyPDF2  # REMOVED: GPT-4o Direct only architecture
 import docx
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# GPT-4o Direct PDF Processing (Only Method)
+try:
+    from handlers.gpt4o_pdf_processor import GPT4oDirectProcessor
+    from config.settings import config
+    gpt4o_available = config.openai_configured
+    logger.info("✅ GPT-4o Direct processor available")
+except ImportError as e:
+    logger.warning(f"⚠️ GPT-4o Direct not available: {e}")
+    gpt4o_available = False
+except Exception as e:
+    logger.error(f"❌ GPT-4o Direct initialization failed: {e}")
+    gpt4o_available = False
+
 class DocumentProcessor:
-    """Processes various document types and extracts structured content"""
+    """Processes various document types and extracts structured content
+
+    PDF Processing: GPT-4o Direct only (fallback methods removed)
+    - Architectural decision: GPT-4o provides superior structured data extraction
+    - Evidence: Stamp PDF analysis showed contextual financial extraction vs raw numbers
+    - Benefits: Maintenance simplification, structured output, slide references
+    """
 
     def __init__(self):
         self.supported_extensions = {
@@ -26,6 +50,20 @@ class DocumentProcessor:
             '.txt': self._process_text,
             # '.csv': self._process_csv        # COMENTAR TEMPORALMENTE
         }
+        
+        # Initialize GPT-4o Direct processing (single method)
+        self.gpt4o_processor = None
+
+        # Try to initialize GPT-4o processor
+        try:
+            if 'GPT4oDirectProcessor' in globals() and 'config' in globals():
+                self.gpt4o_processor = GPT4oDirectProcessor(config.OPENAI_API_KEY)
+                logger.info("✅ GPT-4o Direct PDF processor initialized (only method)")
+            else:
+                logger.info("ℹ️ GPT-4o Direct processor not available")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize GPT-4o processor: {e}")
+            self.gpt4o_processor = None
 
     def process_document(self, file_path: str, file_name: str, mime_type: str) -> Dict[str, Any]:
         """Process a document and extract its content"""
@@ -61,43 +99,72 @@ class DocumentProcessor:
             }
 
     def _process_pdf(self, file_path: str, file_name: str) -> Dict[str, Any]:
-        """Extract text content from PDF files with multiple extraction methods"""
+        """Extract text content from PDF files using GPT-4o Direct processing only"""
         try:
-            # FIRST: Try PyPDF2 (fast, works with most PDFs)
-            result = self._try_pypdf2_extraction(file_path, file_name)
+            # GPT-4o Direct PDF Processing (primary method)
+            if self.gpt4o_processor:
+                logger.info(f"📄 Processing PDF with GPT-4o Direct: {file_name}")
+                try:
+                    gpt4o_result = self.gpt4o_processor.process_pdf_document(file_path, file_name)
 
-            # If PyPDF2 fails or extracts very little, try pdfplumber
-            if result['metadata']['total_chars_extracted'] < 100:
-                logger.info(f"   🔄 PyPDF2 extracted only {result['metadata']['total_chars_extracted']} chars, trying pdfplumber...")
-                plumber_result = self._try_pdfplumber_extraction(file_path, file_name)
+                    # Check if GPT-4o processing succeeded
+                    if (gpt4o_result and
+                        gpt4o_result.get('content') and
+                        len(gpt4o_result['content']) > 50 and  # Lower threshold for acceptance
+                        not gpt4o_result.get('metadata', {}).get('fallback_required', False)):
 
-                # Use the better result
-                if plumber_result['metadata']['total_chars_extracted'] > result['metadata']['total_chars_extracted']:
-                    logger.info(f"   ✅ pdfplumber performed better: {plumber_result['metadata']['total_chars_extracted']} chars")
-                    plumber_result['metadata']['extraction_method'] = 'pdfplumber'
-                    plumber_result['metadata']['pypdf2_result'] = result['metadata']
-                    return plumber_result
-                else:
-                    # If both traditional methods fail, try OCR as last resort
-                    if plumber_result['metadata']['total_chars_extracted'] < 100:
-                        logger.info(f"   🔄 Both traditional methods failed, trying OCR as last resort...")
-                        ocr_result = self._try_ocr_extraction(file_path, file_name)
-                        
-                        if ocr_result['metadata']['total_chars_extracted'] > 100:
-                            logger.info(f"   ✅ OCR succeeded: {ocr_result['metadata']['total_chars_extracted']} chars")
-                            ocr_result['metadata']['extraction_method'] = 'ocr_tesseract'
-                            ocr_result['metadata']['pypdf2_result'] = result['metadata']
-                            ocr_result['metadata']['pdfplumber_result'] = plumber_result['metadata']
-                            return ocr_result
-                        else:
-                            logger.warning(f"   ⚠️ All extraction methods failed - PDF may be corrupted or encrypted")
-                    
-                    result['metadata']['extraction_method'] = 'pypdf2'
-                    result['metadata']['pdfplumber_attempted'] = True
-                    return result
+                        logger.info(f"✅ GPT-4o Direct processing successful: {len(gpt4o_result['content'])} chars")
+                        return gpt4o_result
+                    else:
+                        logger.warning(f"⚠️ GPT-4o processing failed or returned insufficient content")
+
+                        # Return structured empty result instead of fallback
+                        return {
+                            'name': file_name,
+                            'type': 'pdf',
+                            'content': '',
+                            'structured_data': None,
+                            'metadata': {
+                                'extraction_method': 'gpt4o_failed',
+                                'file_size_bytes': os.path.getsize(file_path),
+                                'error': 'GPT-4o processing failed to extract sufficient content',
+                                'has_content': False,
+                                'processing_attempted': True,
+                                'gpt4o_error': gpt4o_result.get('metadata', {}).get('error', 'Unknown error')
+                            }
+                        }
+
+                except Exception as e:
+                    logger.error(f"❌ GPT-4o Direct processing failed: {e}")
+                    return {
+                        'name': file_name,
+                        'type': 'pdf',
+                        'content': '',
+                        'structured_data': None,
+                        'metadata': {
+                            'extraction_method': 'gpt4o_failed',
+                            'file_size_bytes': os.path.getsize(file_path),
+                            'error': f'GPT-4o processing exception: {str(e)}',
+                            'has_content': False,
+                            'processing_attempted': True
+                        }
+                    }
             else:
-                result['metadata']['extraction_method'] = 'pypdf2'
-                return result
+                # No GPT-4o processor available
+                logger.error(f"❌ GPT-4o processor not available for {file_name}")
+                return {
+                    'name': file_name,
+                    'type': 'pdf',
+                    'content': '',
+                    'structured_data': None,
+                    'metadata': {
+                        'extraction_method': 'unavailable',
+                        'file_size_bytes': os.path.getsize(file_path),
+                        'error': 'GPT-4o processor not initialized',
+                        'has_content': False,
+                        'processing_attempted': False
+                    }
+                }
 
         except Exception as e:
             logger.error(f"❌ PDF processing failed for {file_name}: {e}")
@@ -105,322 +172,33 @@ class DocumentProcessor:
                 'name': file_name,
                 'type': 'pdf',
                 'content': '',
+                'structured_data': None,
                 'metadata': {
+                    'extraction_method': 'system_error',
                     'error': str(e),
+                    'has_content': False,
                     'debug_info': [f"Fatal error: {str(e)}"]
                 }
             }
 
-    def _try_pypdf2_extraction(self, file_path: str, file_name: str) -> Dict[str, Any]:
-        """Try extraction with PyPDF2 (original method)"""
-        content = ""
-        page_count = 0
-        debug_info = []
+    # REMOVED: Traditional PDF extraction methods (_try_pypdf2_extraction, _try_pdfplumber_extraction, _try_ocr_extraction)
+    # Architecture simplified to GPT-4o Direct only per architectural decision
+    # Reasoning: GPT-4o provides superior structured data extraction vs raw text extraction
+    # Evidence: Stamp PDF analysis showed GPT-4o extracts financial data with context vs traditional methods' raw numbers
 
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            page_count = len(pdf_reader.pages)
-
-            logger.info(f"🔍 PDF PyPDF2 extraction for {file_name}:")
-            logger.info(f"   📄 Total pages: {page_count}")
-            logger.info(f"   📏 File size: {os.path.getsize(file_path)} bytes")
-
-            # Check metadata
-            creator_info = "Unknown"
-            if pdf_reader.metadata:
-                creator = str(pdf_reader.metadata.get('/Creator', '')).lower()
-                producer = str(pdf_reader.metadata.get('/Producer', '')).lower()
-                creator_info = f"Creator: {creator}, Producer: {producer}"
-
-                if 'powerpoint' in creator:
-                    debug_info.append("PDF Type: PowerPoint export")
-                elif 'preview' in creator or 'quartz' in producer:
-                    debug_info.append("PDF Type: macOS Preview (potentially problematic)")
-                elif 'scanner' in creator or 'scan' in producer:
-                    debug_info.append("PDF Type: Scanned document")
-
-            # Extract text page by page
-            total_chars_extracted = 0
-            pages_with_content = 0
-
-            for page_num, page in enumerate(pdf_reader.pages):
-                try:
-                    page_text = page.extract_text()
-                    page_char_count = len(page_text.strip())
-                    total_chars_extracted += page_char_count
-
-                    if page_char_count > 0:
-                        pages_with_content += 1
-                        content += f"\n--- Page {page_num + 1} ---\n"
-                        content += page_text
-
-                        if page_num < 3:  # Only log first 3 pages
-                            sample_text = page_text.strip()[:100].replace('\n', ' ')
-                            logger.info(f"   📄 Page {page_num + 1}: {page_char_count} chars - \"{sample_text}...\"")
-
-                except Exception as page_error:
-                    logger.debug(f"   ❌ Page {page_num + 1} failed: {page_error}")
-                    continue
-
-            # Determine quality
-            text_percentage = (pages_with_content / page_count) if page_count > 0 else 0
-
-            if total_chars_extracted == 0:
-                pdf_type = "image-only or encrypted"
-                pdf_quality = "poor"
-            elif text_percentage < 0.3:
-                pdf_type = "mostly visual (likely presentation/deck)"
-                pdf_quality = "low"
-            elif text_percentage > 0.8:
-                pdf_type = "text-heavy document"
-                pdf_quality = "excellent"
-            else:
-                pdf_type = "mixed content"
-                pdf_quality = "good"
-
-            logger.info(f"   📊 PyPDF2 Summary: {pages_with_content}/{page_count} pages, {total_chars_extracted} chars")
-
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': content.strip(),
-                'metadata': {
-                    'pages': page_count,
-                    'content_length': len(content),
-                    'has_content': bool(content.strip()),
-                    'pages_with_text': pages_with_content,
-                    'total_chars_extracted': total_chars_extracted,
-                    'text_extraction_rate': f"{(text_percentage*100):.1f}%",
-                    'pdf_type': pdf_type,
-                    'pdf_quality': pdf_quality,
-                    'file_size_bytes': os.path.getsize(file_path),
-                    'creator_info': creator_info,
-                    'debug_info': debug_info
-                }
+    def _legacy_extraction_removed(self, file_path: str, file_name: str) -> Dict[str, Any]:
+        """Legacy extraction methods removed - GPT-4o Direct only architecture"""
+        logger.warning(f"⚠️ Legacy extraction method called for {file_name} - this should not happen")
+        return {
+            'name': file_name,
+            'type': 'pdf',
+            'content': '',
+            'metadata': {
+                'extraction_method': 'legacy_removed',
+                'error': 'Traditional extraction methods removed in favor of GPT-4o Direct',
+                'has_content': False
             }
-
-    def _try_pdfplumber_extraction(self, file_path: str, file_name: str) -> Dict[str, Any]:
-        """Try extraction with pdfplumber (better for complex layouts)"""
-        try:
-            import pdfplumber
-        except ImportError:
-            logger.warning("   ⚠️ pdfplumber not installed, cannot try alternative extraction")
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': '',
-                'metadata': {
-                    'error': 'pdfplumber not available',
-                    'total_chars_extracted': 0
-                }
-            }
-
-        content = ""
-        debug_info = []
-
-        logger.info(f"🔧 PDF pdfplumber extraction for {file_name}:")
-
-        with pdfplumber.open(file_path) as pdf:
-            page_count = len(pdf.pages)
-            total_chars_extracted = 0
-            pages_with_content = 0
-            pages_with_tables = 0
-
-            for page_num, page in enumerate(pdf.pages):
-                try:
-                    # Extract text
-                    page_text = page.extract_text()
-
-                    if page_text and page_text.strip():
-                        page_char_count = len(page_text.strip())
-                        total_chars_extracted += page_char_count
-                        pages_with_content += 1
-
-                        content += f"\n--- Page {page_num + 1} ---\n"
-                        content += page_text
-
-                        if page_num < 3:  # Log first 3 pages
-                            sample_text = page_text.strip()[:100].replace('\n', ' ')
-                            logger.info(f"   📄 Page {page_num + 1}: {page_char_count} chars - \"{sample_text}...\"")
-
-                    # Try to extract tables (pdfplumber's strength)
-                    tables = page.extract_tables()
-                    if tables:
-                        pages_with_tables += 1
-                        for table_num, table in enumerate(tables):
-                            content += f"\n--- Page {page_num + 1} Table {table_num + 1} ---\n"
-                            for row in table:
-                                if row and any(cell for cell in row if cell):  # Skip empty rows
-                                    row_text = " | ".join(str(cell) if cell else "" for cell in row)
-                                    content += row_text + "\n"
-                                    total_chars_extracted += len(row_text)
-
-                        if page_num < 3:  # Log table info for first pages
-                            logger.info(f"      📊 Page {page_num + 1}: {len(tables)} tables extracted")
-
-                except Exception as page_error:
-                    logger.debug(f"   ❌ pdfplumber Page {page_num + 1} failed: {page_error}")
-                    continue
-
-            # Calculate quality
-            text_percentage = (pages_with_content / page_count) if page_count > 0 else 0
-
-            if total_chars_extracted == 0:
-                pdf_type = "unreadable with pdfplumber"
-                pdf_quality = "poor"
-            elif text_percentage > 0.8:
-                pdf_type = "text-heavy document"
-                pdf_quality = "excellent"
-            elif pages_with_tables > 0:
-                pdf_type = "table/data-heavy document"
-                pdf_quality = "good"
-            else:
-                pdf_type = "mixed content (text + graphics)"
-                pdf_quality = "good"
-
-            logger.info(f"   📊 pdfplumber Summary: {pages_with_content}/{page_count} pages, {pages_with_tables} with tables, {total_chars_extracted} chars")
-
-            debug_info.extend([
-                f"pdfplumber extraction: {total_chars_extracted} characters",
-                f"Pages with tables: {pages_with_tables}",
-                f"Text percentage: {text_percentage:.1%}"
-            ])
-
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': content.strip(),
-                'metadata': {
-                    'pages': page_count,
-                    'content_length': len(content),
-                    'has_content': bool(content.strip()),
-                    'pages_with_text': pages_with_content,
-                    'pages_with_tables': pages_with_tables,
-                    'total_chars_extracted': total_chars_extracted,
-                    'text_extraction_rate': f"{(text_percentage*100):.1f}%",
-                    'pdf_type': pdf_type,
-                    'pdf_quality': pdf_quality,
-                    'file_size_bytes': os.path.getsize(file_path),
-                    'debug_info': debug_info
-                }
-            }
-
-    def _try_ocr_extraction(self, file_path: str, file_name: str) -> Dict[str, Any]:
-        """Try OCR extraction using Tesseract (for image-based PDFs)"""
-        try:
-            # Import OCR libraries (conditional import to avoid dependency issues)
-            try:
-                import pytesseract
-                from pdf2image import convert_from_path
-                import PIL.Image
-            except ImportError as import_error:
-                logger.warning(f"   ⚠️ OCR libraries not available: {import_error}")
-                return {
-                    'name': file_name,
-                    'type': 'pdf',
-                    'content': '',
-                    'metadata': {
-                        'total_chars_extracted': 0,
-                        'pages_with_text': 0,
-                        'error': f'OCR libraries not installed: {import_error}',
-                        'ocr_available': False
-                    }
-                }
-            
-            logger.info(f"🔧 PDF OCR extraction for {file_name}:")
-            
-            # Convert PDF to images
-            logger.info(f"   📸 Converting PDF to images...")
-            try:
-                # Convert PDF pages to images (limit to first 5 pages for performance)
-                images = convert_from_path(file_path, first_page=1, last_page=25)  # Process more pages for better coverage
-                logger.info(f"   📸 Converted {len(images)} pages to images")
-            except Exception as convert_error:
-                logger.error(f"   ❌ PDF to image conversion failed: {convert_error}")
-                return {
-                    'name': file_name,
-                    'type': 'pdf',
-                    'content': '',
-                    'metadata': {
-                        'total_chars_extracted': 0,
-                        'pages_with_text': 0,
-                        'error': f'PDF to image conversion failed: {convert_error}',
-                        'ocr_available': True
-                    }
-                }
-            
-            # Perform OCR on each image
-            content = ""
-            total_chars_extracted = 0
-            pages_with_content = 0
-            
-            for page_num, image in enumerate(images, 1):
-                try:
-                    logger.info(f"   🔍 OCR processing page {page_num}...")
-                    
-                    # Perform OCR with Tesseract - enhanced for business documents
-                    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,€$%+-:|() '
-                    page_text = pytesseract.image_to_string(image, lang='eng', config=custom_config)
-                    page_char_count = len(page_text.strip())
-                    total_chars_extracted += page_char_count
-                    
-                    if page_char_count > 0:
-                        pages_with_content += 1
-                        content += f"\n--- Page {page_num} (OCR) ---\n"
-                        content += page_text
-                        
-                        # Log sample text from first few pages
-                        if page_num <= 3:
-                            sample_text = page_text.strip()[:100].replace('\n', ' ')
-                            logger.info(f"   📄 Page {page_num}: {page_char_count} chars - \"{sample_text}...\"")
-                    
-                except Exception as ocr_error:
-                    logger.warning(f"   ⚠️ OCR failed for page {page_num}: {ocr_error}")
-                    continue
-            
-            logger.info(f"   📊 OCR Summary: {pages_with_content}/{len(images)} pages, {total_chars_extracted} chars")
-            
-            # Determine OCR quality
-            if total_chars_extracted == 0:
-                ocr_quality = "failed"
-            elif total_chars_extracted < 500:
-                ocr_quality = "poor"
-            elif total_chars_extracted < 2000:
-                ocr_quality = "moderate"
-            else:
-                ocr_quality = "good"
-            
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': content.strip(),
-                'metadata': {
-                    'pages': len(images),
-                    'content_length': len(content),
-                    'has_content': bool(content.strip()),
-                    'pages_with_text': pages_with_content,
-                    'total_chars_extracted': total_chars_extracted,
-                    'ocr_quality': ocr_quality,
-                    'file_size_bytes': os.path.getsize(file_path),
-                    'pages_processed': len(images),
-                    'ocr_available': True
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ OCR extraction failed for {file_name}: {e}")
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': '',
-                'metadata': {
-                    'total_chars_extracted': 0,
-                    'pages_with_text': 0,
-                    'error': str(e),
-                    'ocr_available': True,
-                    'debug_info': [f"OCR error: {str(e)}"]
-                }
-            }
+        }
 
     def _process_word(self, file_path: str, file_name: str) -> Dict[str, Any]:
         """Extract text content from Word documents"""

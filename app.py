@@ -25,20 +25,6 @@ load_dotenv()
 # Initialize logger first
 logger = get_logger(__name__)
 
-# NEW: Vision processing integration (with graceful fallback)
-try:
-    from handlers.vision_integration_coordinator import vision_integration_coordinator
-    vision_integration_available = True
-    logger.info("✅ Vision integration coordinator loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Vision integration not available: {e}")
-    logger.warning("💡 Vision processing will be disabled - install vision dependencies to enable")
-    vision_integration_coordinator = None
-    vision_integration_available = False
-except Exception as e:
-    logger.error(f"❌ Vision integration failed to load: {e}")
-    vision_integration_coordinator = None
-    vision_integration_available = False
 
 # ==========================================
 # FLASK APP FOR RAILWAY HEALTH CHECKS
@@ -61,7 +47,6 @@ def health_check():
                 "google_drive": config.google_drive_configured,
                 "temp_storage": config.temp_dir.exists(),
                 "market_research": market_research_orchestrator is not None,
-                "vision_integration": vision_integration_available
             }
         }
 
@@ -262,15 +247,6 @@ def debug_sessions(user_id, channel_id, client):
         if 'market_research' in session_data:
             response += f"• Market research available: ✅\n"
             
-        # NEW: Vision processing status
-        if 'vision_analysis' in session_data and session_data['vision_analysis']:
-            response += f"• Vision processing available: ✅\n"
-            processing_metadata = session_data['vision_analysis'].get('processing_summary', {})
-            pages_analyzed = processing_metadata.get('total_pages_analyzed', 0)
-            if pages_analyzed > 0:
-                response += f"• Pages analyzed with GPT Vision: {pages_analyzed}\n"
-        else:
-            response += f"• Vision processing available: ❌\n"
 
         if 'extraction_metadata' in session_data:
             metadata = session_data['extraction_metadata']
@@ -369,7 +345,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
             if market_research_orchestrator:
                 formatted_response += "\n\nUse `/market-research` for comprehensive market intelligence analysis."
 
-            # CRITICAL: Create basic session data for vision processing
+            # Create basic session data
             basic_session_data = {
                 'analysis_result': analysis_result,
                 'document_summary': document_summary,
@@ -379,78 +355,48 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 'analysis_timestamp': datetime.now().isoformat()
             }
 
-            # NEW: Vision processing integration (BEFORE showing final response)
-            final_session_data = basic_session_data  # Default fallback
-            vision_status_message = ""
             
+            # Store the session data
+            user_sessions[user_id] = basic_session_data
+
+            # Show final response
+            final_response = formatted_response
+            
+            # CRITICAL: Limit message length to Slack's 3500 character limit
+            if len(final_response) > 3500:
+                logger.warning(f"⚠️ Response truncated from {len(final_response)} to 3500 chars")
+                final_response = final_response[:3450] + "...\n\n*[Response truncated due to length]*"
+            
+            # CRITICAL: Add try/catch for chat_update to prevent silent failures
             try:
-                # Find PDF files for vision processing
-                pdf_files = [f for f in downloaded_files if f.get('mime_type') == 'application/pdf']
-                
-                if pdf_files and config.openai_configured and vision_integration_available:
-                    # Vision processing ENABLED - SSL/timeout issues fixed
-                    pdf_path = pdf_files[0]['path']  # Get actual PDF path
-                    logger.info(f"🔍 Vision processing enabled for: {pdf_files[0]['name']} at {pdf_path}")
-                    logger.info("✅ Vision processing enabled with updated OpenAI client")
-                    
-                    # Create enhanced session structure WITH actual vision processing
+                client.chat_update(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=final_response
+                )
+                logger.info(f"✅ Final response sent successfully ({len(final_response)} chars)")
+            except Exception as chat_error:
+                logger.error(f"❌ CRITICAL: chat_update failed: {chat_error}")
+                # Fallback: try with a simpler message
+                try:
+                    fallback_response = f"✅ **Analysis Complete**\n\nAnalysis completed successfully. Use commands like `/ask`, `/scoring`, `/memo` to interact with the results.\n\n*Note: Full response failed due to formatting - contact support if this persists.*"
+                    client.chat_update(
+                        channel=channel_id,
+                        ts=message_ts,
+                        text=fallback_response
+                    )
+                    logger.info("✅ Fallback response sent successfully")
+                except Exception as fallback_error:
+                    logger.error(f"❌ CRITICAL: Even fallback failed: {fallback_error}")
+                    # Last resort: post new message
                     try:
-                        enhanced_session, vision_results = vision_integration_coordinator.process_document_with_vision(
-                            pdf_path, user_id, basic_session_data  # Pass actual PDF path to enable vision
+                        client.chat_postMessage(
+                            channel=channel_id,
+                            text="✅ **Analysis Complete** - Use `/ask`, `/scoring`, `/memo` to interact with results."
                         )
-                        final_session_data = enhanced_session
-                        
-                        if vision_results and vision_results.get('success'):
-                            vision_status_message = "\n\n🎯 **Vision Analysis:** Visual elements analyzed successfully"
-                        else:
-                            vision_status_message = "\n\n📄 **Enhanced Analysis:** Vision processing attempted (graceful fallback)"
-                        
-                        logger.info("✅ Enhanced session created with vision processing")
-                    except Exception as vision_error:
-                        logger.error(f"❌ Vision processing failed: {vision_error}")
-                        vision_status_message = "\n\n⚠️ **Note:** Vision failed, using standard text analysis"
-                        # Keep basic session data as fallback
-                        
-                elif vision_integration_available and pdf_files:
-                    # Create enhanced session even without vision processing for consistency
-                    try:
-                        enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
-                            None, user_id, basic_session_data
-                        )
-                        final_session_data = enhanced_session
-                        logger.info("📄 Enhanced session created without vision processing")
-                        vision_status_message = "\n\n📄 **Text-Only Analysis:** Vision processing not needed"
-                    except Exception as e:
-                        logger.error(f"❌ Enhanced session creation failed: {e}")
-                        vision_status_message = "\n\n⚠️ **Note:** Using basic text analysis"
-                        
-                else:
-                    # No PDFs, OpenAI not configured, or vision not available - use basic session
-                    if not pdf_files:
-                        logger.info("📄 No PDF files found - vision processing skipped")
-                        vision_status_message = "\n\n📄 **Document Analysis:** Non-PDF documents processed"
-                    elif not config.openai_configured:
-                        logger.info("🔧 OpenAI not configured - vision processing disabled")
-                        vision_status_message = "\n\n🔧 **Configuration:** Vision processing disabled"
-                    elif not vision_integration_available:
-                        logger.info("🔧 Vision integration not available - using text-only processing")
-                        vision_status_message = "\n\n📄 **Text-Only Mode:** Vision integration unavailable"
-                        
-            except Exception as e:
-                logger.error(f"❌ Vision processing pipeline failed: {e}")
-                vision_status_message = "\n\n⚠️ **Note:** Vision processing error, using text-only analysis"
-                # final_session_data already defaults to basic_session_data
-            
-            # Store the final session data (enhanced or basic)
-            user_sessions[user_id] = final_session_data
-            
-            # Show final response with vision status
-            final_response = formatted_response + vision_status_message
-            client.chat_update(
-                channel=channel_id,
-                ts=message_ts,
-                text=final_response
-            )
+                        logger.info("✅ Emergency message posted successfully")
+                    except:
+                        logger.error("❌ FATAL: All message delivery methods failed")
             
             # DEBUG: Log session storage
             logger.info(f"✅ PRODUCTION MODE - Session stored for user {user_id}")
@@ -475,31 +421,16 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                 text=response
             )
 
-            # Store documents in user session (fallback mode - no AI/vision processing)
+            # Store documents in user session (fallback mode - no AI processing)
             basic_session_data = {
                 'processed_documents': processed_documents,
                 'document_summary': document_summary,
                 'drive_link': drive_link,
                 'analysis_timestamp': datetime.now().isoformat()
             }
-            
-            # Create enhanced session even in fallback mode (for consistency)
-            if vision_integration_available:
-                try:
-                    enhanced_session, _ = vision_integration_coordinator.process_document_with_vision(
-                        None, user_id, basic_session_data  # No PDF path in fallback mode
-                    )
-                    user_sessions[user_id] = enhanced_session
-                    logger.info(f"✅ Enhanced session created in fallback mode for user {user_id}")
-                except Exception as e:
-                    logger.error(f"❌ Enhanced session creation failed in fallback: {e}")
-                    # Final fallback - use basic session
-                    user_sessions[user_id] = basic_session_data
-            else:
-                # Vision integration not available - use basic session
-                user_sessions[user_id] = basic_session_data
-                logger.info("📄 Using basic session (vision integration not available)")
-            
+
+            # Store the session data
+            user_sessions[user_id] = basic_session_data
             logger.info(f"✅ FALLBACK MODE - Session stored for user {user_id}")
 
         logger.info(f"✅ Analysis completed for user {user_id}")
@@ -735,17 +666,6 @@ def handle_ask_command(ack, body, client):
 
         logger.info("🤖 Calling AI analyzer...")
         
-        # NEW: Check for enhanced session data and vision capabilities
-        vision_ask_enhancement = None
-        if vision_integration_available:
-            try:
-                vision_ask_enhancement = vision_integration_coordinator.enhance_ask_command(session_data, question)
-                if vision_ask_enhancement.get('enhanced_context', {}).get('visual_context'):
-                    logger.info("🔍 Ask command enhanced with vision data")
-            except Exception as e:
-                logger.warning(f"⚠️ Vision enhancement failed for /ask: {e}")
-        else:
-            logger.debug("📄 Vision integration not available for /ask command")
         
         # Get answer from AI
         answer = ai_analyzer.answer_question(question)
@@ -755,11 +675,6 @@ def handle_ask_command(ack, body, client):
                   f"**Answer:**\n{answer}\n\n" +\
                   f"📎 *Based on analyzed data room"
 
-        # Add vision context if available
-        if vision_ask_enhancement and vision_ask_enhancement.get('answer_sources', {}).get('visual_extraction'):
-            chart_refs = vision_ask_enhancement.get('answer_sources', {}).get('chart_references', 0)
-            if chart_refs > 0:
-                response += f" with {chart_refs} visual references"
 
         # Add market research context if available
         if 'market_research' in user_sessions[user_id]:
@@ -816,19 +731,7 @@ def handle_scoring_command(ack, body, client):
             )
             return
 
-        # NEW: Check for enhanced session data and vision capabilities
-        vision_scoring_enhancement = None
-        if vision_integration_available:
-            try:
-                vision_scoring_enhancement = vision_integration_coordinator.enhance_scoring_command(session_data)
-                if vision_scoring_enhancement.get('comprehensive_metrics', {}).get('visual_extracted_metrics'):
-                    logger.info("🔍 Scoring command enhanced with vision metrics")
-            except Exception as e:
-                logger.warning(f"⚠️ Vision enhancement failed for /scoring: {e}")
-        else:
-            logger.debug("📄 Vision integration not available for /scoring command")
-
-        # Pass enhanced session data to AI analyzer for vision-enhanced scoring
+        # Get scoring data from AI analyzer
         scoring_data = ai_analyzer.get_detailed_scoring(session_data)
 
         if 'error' in scoring_data:
@@ -841,21 +744,7 @@ def handle_scoring_command(ack, body, client):
         # Format enhanced scoring response (AC5: Response Enhancement)
         response = "📊 **ENHANCED SCORING BREAKDOWN**\n\n"
         
-        # Show enhanced overall score if available
-        if 'enhanced_overall_score' in scoring_data:
-            enhanced_score = scoring_data['enhanced_overall_score']
-            methodology = scoring_data.get('scoring_methodology', {})
-            includes_visual = methodology.get('includes_visual_assessment', False)
-            
-            response += f"🎯 **Enhanced Overall Score: {enhanced_score}/10**"
-            if includes_visual:
-                response += f" ✨ *Vision-Enhanced*\n"
-                response += f"   📊 Text Analysis: {scoring_data['overall_score']}/10 (Weight: {methodology.get('text_analysis_weight', 1.0):.0%})\n"
-                response += f"   🎨 Visual Analysis: Weight: {methodology.get('visual_analysis_weight', 0.0):.0%}\n\n"
-            else:
-                response += f" 📄 *Text-Only Analysis*\n\n"
-        else:
-            response += f"🎯 **Overall Score: {scoring_data['overall_score']}/10**\n\n"
+        response += f"🎯 **Overall Score: {scoring_data['overall_score']}/10**\n\n"
 
         response += "**Category Scores:**\n"
         for category, data in scoring_data['category_scores'].items():
@@ -879,16 +768,6 @@ def handle_scoring_command(ack, body, client):
 
         response += f"\n🎯 **Recommendation:** {scoring_data['recommendation']}\n"
 
-        # Add vision-enhanced scoring insights if available
-        if vision_scoring_enhancement:
-            scoring_confidence = vision_scoring_enhancement.get('scoring_confidence', {})
-            final_confidence = scoring_confidence.get('final_scoring_confidence', 0.0)
-            if final_confidence > 0.8:
-                response += f"\n📈 **Analysis Confidence:** {final_confidence:.1%} (Vision-Enhanced)"
-                
-            visual_metrics = vision_scoring_enhancement.get('comprehensive_metrics', {}).get('visual_extracted_metrics', {})
-            if visual_metrics:
-                response += "\n🎨 **Visual Analysis:** Financial charts and metrics analyzed"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -943,33 +822,11 @@ def handle_memo_command(ack, body, client):
             )
             return
 
-        # NEW: Check for enhanced session data and vision capabilities
-        vision_memo_enhancement = None
-        if vision_integration_available:
-            try:
-                vision_memo_enhancement = vision_integration_coordinator.enhance_memo_command(session_data)
-                if vision_memo_enhancement.get('comprehensive_evidence', {}).get('visual_evidence'):
-                    logger.info("🔍 Memo command enhanced with visual evidence")
-            except Exception as e:
-                logger.warning(f"⚠️ Vision enhancement failed for /memo: {e}")
-        else:
-            logger.debug("📄 Vision integration not available for /memo command")
-
-        # Pass enhanced session data to AI analyzer for vision-enhanced memo generation  
+        # Generate investment memo  
         memo = ai_analyzer.generate_investment_memo(session_data)
 
         response = "📄 **INVESTMENT MEMO**\n\n" + memo
 
-        # Add vision-enhanced memo insights if available
-        if vision_memo_enhancement:
-            thesis_strength = vision_memo_enhancement.get('investment_thesis_strength', {})
-            comprehensive_strength = thesis_strength.get('comprehensive_thesis_strength', 0.0)
-            if comprehensive_strength > 0.9:
-                response += f"\n\n💎 **Investment Thesis Strength:** {comprehensive_strength:.1%} (Professional Grade)"
-                
-            chart_references = vision_memo_enhancement.get('comprehensive_evidence', {}).get('chart_references', [])
-            if chart_references:
-                response += f"\n📊 **Visual Evidence:** {len(chart_references)} supporting charts analyzed"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -1023,35 +880,11 @@ def handle_gaps_command(ack, body, client):
             )
             return
 
-        # NEW: Check for enhanced session data and vision capabilities
-        vision_gaps_enhancement = None
-        if vision_integration_available:
-            try:
-                vision_gaps_enhancement = vision_integration_coordinator.enhance_gaps_command(session_data)
-                if vision_gaps_enhancement.get('comprehensive_gap_analysis', {}).get('visual_gaps'):
-                    logger.info("🔍 Gaps command enhanced with vision analysis")
-            except Exception as e:
-                logger.warning(f"⚠️ Vision enhancement failed for /gaps: {e}")
-        else:
-            logger.debug("📄 Vision integration not available for /gaps command")
-
-        # Pass enhanced session data to AI analyzer for vision-enhanced gap analysis
+        # Generate gaps analysis
         gaps_analysis = ai_analyzer.analyze_gaps(session_data)
 
         response = "🔍 **INFORMATION GAPS ANALYSIS**\n\n" + gaps_analysis
 
-        # Add vision-enhanced gap insights if available
-        if vision_gaps_enhancement:
-            completeness = vision_gaps_enhancement.get('completeness_assessment', {})
-            overall_completeness = completeness.get('overall_completeness', 0.0)
-            if overall_completeness > 0:
-                response += f"\n\n📊 **Enhanced Analysis Completeness:** {overall_completeness:.1%}"
-                
-            recommendations = vision_gaps_enhancement.get('actionable_recommendations', [])
-            if recommendations:
-                response += "\n\n🎯 **Vision-Enhanced Recommendations:**\n"
-                for rec in recommendations[:3]:  # Top 3 recommendations
-                    response += f"• {rec}\n"
 
         # Add market research note if available
         if 'market_research' in user_sessions[user_id]:
@@ -1129,7 +962,6 @@ def handle_health_command(ack, body, client):
         health_response += f"\n🔬 **Phase 2B Status (Production Ready):**\n"
         health_response += f"• Market Research Orchestrator: {'✅' if market_research_orchestrator else '❌'}\n"
         health_response += f"• Market Research Handler: {'✅' if market_research_handler else '❌'}\n"
-        health_response += f"• Vision Integration: {'✅' if vision_integration_available else '❌'}\n"
         health_response += f"• Active Sessions: {len(user_sessions)}\n"
         health_response += f"• Your Session: {'✅ Active' if user_id in user_sessions else '❌ Not found'}\n"
         

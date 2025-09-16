@@ -11,18 +11,18 @@ google-auth-oauthlib==1.1.0
 google-auth-httplib2==0.2.0
 google-api-python-client==2.108.0
 
-# Document Processing - Core
-PyPDF2==3.0.1
+# Document Processing - Core (GPT-4o Direct PDF Processing)
+# PyPDF2==3.0.1          # REMOVED: Traditional extraction methods eliminated
 python-docx==1.1.0
 openpyxl==3.1.2
 
-# Document Processing - Enhanced (for better PDF extraction)
-pdfplumber==0.10.3
+# Document Processing - Enhanced (REMOVED)
+# pdfplumber==0.10.3     # REMOVED: GPT-4o Direct provides superior extraction
 
-# OCR Support (for image-based PDFs)
-pytesseract==0.3.10
-pdf2image==1.17.0
-Pillow>=10.0.0
+# OCR Support (REMOVED - GPT-4o handles image-based PDFs)
+# pytesseract==0.3.10    # REMOVED: GPT-4o Direct reads images natively
+# pdf2image==1.17.0      # REMOVED: No longer needed for OCR pipeline
+# Pillow>=10.0.0         # REMOVED: GPT-4o processes images directly
 
 # Vision Integration (GPT Vision + PDF processing)
 PyMuPDF==1.23.14
