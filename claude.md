@@ -180,6 +180,8 @@ GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
 ### ❌ **REMOVED COMPONENTS**:
 - **Vision Processing Pipeline**: Complete removal of vision integration (handlers/vision_*.py files removed)
+- **Vision Dependencies**: handlers/enhanced_session_manager.py removed, stories/ directory with Vision stories deleted
+- **Vision Logic**: All Vision processing code removed from handlers/ai_analyzer.py methods
 - **Traditional PDF Methods**: PyPDF2, pdfplumber, OCR extraction methods eliminated
 - **Fallback Architecture**: Complex fallback chain replaced with GPT-4o Direct only
 - **Test Mode Complexity**: Simplified to production-only development
