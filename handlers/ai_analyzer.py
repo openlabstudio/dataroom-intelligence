@@ -12,6 +12,19 @@ from prompts.analysis_prompts import DATAROOM_ANALYSIS_PROMPT, SCORING_PROMPT, S
 from prompts.qa_prompts import QA_PROMPT, MEMO_PROMPT, GAPS_PROMPT, SLACK_READY_GAPS_PROMPT
 from utils.logger import get_logger
 
+# Import analyst schema constants
+from constants.analyst_schema import (
+    SECTIONS_ORDER,
+    SECTION_TITLE,
+    FIELDS,
+    FIELD_ALIASES,
+    CRITICAL_SECTIONS,
+    NICE_TO_HAVE_SECTIONS,
+    BULLETS_LIMITS,
+    DEFAULT_BULLET_LIMIT,
+    MAX_TOTAL_BULLETS
+)
+
 logger = get_logger(__name__)
 
 class AIAnalyzer:
@@ -24,23 +37,19 @@ class AIAnalyzer:
         ENABLE_INFERENCE: bool = getattr(_cfg, "ENABLE_INFERENCE", False)
         SHOW_CITATIONS: bool = getattr(_cfg, "SHOW_CITATIONS", False)  # por defecto OFF
         MAX_SUMMARY_BULLETS: int = int(getattr(_cfg, "MAX_SUMMARY_BULLETS", 12))
+        GAP_MODE: str = getattr(_cfg, "GAP_MODE", "smart")  # "section", "field", or "smart"
+        MAX_GAP_SUBFIELDS: int = int(getattr(_cfg, "MAX_GAP_SUBFIELDS", 3))
     except Exception:
         STRICT_EXTRACTION = True
         ENABLE_INFERENCE = False
         SHOW_CITATIONS = False
         MAX_SUMMARY_BULLETS = 12
+        GAP_MODE = "smart"
+        MAX_GAP_SUBFIELDS = 3
 
-    # ===================== Coverage rubric (para Gaps) =====================
-    EXPECTED_SECTIONS = [
-        "value_proposition", "market", "product", "roadmap", "gtm",
-        "competition", "team", "business_model", "traction", "financials",
-        "risks", "why_now"
-    ]
-    CRITICAL_SECTIONS = {
-        "team", "traction", "business_model", "financials", "gtm",
-        "competition", "market", "roadmap"
-    }
-    NICE_TO_HAVE_SECTIONS = {"why_now", "product", "risks"}
+    # ===================== Coverage rubric (usando analyst_schema) =====================
+    # Now imported from constants.analyst_schema
+    # CRITICAL_SECTIONS and NICE_TO_HAVE_SECTIONS are imported above
 
     # Regex para detectar contenido relevante para VCs
     NUMERIC_PATTERNS = re.compile(r'(\b\d[\d,\.]*\s?(%|€|\$|M|K)\b|GMV|ARR|MRR|CAC|LTV|runway|burn|seed|valuation|take rate)', re.I)
@@ -258,6 +267,369 @@ class AIAnalyzer:
         self.current_analysis = None
         self.analysis_context = None
 
+    # ===================== New Canonical Formatting Methods =====================
+
+    def _format_field_value(self, field: str, data: dict) -> Optional[str]:
+        """Format field value based on type for clean output"""
+        if not isinstance(data, dict):
+            return str(data).strip() if data else None
+
+        # Financial fields with currency
+        if field in ["revenue", "gmv", "vat", "burn"]:
+            value = str(data.get("value", "")).strip()
+            currency = str(data.get("currency", "")).strip()
+            period = str(data.get("period", "")).strip()
+
+            if not value:
+                return None
+
+            # Normalize currency format
+            if currency:
+                formatted = f"{currency}{value}" if currency in "€$£" else f"{value} {currency}"
+            else:
+                formatted = value
+
+            if period and period.lower() not in ["", "n/a", "unknown"]:
+                formatted += f" ({period})"
+            return formatted
+
+        # Funding rounds special handling
+        elif field == "funding_rounds":
+            parts = []
+            if data.get("round"):
+                parts.append(str(data["round"]))
+            amt = str(data.get("amount", "")).strip()
+            curr = str(data.get("currency", "")).strip()
+            if amt and curr:
+                parts.append(f"{curr}{amt}" if curr in "€$£" else f"{amt} {curr}")
+            elif amt:
+                parts.append(amt)
+            if data.get("valuation"):
+                parts.append(f"@ {data['valuation']} valuation")
+            return " ".join(parts) if parts else None
+
+        # Metrics with percentages
+        elif field in ["gross_margin", "cohorts_retention", "growth_rate"]:
+            value = str(data.get("value", data.get("quote", ""))).strip()
+            if value and "%" not in value and value.replace(".", "").replace(",", "").isdigit():
+                value += "%"
+            return value if value else None
+
+        # Time-based fields
+        elif field in ["payback_months", "sales_cycle_days", "runway_months"]:
+            value = str(data.get("value", data.get("months", data.get("days", "")))).strip()
+            if not value:
+                return None
+            unit = "months" if "months" in field else "days"
+            if value.isdigit():
+                return f"{value} {unit}"
+            return value
+
+        # Default: use quote field
+        else:
+            quote = str(data.get("quote", "")).strip()
+            return quote if quote else None
+
+    def _collect_by_section(self, facts: dict) -> dict:
+        """Collect facts organized by canonical sections"""
+        sections = {s: [] for s in SECTIONS_ORDER}
+
+        # Process financials (special structure)
+        if "financials" in facts and isinstance(facts["financials"], dict):
+            for metric, entries in facts["financials"].items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    formatted = self._format_field_value(metric, entry)
+                    if formatted:
+                        # Map to correct section
+                        if metric in ["revenue", "gmv", "vat", "burn", "runway_months", "funding_rounds"]:
+                            sections["base_financials"].append(formatted)
+
+        # Process unit_economics (special structure)
+        if "unit_economics" in facts and isinstance(facts["unit_economics"], dict):
+            for metric, entries in facts["unit_economics"].items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+
+                    # Special formatting for unit economics
+                    if metric == "cac":
+                        value = entry.get("value", "")
+                        currency = entry.get("currency", "")
+                        channel = entry.get("channel", "")
+                        formatted = f"CAC: {currency}{value}" if currency else f"CAC: {value}"
+                        if channel:
+                            formatted += f" ({channel})"
+                    elif metric == "ltv":
+                        value = entry.get("value", "")
+                        currency = entry.get("currency", "")
+                        formatted = f"LTV: {currency}{value}" if currency else f"LTV: {value}"
+                    elif metric == "payback_months":
+                        value = entry.get("value", "")
+                        formatted = f"Payback: {value} months" if value else None
+                    elif metric in ["gross_margin", "contribution_margin"]:
+                        value = entry.get("value", "")
+                        if value and "%" not in str(value):
+                            value = f"{value}%"
+                        formatted = f"{metric.replace('_', ' ').title()}: {value}" if value else None
+                    else:
+                        formatted = self._format_field_value(metric, entry)
+
+                    if formatted:
+                        sections["unit_economics"].append(formatted)
+
+        # Process traction (special structure)
+        if "traction" in facts and isinstance(facts["traction"], dict):
+            for metric, entries in facts["traction"].items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+
+                    # Special formatting for traction metrics
+                    if metric in ["merchants", "users", "transactions"]:
+                        value = entry.get("value", "")
+                        period = entry.get("period", "")
+                        growth = entry.get("growth", "")
+                        formatted = f"{metric.title()}: {value}"
+                        if period:
+                            formatted += f" ({period})"
+                        if growth:
+                            formatted += f" - {growth} growth"
+                    elif metric == "retention":
+                        value = entry.get("value", "")
+                        cohort = entry.get("cohort", "")
+                        formatted = f"Retention: {value}"
+                        if cohort:
+                            formatted += f" ({cohort} cohort)"
+                    elif metric == "nps":
+                        value = entry.get("value", "")
+                        formatted = f"NPS: {value}" if value else None
+                    else:
+                        formatted = self._format_field_value(metric, entry)
+
+                    if formatted:
+                        sections["qualified_traction"].append(formatted)
+
+        # Process other fields using aliases
+        for fact_key, fact_value in facts.items():
+            if fact_key in ["financials", "unit_economics", "traction"]:
+                continue  # Already processed
+
+            # Find which section this fact belongs to
+            for section, fields in FIELDS.items():
+                for field in fields:
+                    # Check if fact_key matches field or its aliases
+                    aliases = FIELD_ALIASES.get(field, [field])
+                    if fact_key in aliases or fact_key == field:
+                        # Process the fact value
+                        if isinstance(fact_value, list):
+                            for item in fact_value:
+                                if isinstance(item, dict):
+                                    formatted = self._format_field_value(field, item)
+                                else:
+                                    formatted = str(item).strip() if item else None
+
+                                if formatted and formatted not in sections[section]:
+                                    sections[section].append(formatted)
+                        elif isinstance(fact_value, dict):
+                            formatted = self._format_field_value(field, fact_value)
+                            if formatted and formatted not in sections[section]:
+                                sections[section].append(formatted)
+                        elif fact_value:
+                            formatted = str(fact_value).strip()
+                            if formatted and formatted not in sections[section]:
+                                sections[section].append(formatted)
+
+        # Handle common mapping patterns
+        mapping = {
+            "value_proposition": "value_prop_diff",
+            "product": "value_prop_diff",
+            "market": "value_prop_diff",
+            "competition": "competition",
+            "team": "team",
+            "risks": "risks_regulation",
+            "why_now": "value_prop_diff",
+            "gtm": "gtm_sales",
+            "go_to_market": "gtm_sales",
+            "traction": "qualified_traction",
+            "traction_data": "qualified_traction",
+            "business_model": "business_model_pricing",
+            "roadmap": "roadmap"
+        }
+
+        for source_key, target_section in mapping.items():
+            if source_key in facts:
+                entries = facts[source_key] if isinstance(facts[source_key], list) else [facts[source_key]]
+                for entry in entries:
+                    if isinstance(entry, dict):
+                        quote = entry.get("quote", "")
+                    else:
+                        quote = str(entry) if entry else ""
+
+                    quote = quote.strip()
+                    if quote and quote not in sections[target_section]:
+                        sections[target_section].append(quote)
+
+        return sections
+
+    def _compute_hybrid_gaps(self, facts: dict, sections: dict) -> dict:
+        """
+        GAPs híbrido:
+        - Si una sección está vacía -> gap de SECCIÓN
+        - Si tiene algo pero faltan subcampos críticos -> lista subcampos faltantes
+        """
+        # 1) Campos presentes (aprox): si la sección tiene contenido, marcamos sus campos como presentes
+        present_fields = set()
+        for sec, vals in sections.items():
+            if vals:
+                # Aproximación: si hay contenido en la sección, asumimos algunos campos presentes
+                for field in FIELDS.get(sec, []):
+                    # Solo marcar como presente si realmente vemos evidencia
+                    for val in vals:
+                        if field in val.lower().replace(" ", "_"):
+                            present_fields.add(field)
+
+        # 2) Construir faltantes por sección
+        section_gaps_critical = []
+        section_gaps_nice = []
+        subfield_gaps_critical = {}
+        subfield_gaps_nice = {}
+
+        # Definir qué campos son críticos (subset de todos los campos)
+        CRITICAL_FIELDS_SET = set(
+            FIELDS.get("unit_economics", []) +
+            FIELDS.get("gtm_sales", []) +
+            FIELDS.get("business_model_pricing", []) +
+            ["revenue", "gmv", "burn", "runway_months", "funding_rounds"]
+        )
+
+        for sec in SECTIONS_ORDER:
+            section_fields = FIELDS.get(sec, [])
+            section_has_content = bool(sections.get(sec))
+
+            if not section_has_content:
+                # Gap de sección completa
+                section_name = SECTION_TITLE[sec].rstrip(":")
+                if sec in CRITICAL_SECTIONS:
+                    section_gaps_critical.append(section_name)
+                else:
+                    section_gaps_nice.append(section_name)
+            else:
+                # Sección parcial: verificar campos faltantes
+                missing_fields = [f for f in section_fields if f not in present_fields]
+                missing_critical = [f for f in missing_fields if f in CRITICAL_FIELDS_SET]
+                missing_nice = [f for f in missing_fields if f not in CRITICAL_FIELDS_SET]
+
+                if missing_critical and sec in CRITICAL_SECTIONS:
+                    subfield_gaps_critical[sec] = missing_critical[:3]  # Max 3 campos
+                elif missing_nice:
+                    subfield_gaps_nice[sec] = missing_nice[:3]  # Max 3 campos
+
+        return {
+            "section_critical": section_gaps_critical,
+            "section_nice": section_gaps_nice,
+            "subfield_critical": subfield_gaps_critical,
+            "subfield_nice": subfield_gaps_nice,
+        }
+
+    def _format_hybrid_gaps(self, gaps: dict) -> tuple:
+        """Format gaps in hybrid mode (smart)"""
+        critical_lines = []
+        nice_lines = []
+
+        # 1) Secciones completamente ausentes
+        for name in gaps["section_critical"]:
+            critical_lines.append(f"• {name}")
+
+        # 2) Secciones parciales con campos faltantes
+        for sec, fields in gaps["subfield_critical"].items():
+            if fields:
+                section_name = SECTION_TITLE[sec].rstrip(":")
+                fields_str = ", ".join([f.replace("_", " ") for f in fields])
+                critical_lines.append(f"• {section_name} — faltan: {fields_str}")
+
+        # 3) Nice-to-have sections
+        for name in gaps["section_nice"]:
+            nice_lines.append(f"• {name}")
+
+        # 4) Nice-to-have fields
+        for sec, fields in gaps["subfield_nice"].items():
+            if fields:
+                section_name = SECTION_TITLE[sec].rstrip(":")
+                fields_str = ", ".join([f.replace("_", " ") for f in fields])
+                nice_lines.append(f"• {section_name} — faltan: {fields_str}")
+
+        return critical_lines, nice_lines
+
+    def _build_analyst_output(self, sections: dict, facts: dict = None) -> str:
+        """Build fixed format analyst output with configurable gaps mode"""
+        lines = ["📊 **ANÁLISIS DEL DECK**\n"]
+
+        # Render each section in fixed order
+        for section_key in SECTIONS_ORDER:
+            title = SECTION_TITLE[section_key]
+            bullet_limit = BULLETS_LIMITS.get(section_key, DEFAULT_BULLET_LIMIT)
+            bullets = sections.get(section_key, [])[:bullet_limit]
+
+            if bullets:  # Has data - show it
+                lines.append(f"**{title}**")
+                for bullet in bullets:
+                    lines.append(f"• {bullet}")
+                lines.append("")  # Blank line
+
+        # Use configurable gap mode
+        gap_mode = getattr(self, "GAP_MODE", "smart")
+        max_subfields = getattr(self, "MAX_GAP_SUBFIELDS", 3)
+
+        # Compute gaps with hybrid approach
+        gaps = self._compute_hybrid_gaps(facts or {}, sections)
+
+        # Format gaps based on configured mode
+        if gap_mode == "section":
+            # Only show section-level gaps
+            critical_lines = [f"• {name}" for name in gaps["section_critical"]]
+            nice_lines = [f"• {name}" for name in gaps["section_nice"]]
+        elif gap_mode == "field":
+            # Only show field-level gaps
+            critical_lines = []
+            nice_lines = []
+            for sec, fields in gaps["subfield_critical"].items():
+                if fields:
+                    section_name = SECTION_TITLE[sec].rstrip(":")
+                    fields_str = ", ".join([f.replace("_", " ") for f in fields[:max_subfields]])
+                    critical_lines.append(f"• {section_name} — faltan: {fields_str}")
+            for sec, fields in gaps["subfield_nice"].items():
+                if fields:
+                    section_name = SECTION_TITLE[sec].rstrip(":")
+                    fields_str = ", ".join([f.replace("_", " ") for f in fields[:max_subfields]])
+                    nice_lines.append(f"• {section_name} — faltan: {fields_str}")
+        else:  # "smart" mode (default)
+            critical_lines, nice_lines = self._format_hybrid_gaps(gaps)
+
+        # Add gaps section
+        lines.append("\n⚠️ **GAPS DETECTADOS**\n")
+
+        lines.append("**Críticos:**")
+        if critical_lines:
+            lines.extend(critical_lines)
+        else:
+            lines.append("• Ninguno - información crítica completa")
+
+        lines.append("\n**Nice-to-have:**")
+        if nice_lines:
+            lines.extend(nice_lines)
+        else:
+            lines.append("• Ninguno")
+
+        return "\n".join(lines)
+
     def analyze_dataroom(self, processed_documents: List[Dict[str, Any]],
                          document_summary: Dict[str, Any]) -> Dict[str, Any]:
         """Generate Deck Summary (facts-only) + Gaps (Critical/Nice-to-have), sin inferencias."""
@@ -281,42 +653,21 @@ class AIAnalyzer:
             if facts.get('competition'):
                 logger.info(f"  🎯 Competition entries: {len(facts['competition'])}")
 
-            # 2) Recopilar insights relevantes del facts JSON
-            insights = self._collect_relevant_insights(facts, docs_meta)
+            # 2) NEW: Use canonical formatting system
+            logger.info("🔄 Using new canonical formatting system...")
+            sections = self._collect_by_section(facts)
 
-            # Log what we collected
-            logger.info(f"📝 Insights collected by section:")
-            section_counts = {}
-            for insight in insights:
-                section = insight.get('section', 'unknown')
-                section_counts[section] = section_counts.get(section, 0) + 1
-            for section, count in section_counts.items():
-                logger.info(f"  - {section}: {count} insights")
+            # Log what we collected per section
+            logger.info(f"📝 Data collected by section:")
+            for section_key in SECTIONS_ORDER:
+                bullets = sections.get(section_key, [])
+                if bullets:
+                    logger.info(f"  - {SECTION_TITLE[section_key]} {len(bullets)} items")
 
-            # Validate insights are properly formatted (no raw dicts)
-            for idx, insight in enumerate(insights):
-                if not isinstance(insight.get('text'), str):
-                    logger.error(f"❌ Insight {idx} has non-string text: {type(insight.get('text'))}: {insight}")
-                    raise ValueError(f"Insight formatting error at index {idx}")
+            # 3) Build analyst output with gaps (passing facts for field-level detection)
+            final = self._build_analyst_output(sections, facts)
 
-            logger.info(f"✅ Total: {len(insights)} properly formatted insights")
-            summary = self._build_deck_summary(insights, max_bullets=self.MAX_SUMMARY_BULLETS)
-
-            # 3) Gaps: evaluar cobertura vs rubric
-            gaps = self._compute_gaps(facts)
-            gaps_block = self._format_gaps(gaps)
-
-            # 4) Ensamblado final (Slack-ready, emojis Unicode)
-            output = []
-            output.append("📌 **DECK SUMMARY (facts-only)**")
-            if summary.strip():
-                output.append(summary)
-            else:
-                output.append("• Not found in deck")  # robustez si extractor vacío
-            output.append("\n⚠️ **GAPS (what's missing)**")
-            output.append(gaps_block)
-
-            final = "\n".join(output)
+            # Apply emoji mapping if needed
             final = self._map_emojis(final)
 
             # Final guard against raw dicts

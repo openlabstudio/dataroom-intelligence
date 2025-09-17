@@ -98,24 +98,49 @@ Return STRICT JSON ONLY with this schema (no prose, no comments):
     "runway_months": [{"value": 0, "slide": 0}],
     "funding_rounds": [{"round": "Seed|Series A|...", "amount": "...", "currency": "...", "valuation": "...", "slide": 0}]
   },
+  "unit_economics": {
+    "cac": [{"value": "...", "currency": "...", "channel": "...", "slide": 0}],
+    "ltv": [{"value": "...", "currency": "...", "slide": 0}],
+    "payback_months": [{"value": 0, "slide": 0}],
+    "gross_margin": [{"value": "...", "slide": 0}],
+    "contribution_margin": [{"value": "...", "slide": 0}]
+  },
+  "traction": {
+    "merchants": [{"value": "...", "period": "...", "growth": "...", "slide": 0}],
+    "users": [{"value": "...", "period": "...", "growth": "...", "slide": 0}],
+    "transactions": [{"value": "...", "period": "...", "growth": "...", "slide": 0}],
+    "retention": [{"value": "...", "cohort": "...", "slide": 0}],
+    "nps": [{"value": "...", "slide": 0}]
+  },
   "value_proposition": [{"quote": "...", "slide": 0}],
+  "differentiation": [{"quote": "...", "slide": 0}],
   "market": [{"quote": "...", "slide": 0}],
   "product": [{"quote": "...", "slide": 0}],
   "roadmap": [{"quote": "...", "slide": 0}],
   "gtm": [{"quote": "...", "slide": 0}],
+  "icp": [{"quote": "...", "slide": 0}],
+  "channels": [{"quote": "...", "slide": 0}],
+  "pricing_model": [{"quote": "...", "slide": 0}],
+  "take_rate": [{"value": "...", "slide": 0}],
   "competition": [{"quote": "...", "slide": 0}],
   "team": [{"quote": "...", "slide": 0}],
   "business_model": [{"quote": "...", "slide": 0}],
-  "traction": [{"quote": "...", "slide": 0}],
   "risks": [{"quote": "...", "slide": 0}],
+  "regulatory": [{"quote": "...", "slide": 0}],
   "why_now": [{"quote": "...", "slide": 0}],
+  "use_of_funds": [{"quote": "...", "slide": 0}],
+  "case_studies": [{"quote": "...", "slide": 0}],
   "slides_covered": [1]
 }
 Rules:
 - Extract EVERYTHING that is explicitly present: numbers, metrics, company names, team backgrounds, customers, competitors, channels, etc.
-- No inference. If a field isn't present in the deck, return an empty array for it.
+- For unit economics: look for CAC, LTV, payback period, gross margin, contribution margin
+- For traction: look for active users/merchants, growth rates, retention, NPS
+- NO INFERENCE. If a field is not present in the deck, return an EMPTY ARRAY for it.
 - Every numeric datapoint MUST include `slide` when visible on slide.
-- STRICT JSON only.
+- Use exact periods seen: "Q1 27", "FY2024", "TTM", "monthly", "cumulative", etc.
+- Use exact currencies seen: "€", "$", "USD", "EUR", etc.
+- STRICT JSON only. Do NOT include prose or comments.
         """.strip()
 
     def _merge_extractions(self, base: Dict[str, Any], inc: Dict[str, Any]) -> Dict[str, Any]:
