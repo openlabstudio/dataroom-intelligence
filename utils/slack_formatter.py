@@ -3,15 +3,48 @@ Slack message formatting utilities for DataRoom Intelligence Bot
 Formats analysis results and responses for optimal Slack display
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 from config.settings import config
+from utils.logger import get_logger
 
-def format_analysis_response(analysis_result: Dict[str, Any], document_summary: Dict[str, Any], market_profile=None) -> str:
-    """Format the main analysis response for Slack"""
+logger = get_logger(__name__)
 
-    if 'error' in analysis_result:
-        return format_error_response("analysis", analysis_result['error'])
+def format_analysis_response(analysis_result: Union[str, Dict[str, Any]],
+                           document_summary: Dict[str, Any] = None,
+                           market_profile=None) -> str:
+    """
+    Format the main analysis response for Slack
 
+    Compatibilidad:
+      - Si recibe `str`, lo devuelve tal cual (nuevo flujo 'Slack-Ready')
+      - Si recibe `dict`, usa el formateo legacy
+
+    TODO (deprecación): eliminar cuando toda la app use salida 'Slack-Ready'
+    """
+
+    # Debug logging to trace the issue
+    logger.info(f"🔍 format_analysis_response received: type={type(analysis_result)}, len={len(str(analysis_result))}")
+    
+    # NEW: Handle string response directly (analyst-friendly implementation)
+    if isinstance(analysis_result, str):
+        if document_summary or market_profile:
+            logger.warning("format_analysis_response received string but also received "
+                          "document_summary/market_profile parameters - these will be ignored. "
+                          "Consider using analysis_result directly.")
+        logger.info("🚀 Using direct Slack-ready string content!")
+        return analysis_result
+
+    # Handle dictionary response (legacy path)
+    if isinstance(analysis_result, dict):
+        if 'error' in analysis_result:
+            return format_error_response("analysis", analysis_result['error'])
+
+        # NEW: Use Slack-ready content directly if available
+        if 'slack_ready_content' in analysis_result:
+            logger.info("🚀 Using direct Slack-ready content!")
+            return analysis_result['slack_ready_content']
+
+    # FALLBACK: Old format (in case we need to rollback)
     response = f"🎯 **DATA ROOM ANALYSIS COMPLETE**\n\n"
     
     # Documents first
