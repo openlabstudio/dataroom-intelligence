@@ -73,6 +73,71 @@ CRITICAL INSTRUCTIONS:
 Provide your analysis in a clear, structured format that a VC partner can quickly digest with actionable data points.
 """
 
+# NEW: Slack-Ready Direct Output Prompt
+SLACK_READY_ANALYSIS_PROMPT = """
+You are a senior venture capital analyst. Analyze this data room and create a response that is READY FOR SLACK with EXACTLY this format.
+
+CRITICAL REQUIREMENTS:
+- TOTAL LENGTH: Maximum 3000 characters (including emojis and formatting)
+- CONCISE: Each section should be 2-3 bullet points maximum
+- ACTIONABLE: Focus on key insights for investment decisions
+- SPECIFIC NUMBERS: Always include exact financial figures when available
+
+FORMAT (copy exactly, replace content):
+
+🎯 **DATA ROOM ANALYSIS COMPLETE**
+
+📄 **Documents Analyzed: [COUNT]**
+
+💡 **VALUE PROPOSITION:**
+• [Key unique value prop - 1 line]
+• [Problem solved and target customer - 1 line]
+• [Main competitive advantage - 1 line]
+
+📊 **MARKET ANALYSIS:**
+• [Market size with specific numbers - TAM/SAM if available]
+• [Target segments and opportunity size]
+• [Market trends or growth drivers]
+
+⚔️ **COMPETITORS:**
+• [Main competitors mentioned or competitive landscape]
+• [Competitive advantages cited]
+• [Market positioning/differentiation]
+
+🛣️ **PRODUCT ROADMAP:**
+• [Current product status and key features]
+• [Development milestones or future plans]
+• [Technology differentiation if mentioned]
+
+🚀 **GO-TO-MARKET STRATEGY:**
+• [Customer acquisition approach]
+• [Sales/marketing strategy]
+• [Partnership or distribution strategy]
+
+💰 **FINANCIAL HIGHLIGHTS:**
+• [Revenue figures - specific amounts like €77M, $14M, etc.]
+• [Growth rates - percentage figures like 250% YoY]
+• [Funding history - rounds and amounts like €2M seed]
+• [Key metrics - users, transactions, unit economics]
+
+**Next Steps:**
+💬 Ask questions: `/ask [your question]`
+🔍 Gap analysis: `/gaps`
+📊 Independent market analysis: `/market-research`
+🔄 New analysis: `/reset`
+
+DOCUMENT TO ANALYZE:
+{documents_with_metadata}
+
+DOCUMENT CONTENTS:
+{document_contents}
+
+EXTRACTED FINANCIAL DATA:
+{extracted_financials}
+
+Remember: Keep under 3000 characters total. Be specific and actionable.
+"""
+
 SCORING_PROMPT = """
 You are a VC analyst providing detailed scoring breakdown for a startup based on data room analysis.
 

@@ -6,7 +6,10 @@ Story: G4O-001 - GPT-4o PDF Processor Implementation
 
 import os
 import time
-from typing import Dict, Any, Optional
+import json
+from json import JSONDecodeError
+from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, Tuple
 from openai import OpenAI
 from utils.logger import get_logger
 
@@ -44,9 +47,9 @@ class GPT4oDirectProcessor:
             
             logger.info(f"✅ File uploaded successfully: {uploaded_file.id}")
             
-            # Step 2: Process with GPT-4o
-            logger.info("🧠 Processing with AI...")
-            extraction_result = self._extract_structured_data(uploaded_file.id, file_name)
+            # Step 2: Process with GPT-4o (multi-paso con JSON estricto)
+            logger.info("🧠 Processing with AI (multi-pass JSON)…")
+            extraction_result = self._extract_structured_data_multi(uploaded_file.id, file_name)
             
             # Step 3: Cleanup uploaded file
             try:
@@ -59,21 +62,7 @@ class GPT4oDirectProcessor:
             processing_time = time.time() - start_time
             logger.info(f"✅ AI processing completed in {processing_time:.2f}s")
             
-            return {
-                'name': file_name,
-                'type': 'pdf',
-                'content': extraction_result['raw_content'],
-                'structured_data': extraction_result['structured_data'],
-                'metadata': {
-                    'extraction_method': 'gpt4o_direct',
-                    'processing_time': processing_time,
-                    'file_size_bytes': os.path.getsize(pdf_path),
-                    'data_quality_score': extraction_result.get('quality_score', 0.95),
-                    'slide_references': extraction_result.get('slide_references', []),
-                    'has_content': True,
-                    'content_length': len(extraction_result['raw_content'])
-                }
-            }
+            return extraction_result
             
         except Exception as e:
             processing_time = time.time() - start_time
@@ -85,16 +74,150 @@ class GPT4oDirectProcessor:
                 'name': file_name,
                 'type': 'pdf',
                 'content': '',
-                'structured_data': None,
+                'structured_data': {},  # Empty dict instead of None for consistency
                 'metadata': {
                     'extraction_method': 'gpt4o_failed',
                     'processing_time': processing_time,
                     'error': str(e),
                     'has_content': False,
-                    'fallback_required': True
+                    'fallback_required': True,
+                    'facts_count': 0
                 }
             }
     
+    def _json_schema_prompt(self) -> str:
+        return """
+You are extracting ALL INVESTMENT-GRADE facts from a startup pitch deck.
+Return STRICT JSON ONLY with this schema (no prose, no comments):
+{
+  "financials": {
+    "revenue": [{"value": "...", "currency": "...", "period": "...", "slide": 0}],
+    "gmv": [{"value": "...", "currency": "...", "period": "...", "slide": 0}],
+    "vat": [{"value": "...", "currency": "...", "period": "...", "slide": 0}],
+    "burn": [{"value": "...", "currency": "...", "period": "...", "slide": 0}],
+    "runway_months": [{"value": 0, "slide": 0}],
+    "funding_rounds": [{"round": "Seed|Series A|...", "amount": "...", "currency": "...", "valuation": "...", "slide": 0}]
+  },
+  "value_proposition": [{"quote": "...", "slide": 0}],
+  "market": [{"quote": "...", "slide": 0}],
+  "product": [{"quote": "...", "slide": 0}],
+  "roadmap": [{"quote": "...", "slide": 0}],
+  "gtm": [{"quote": "...", "slide": 0}],
+  "competition": [{"quote": "...", "slide": 0}],
+  "team": [{"quote": "...", "slide": 0}],
+  "business_model": [{"quote": "...", "slide": 0}],
+  "traction": [{"quote": "...", "slide": 0}],
+  "risks": [{"quote": "...", "slide": 0}],
+  "why_now": [{"quote": "...", "slide": 0}],
+  "slides_covered": [1]
+}
+Rules:
+- Extract EVERYTHING that is explicitly present: numbers, metrics, company names, team backgrounds, customers, competitors, channels, etc.
+- No inference. If a field isn't present in the deck, return an empty array for it.
+- Every numeric datapoint MUST include `slide` when visible on slide.
+- STRICT JSON only.
+        """.strip()
+
+    def _merge_extractions(self, base: Dict[str, Any], inc: Dict[str, Any]) -> Dict[str, Any]:
+        """Une merge simple por listas de objetos y lista de slides_covered sin duplicados."""
+        if not base:
+            return inc
+        out = dict(base)
+        for k, v in inc.items():
+            if k == "slides_covered":
+                prev = set(out.get(k, []))
+                out[k] = sorted(list(prev.union(set(v))))
+            elif isinstance(v, list):
+                out[k] = (out.get(k, []) or []) + v
+            elif isinstance(v, dict):
+                out[k] = self._merge_extractions(out.get(k, {}) or {}, v)
+            else:
+                out[k] = v
+        return out
+
+    def _validate_json(self, raw: str) -> Dict[str, Any]:
+        try:
+            return json.loads(raw)
+        except JSONDecodeError as e:
+            # Intenta limpiar envoltorios accidentales de code fences
+            raw2 = raw.strip()
+            if raw2.startswith("```"):
+                raw2 = raw2.strip("`")
+                if raw2.startswith("json"):
+                    raw2 = raw2[4:]
+            return json.loads(raw2)
+
+    def _extract_pass(self, file_id: str, exclude_slides: Optional[List[int]]=None) -> Dict[str, Any]:
+        instructions = self._json_schema_prompt()
+        if exclude_slides:
+            instructions += f"\n\nAdditional rule: Re-scan ONLY slides NOT IN {exclude_slides}."
+
+        resp = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": instructions},
+                    {"type": "text", "text": "Extract all possible facts strictly as JSON."},
+                    {"type": "file", "file": {"file_id": file_id}},
+                ],
+            }],
+            # ⬇️ subir cobertura (antes 2500)
+            max_tokens=6000,
+            temperature=0.1,
+            # ⬇️ fuerza JSON válido con SDK 1.6.x
+            response_format={"type": "json_object"},
+        )
+        raw = resp.choices[0].message.content
+        return self._validate_json(raw)
+
+    def _extract_structured_data_multi(self, file_id: str, file_name: str) -> Dict[str, Any]:
+        """Hasta 3 pasadas: 1ª global + re-scan de slides no cubiertos."""
+        merged: Dict[str, Any] = {}
+        covered: List[int] = []
+
+        for i in range(3):
+            logger.info(f"🔁 Extraction pass {i+1}/3 (excluding slides {covered})")
+
+            # Skip if we already covered a reasonable range (likely all slides)
+            if len(covered) >= 15 and i > 0:
+                logger.info(f"✅ Already covered {len(covered)} slides; likely complete. Stopping.")
+                break
+
+            part = self._extract_pass(file_id, exclude_slides=covered or None)
+            prev_len = len(covered)
+            merged = self._merge_extractions(merged, part)
+            covered = sorted(list(set(merged.get("slides_covered", []))))
+            if len(covered) == prev_len:
+                logger.info("✅ No new slides discovered; stopping extraction loop.")
+                break
+
+        result = {
+            'name': file_name,
+            'type': 'pdf',
+            'content': json.dumps(merged, ensure_ascii=False),
+            'structured_data': merged,  # CRITICAL: Pass as dict for ai_analyzer
+            'metadata': {
+                'extraction_method': 'gpt-4o_files_api_json',
+                'has_content': True,
+                'slides_covered': covered,
+                'facts_count': len([k for k, v in merged.items() if v])  # Count non-empty sections
+            }
+        }
+
+        # Log extraction stats for debugging
+        logger.info(f"📊 Extraction stats for {file_name}:")
+        logger.info(f"  - Total sections with data: {result['metadata']['facts_count']}")
+        if merged.get('financials'):
+            fin = merged['financials']
+            logger.info(f"  - Financial metrics: GMV={len(fin.get('gmv', []))}, Revenue={len(fin.get('revenue', []))}, Funding={len(fin.get('funding_rounds', []))}")
+        if merged.get('team'):
+            logger.info(f"  - Team entries: {len(merged['team'])}")
+        if merged.get('competition'):
+            logger.info(f"  - Competition entries: {len(merged['competition'])}")
+
+        return result
+
     def _extract_structured_data(self, file_id: str, file_name: str) -> Dict[str, Any]:
         """Extract structured data using GPT-4o with optimized prompt"""
         

@@ -49,6 +49,16 @@ class Config:
         return bool(self.OPENAI_API_KEY)
 
     # ==========================================
+    # AI ANALYSIS FEATURE FLAGS
+    # ==========================================
+
+    # Strict extraction mode - only use facts from documents, no inferences
+    STRICT_EXTRACTION: bool = os.getenv("STRICT_EXTRACTION", "True").lower() == "true"
+
+    # Enable AI inferences when data is missing
+    ENABLE_INFERENCE: bool = os.getenv("ENABLE_INFERENCE", "False").lower() == "true"
+
+    # ==========================================
     # GOOGLE DRIVE CONFIGURATION - CLOUD READY
     # ==========================================
 

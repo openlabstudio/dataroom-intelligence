@@ -123,7 +123,7 @@ class DocumentProcessor:
                             'name': file_name,
                             'type': 'pdf',
                             'content': '',
-                            'structured_data': None,
+                            'structured_data': {},
                             'metadata': {
                                 'extraction_method': 'gpt4o_failed',
                                 'file_size_bytes': os.path.getsize(file_path),
