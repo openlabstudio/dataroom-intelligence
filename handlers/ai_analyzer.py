@@ -271,8 +271,40 @@ class AIAnalyzer:
 
     # ===================== NEW SIMPLIFIED ANALYSIS METHOD =====================
 
+    def _generate_document_map(self, processed_documents: list) -> str:
+        """Generate document map for citations"""
+        doc_map = []
+        for i, doc in enumerate(processed_documents):
+            doc_code = chr(ord('A') + i)  # A, B, C, etc.
+            filename = doc.get('filename', f'Document_{i+1}')
+            doc_map.append(f"[{doc_code}] {filename}")
+        return "\n".join(doc_map)
+
+    def _format_dataroom_text_with_locators(self, processed_documents: list, full_text: str) -> str:
+        """Format dataroom text with citation locators"""
+        formatted_text = ""
+
+        # For each document, add locators
+        for i, doc in enumerate(processed_documents):
+            doc_code = chr(ord('A') + i)  # A, B, C, etc.
+            doc_text = doc.get('full_text', '')
+
+            # Split into chunks and add locators
+            if 'pages' in doc and doc['pages']:
+                # PDF with pages
+                for page_num, page_text in enumerate(doc['pages'], 1):
+                    formatted_text += f"[{doc_code}·p{page_num}] {page_text}\n\n"
+            else:
+                # Single document or fallback
+                # Split into chunks of ~500 chars for locators
+                chunks = [doc_text[i:i+500] for i in range(0, len(doc_text), 500)]
+                for chunk_num, chunk in enumerate(chunks, 1):
+                    formatted_text += f"[{doc_code}·S{chunk_num}] {chunk}\n\n"
+
+        return formatted_text
+
     def _generate_simple_analyst_summary(self, full_text: str, facts: dict = None) -> str:
-        """Generate a simple analyst summary using full text"""
+        """Generate evidence-based analyst summary with citations"""
         try:
             # Extract market taxonomy if available
             market_taxonomy = ""
@@ -284,89 +316,107 @@ class AIAnalyzer:
                 if vertical and sub_vertical:
                     market_taxonomy = f"MARKET VERTICAL: {vertical}\nSUB-VERTICAL: {sub_vertical}\nSOLUTION: {solution}\n\n"
 
-            prompt = f"""Eres un analista senior de venture capital evaluando este pitch deck.
+            # Generate document map and formatted text
+            doc_map = self._generate_document_map(self.processed_documents)
+            dataroom_text = self._format_dataroom_text_with_locators(self.processed_documents, full_text)
 
-CONTENIDO COMPLETO DEL DECK:
-{full_text[:10000]}
+            prompt = f"""ROLE
+You are a senior venture capital analyst. Produce a FACTS-ONLY summary of the startup's data room based strictly on the literal text provided.
 
-GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
-- Máximo 3200 caracteres totales
-- Primera línea: RESUMEN EJECUTIVO de 1 línea resumiendo empresa, tracción clave y ronda
-- Estructura con secciones en MAYÚSCULAS
-- NO uses dobles asteriscos ** en ningún lugar
-- Comienza cada bullet con • seguido directamente del texto
-- EXTRAE TODOS los números y métricas que encuentres, no los omitas
-- BUSCA ESPECÍFICAMENTE: valoración, pre-money, post-money, runway, burn rate, año fundación, nombres completos de fundadores
-- Tono objetivo y profesional de analista de VC
+INPUTS
+1) DOCUMENT MAP (legend for citations):
+{doc_map}
 
-FORMATO REQUERIDO:
+2) CORPUS (document text marked with per-document locators):
+{dataroom_text[:15000]}
 
-RESUMEN EJECUTIVO
-[Una línea con empresa, mercado/sector, tracción principal y ronda de inversión]
+LANGUAGE & RENDERING (MANDATORY)
+- Output MUST be in ENGLISH, regardless of the source language.
+- Translate non-English to concise, natural English. Keep proper nouns (company, people, brands) and currency symbols.
+- Terminology: GMV, Revenue, VAT, Burn, Runway, Merchants, Travelers, Invoices.
+- Numeric normalization:
+  • Use thousands separators with commas (e.g., 40,000).
+  • Convert decimal commas to decimal points (e.g., 3,5 → 3.5).
+  • Preserve units/symbols (€, %, M/K). Don't invent conversions.
 
-EMPRESA
-• [Descripción clara de la empresa y qué problema resuelve]
-• [Año fundación: YYYY si se menciona, sino omitir esta línea]
-• [Ubicación: ciudades/países si se menciona, sino omitir esta línea]
+EVIDENCE RULES (STRICT)
+1) DO NOT invent anything. Use ONLY text present in the CORPUS.
+2) Every numeric fact MUST end with a citation:
+   - Single doc: [S#] is OK.
+   - Multi-doc: use the legend and a locator, e.g., [A·S12], [B·p4], [C·Summary!C12]. If the exact locator is unknown, OMIT the bullet.
+3) Label financial metrics precisely using the literal concept and period if present:
+   - GMV: €… (Qx 'YY / FY / TTM / cumulative)
+   - Revenue: €… (period)
+   - VAT: €… (period)
+   - Burn / Runway: … (period)
+   If the concept label is ambiguous (e.g., can't tell if it's VAT vs GMV), OMIT it.
+4) Disambiguation:
+   - "Tax-free eligible sales" (or similar) is MARKET OPPORTUNITY, NOT company revenue/GMV. Label it as such.
+   - Do NOT call "market share" a breakdown like "not issued / not reimbursed".
+5) Deduplication:
+   - Merge bilingual near-duplicates by number: merchants/comerciantes; users/travelers/viajeros; invoices/facturas.
+   - If the same metric+value appears with different periods, keep the more specific period; include both only if clearly distinct and each has its own citation.
+6) No opinions or scoring. No "7/10", no "Strengths/Weaknesses", no "Next steps". Only facts and GAPS.
 
-MODELO DE NEGOCIO
-• [Tipo de modelo B2B/B2C/marketplace/SaaS etc y descripción]
-• [Revenue streams: como generan ingresos]
-• [Pricing: modelo de precios si se menciona]
+STYLE & LENGTH
+- Max ~3,000 characters total.
+- Section titles in UPPERCASE. Bullets start with "• " (bullet + space). No bold, no italics.
+- If a section has no evidenced content, keep it minimal or omit the empty bullets.
+- Prefer short, auditably true bullets over long prose.
 
-MÉTRICAS CLAVE
-• [Usuarios/clientes: números de usuarios, clientes, merchants, etc.]
-• [Volumen: transacciones, revenue, GMV, ventas, etc.]
-• [Crecimiento: % growth, MoM, YoY, etc.]
+REQUIRED OUTPUT (exact skeleton)
 
-TRACCIÓN Y LOGROS
-• [Clientes destacados, logos importantes, partnerships]
-• [Hitos alcanzados, premios, aceleradoras, certificaciones]
-• [Métricas de engagement, retención, o performance]
+EXECUTIVE SUMMARY
+[A one-line summary with company, what it does, one key traction fact, and current round — ONLY using items that have citations. If not all elements are evidenced, write with what is evidenced.]
 
-EQUIPO E INVERSIÓN
-• [Fundadores con nombres y roles]
-• [Tamaño del equipo si se menciona]
-• [Background relevante del equipo]
-• [Ronda actual: monto y tipo]
-• [Valoración si se menciona]
-• [Uso de fondos]
-• [Inversores previos si se mencionan]
+COMPANY
+• [What the company does / value proposition] [DocCode·Locator]
+• [Location(s), if stated] [DocCode·Locator]
+• [Year founded, if stated] [DocCode·Locator]
 
-GAPS CRÍTICOS
-• [Máximo 3 gaps más críticos: valoración, unit economics (CAC/LTV/burn), competencia directa, etc.]
+BUSINESS MODEL
+• [Type: B2B/B2C/Marketplace/SaaS… as stated] [DocCode·Locator]
+• [Revenue streams — literal from corpus] [DocCode·Locator]
+• [Pricing model / who pays, if stated] [DocCode·Locator]
 
-OTROS GAPS
-• [Información útil: año fundación, background equipo, roadmap detallado, etc.]
+METRICS & TRACTION
+• [Merchants: X] [DocCode·Locator]
+• [Travelers/Users: X] [DocCode·Locator]
+• [Invoices: X] [DocCode·Locator]
+• [Tax-free eligible sales (market): €… (period)] [DocCode·Locator]
+• [GMV: €… (period)] [DocCode·Locator]
+• [VAT: €… (period)] [DocCode·Locator]
+• [Growth: …% (period, and of what)] [DocCode·Locator]
+• [Logo clients/partners, if listed] [DocCode·Locator]
 
-INVESTMENT READINESS SCORE
-[X/10] - [Breve justificación de 1 línea]
-Fortalezas: [2-3 fortalezas clave marcadas con ✓]
-A mejorar: [2-3 debilidades marcadas con ✗]
+TEAM & FUNDING
+• [Founders: full names and roles] [DocCode·Locator]
+• [Team size, if stated] [DocCode·Locator]
+• [Current round: type and amount] [DocCode·Locator]
+• [Valuation (pre/post), if stated] [DocCode·Locator]
+• [Runway/Burn, if stated] [DocCode·Locator]
 
-PRÓXIMOS PASOS SUGERIDOS
-• [Acción específica 1 para el VC]
-• [Acción específica 2 para el VC]
-• [Acción específica 3 para el VC]
+CUSTOMERS / LOGOS (optional)
+• [Notable customers/brands] [DocCode·Locator]
 
-REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
-1. SOLO usa información que aparece TEXTUALMENTE en el deck
-2. Si un dato no está en el deck, marca como "No especificado" o "No mencionado"
-3. NO inferir, NO suponer, NO extrapolar datos
-4. Cada métrica debe venir directamente del texto proporcionado
-5. Si hay ambigüedad, menciona la ambigüedad en lugar de asumir"""
+CRITICAL GAPS
+• [Up to 3 truly missing facts that matter to diligence, e.g., current revenue, CAC/LTV/Payback, competitive pricing/coverage — only list if absent in the corpus]
+• [Gap 2]
+• [Gap 3]
+
+SOURCES
+[List unique citations in ascending order, grouped by document code. Example:
+[A·S12, S13, S16] [B·Summary!C12] [C·p4]
+And include the legend up top — the DOCUMENT MAP provided in the input.]"""
 
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=1500
+                temperature=0.1,  # Lower temperature for more factual output
+                max_tokens=2000   # More tokens for detailed analysis
             )
 
             summary = response.choices[0].message.content
-
-            # Remove any remaining ** from the response
-            summary = summary.replace("**", "")
 
             # Add market taxonomy at the beginning
             final_output = market_taxonomy + summary
@@ -375,13 +425,13 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
             if len(final_output) > 3500:
                 final_output = final_output[:3497] + "..."
 
-            logger.info(f"✅ Generated analyst summary ({len(final_output)} chars)")
+            logger.info(f"✅ Generated evidence-based analyst summary ({len(final_output)} chars)")
             return final_output
 
         except Exception as e:
-            logger.error(f"❌ Failed to generate simple summary: {e}")
+            logger.error(f"❌ Failed to generate evidence-based summary: {e}")
             # Fallback to basic formatting
-            return "❌ Error generando resumen. Por favor intenta nuevamente."
+            return "❌ Error generating evidence-based analysis. Please try again."
 
     # ===================== New Canonical Formatting Methods =====================
 
