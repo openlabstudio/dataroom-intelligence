@@ -328,7 +328,13 @@ INPUTS
 {doc_map}
 
 2) CORPUS (document text marked with per-document locators):
-{dataroom_text[:15000]}
+{dataroom_text[:25000]}
+
+INPUT INTEGRITY (MANDATORY)
+- The CORPUS must be provided slide/page/sheet marked (e.g., [A·S1], [B·p4], [C·Summary!C12]) and NOT truncated by character count.
+- If you detect gaps in numbering (e.g., S5→S9) or obvious truncation ("…" mid-sentence), DO NOT infer missing content.
+- In that case, include at the end an INPUT NOTES line:
+  "INPUT INCOMPLETE: missing [A·S6–S8]" (or the exact missing ranges).
 
 LANGUAGE & RENDERING (MANDATORY)
 - Output MUST be in ENGLISH, regardless of the source language.
