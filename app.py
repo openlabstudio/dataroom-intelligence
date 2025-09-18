@@ -326,9 +326,7 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                      f"🧠 **Analyzing with AI...**"
             )
 
-            analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary)
-
-            # Get market taxonomy for context (minimal cost - ~$0.01)
+            # Get market taxonomy for context BEFORE analysis (minimal cost - ~$0.01)
             market_profile = None
             if market_research_orchestrator:
                 try:
@@ -338,6 +336,8 @@ def perform_dataroom_analysis(client, channel_id, user_id, drive_link, message_t
                     logger.info(f"✅ Market taxonomy detected: {market_profile.vertical}/{market_profile.sub_vertical}")
                 except Exception as e:
                     logger.warning(f"⚠️ Market taxonomy detection failed: {e}")
+
+            analysis_result = ai_analyzer.analyze_dataroom(processed_documents, document_summary, market_profile)
 
             # Format and send AI analysis response with market taxonomy
             formatted_response = format_analysis_response(analysis_result, document_summary, market_profile)

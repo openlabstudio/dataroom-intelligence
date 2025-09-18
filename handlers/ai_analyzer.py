@@ -274,18 +274,38 @@ class AIAnalyzer:
     def _generate_simple_analyst_summary(self, full_text: str, facts: dict = None) -> str:
         """Generate a simple analyst summary using full text"""
         try:
+            # Extract market taxonomy if available
+            market_taxonomy = ""
+            if facts and 'market_detection' in facts:
+                market = facts['market_detection']
+                vertical = market.get('vertical', '')
+                sub_vertical = market.get('sub_vertical', '')
+                solution = market.get('solution', '')
+                if vertical and sub_vertical:
+                    market_taxonomy = f"🎯 MARKET VERTICAL: {vertical}\n📍 SUB-VERTICAL: {sub_vertical}\n💡 SOLUTION: {solution}\n\n"
+
             prompt = f"""Eres un analista senior de venture capital evaluando este pitch deck.
 
 CONTENIDO COMPLETO DEL DECK:
 {full_text[:10000]}
 
 GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
-- Máximo 3500 caracteres totales
-- Estructura clara con secciones: Empresa, Modelo de Negocio, Métricas Clave, Tracción, Equipo, Inversión Solicitada
+- Máximo 3200 caracteres totales (para dejar espacio para la taxonomía)
+- Estructura con secciones en MAYÚSCULAS: EMPRESA, MODELO DE NEGOCIO, MÉTRICAS CLAVE, TRACCIÓN, EQUIPO, INVERSIÓN SOLICITADA, GAPS DE INFORMACIÓN
+- NO uses dobles asteriscos ** en ningún lugar
+- Comienza cada bullet con • seguido directamente del texto (sin asteriscos)
 - Incluye TODOS los números y métricas específicos del deck
 - Identifica gaps de información crítica al final
-- Usa bullets (•) para mejor legibilidad
 - Tono objetivo y profesional de analista de VC
+
+FORMATO EXACTO DE SECCIONES:
+EMPRESA
+• Descripción de la empresa...
+• Fundada en...
+
+MODELO DE NEGOCIO
+• Tipo de modelo...
+• Fuentes de ingreso...
 
 REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
 1. SOLO usa información que aparece TEXTUALMENTE en el deck
@@ -303,12 +323,18 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
 
             summary = response.choices[0].message.content
 
-            # Ensure it's under 3500 chars for Slack
-            if len(summary) > 3500:
-                summary = summary[:3497] + "..."
+            # Remove any remaining ** from the response
+            summary = summary.replace("**", "")
 
-            logger.info(f"✅ Generated analyst summary ({len(summary)} chars)")
-            return summary
+            # Add market taxonomy at the beginning
+            final_output = market_taxonomy + summary
+
+            # Ensure it's under 3500 chars for Slack
+            if len(final_output) > 3500:
+                final_output = final_output[:3497] + "..."
+
+            logger.info(f"✅ Generated analyst summary ({len(final_output)} chars)")
+            return final_output
 
         except Exception as e:
             logger.error(f"❌ Failed to generate simple summary: {e}")
@@ -692,7 +718,8 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
         return "\n".join(lines)
 
     def analyze_dataroom(self, processed_documents: List[Dict[str, Any]],
-                         document_summary: Dict[str, Any]) -> Dict[str, Any]:
+                         document_summary: Dict[str, Any],
+                         market_profile=None) -> Dict[str, Any]:
         """Generate Deck Summary (facts-only) + Gaps (Critical/Nice-to-have), sin inferencias."""
         try:
             logger.info("🔥 NEW ANALYZE_DATAROOM METHOD EXECUTING - DECK SUMMARY + GAPS!")
@@ -703,6 +730,8 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
             print("\n=== DEBUG: ENTRADA analyze_dataroom ===")
             print("document_summary keys:", list(document_summary.keys()) if document_summary else "None")
             print("processed_documents count:", len(processed_documents) if processed_documents else 0)
+            if market_profile:
+                print(f"market_profile: {market_profile.vertical}/{market_profile.sub_vertical}")
             if document_summary:
                 # Ver si hay structured_data
                 if 'structured_data' in document_summary:
@@ -730,6 +759,16 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
 
             # 1) Hechos: JSON del extractor (autoridad)
             facts = context.get("facts_json_obj") or {}
+
+            # Add market profile to facts if available
+            if market_profile:
+                facts['market_detection'] = {
+                    'vertical': market_profile.vertical,
+                    'sub_vertical': market_profile.sub_vertical,
+                    'solution': getattr(market_profile, 'solution', ''),
+                    'target_market': getattr(market_profile, 'target_market', ''),
+                    'geo_focus': getattr(market_profile, 'geo_focus', '')
+                }
 
             # DEBUG: Ver qué hay en facts
             print("\n=== DEBUG: FACTS CONTENT ===")
