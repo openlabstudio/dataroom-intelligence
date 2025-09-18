@@ -196,8 +196,43 @@ Rules:
         raw = resp.choices[0].message.content
         return self._validate_json(raw)
 
+    def _extract_full_text(self, file_id: str) -> str:
+        """Extract complete text content from the PDF for Q&A functionality"""
+        logger.info("📖 Extracting full text content for Q&A...")
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": """Extract ALL text content from this pitch deck.
+                        Include EVERY detail: company name, all numbers, metrics, team info,
+                        product descriptions, market data, competitors, roadmap, everything.
+                        Present the content slide by slide with clear headers.
+                        This will be used to answer detailed questions about the deck."""},
+                        {"type": "file", "file": {"file_id": file_id}}
+                    ]
+                }],
+                max_tokens=8000,
+                temperature=0.1
+            )
+
+            full_text = response.choices[0].message.content
+            logger.info(f"✅ Extracted {len(full_text)} characters of text")
+            return full_text
+
+        except Exception as e:
+            logger.error(f"❌ Full text extraction failed: {e}")
+            return ""
+
     def _extract_structured_data_multi(self, file_id: str, file_name: str) -> Dict[str, Any]:
         """Hasta 3 pasadas: 1ª global + re-scan de slides no cubiertos."""
+
+        # FIRST: Extract full text for Q&A
+        full_text = self._extract_full_text(file_id)
+
+        # THEN: Do structured extraction
         merged: Dict[str, Any] = {}
         covered: List[int] = []
 
@@ -222,9 +257,11 @@ Rules:
             'type': 'pdf',
             'content': json.dumps(merged, ensure_ascii=False),
             'structured_data': merged,  # CRITICAL: Pass as dict for ai_analyzer
+            'full_text': full_text,  # NEW: Full text for Q&A
             'metadata': {
                 'extraction_method': 'gpt-4o_files_api_json',
                 'has_content': True,
+                'has_full_text': bool(full_text),  # NEW: Track if we have full text
                 'slides_covered': covered,
                 'facts_count': len([k for k, v in merged.items() if v])  # Count non-empty sections
             }

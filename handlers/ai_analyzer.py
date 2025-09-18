@@ -266,6 +266,52 @@ class AIAnalyzer:
         self.model = "gpt-4o"
         self.current_analysis = None
         self.analysis_context = None
+        self.full_text = ""  # Store full text for Q&A
+        self.processed_documents = []  # Store processed docs
+
+    # ===================== NEW SIMPLIFIED ANALYSIS METHOD =====================
+
+    def _generate_simple_analyst_summary(self, full_text: str, facts: dict = None) -> str:
+        """Generate a simple analyst summary using full text"""
+        try:
+            # Get market taxonomy if available
+            market_info = ""
+            if facts and "market" in facts:
+                market_info = f"Vertical de mercado detectado: {facts.get('market', 'No identificado')}\n\n"
+
+            prompt = f"""Eres un analista senior de un fondo de venture capital.
+            Analiza este pitch deck y genera un resumen ejecutivo profesional.
+
+            {market_info}
+
+            CONTENIDO COMPLETO DEL DECK:
+            {full_text[:6000]}
+
+            INSTRUCCIONES:
+            1. Genera un resumen ejecutivo de 10-15 bullets points
+            2. Incluye los datos más relevantes para inversión: métricas, tracción, equipo, modelo de negocio
+            3. Usa números específicos cuando los encuentres
+            4. Identifica gaps críticos de información faltante al final
+            5. Formato: Usa bullets con • y destaca números importantes
+            6. El tono debe ser profesional y objetivo como un analista de VC
+
+            IMPORTANTE: Solo usa información del deck, no inventes ni infieras datos."""
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=2000
+            )
+
+            summary = response.choices[0].message.content
+            logger.info("✅ Generated simple analyst summary")
+            return summary
+
+        except Exception as e:
+            logger.error(f"❌ Failed to generate simple summary: {e}")
+            # Fallback to basic formatting
+            return "❌ Error generando resumen. Por favor intenta nuevamente."
 
     # ===================== New Canonical Formatting Methods =====================
 
@@ -570,6 +616,19 @@ class AIAnalyzer:
 
     def _build_analyst_output(self, sections: dict, facts: dict = None) -> str:
         """Build fixed format analyst output with configurable gaps mode"""
+        # DEBUG: Ver qué datos estamos recibiendo
+        import json
+        print("\n=== DEBUG: DATOS RECIBIDOS EN _build_analyst_output ===")
+        print("SECTIONS keys:", list(sections.keys()) if sections else "None")
+        print("FACTS keys:", list(facts.keys()) if facts else "None")
+        if sections:
+            print("\nSECTIONS DATA (first 500 chars):")
+            print(json.dumps(sections, indent=2, ensure_ascii=False)[:500])
+        if facts:
+            print("\nFACTS DATA (first 500 chars):")
+            print(json.dumps(facts, indent=2, ensure_ascii=False)[:500])
+        print("=== END DEBUG ===\n")
+
         lines = ["📊 **ANÁLISIS DEL DECK**\n"]
 
         # Render each section in fixed order
@@ -636,10 +695,47 @@ class AIAnalyzer:
         try:
             logger.info("🔥 NEW ANALYZE_DATAROOM METHOD EXECUTING - DECK SUMMARY + GAPS!")
             logger.info("🧠 Starting AI analysis: Deck Summary + Gaps approach...")
+
+            # DEBUG: Ver qué datos llegan exactamente
+            import json
+            print("\n=== DEBUG: ENTRADA analyze_dataroom ===")
+            print("document_summary keys:", list(document_summary.keys()) if document_summary else "None")
+            print("processed_documents count:", len(processed_documents) if processed_documents else 0)
+            if document_summary:
+                # Ver si hay structured_data
+                if 'structured_data' in document_summary:
+                    print("\nSTRUCTURED_DATA en document_summary (first 2000 chars):")
+                    print(json.dumps(document_summary['structured_data'], indent=2, ensure_ascii=False)[:2000])
+                else:
+                    print("NO HAY structured_data en document_summary")
+                    print("document_summary content:", json.dumps(document_summary, indent=2, ensure_ascii=False)[:1000])
+            print("=== END DEBUG ===\n")
+
+            # Store documents for Q&A
+            self.processed_documents = processed_documents
+
+            # Store full text for Q&A if available
+            self.full_text = ""
+            for doc in processed_documents:
+                if doc.get('full_text'):
+                    self.full_text += f"\n\n--- {doc.get('name', 'Document')} ---\n\n"
+                    self.full_text += doc['full_text']
+
+            if self.full_text:
+                logger.info(f"📖 Stored {len(self.full_text)} chars of full text for Q&A")
+
             context = self._prepare_analysis_context(processed_documents, document_summary)
 
             # 1) Hechos: JSON del extractor (autoridad)
             facts = context.get("facts_json_obj") or {}
+
+            # DEBUG: Ver qué hay en facts
+            print("\n=== DEBUG: FACTS CONTENT ===")
+            print("facts keys:", list(facts.keys()) if facts else "None")
+            if facts:
+                print("\nFACTS DATA (first 2000 chars):")
+                print(json.dumps(facts, indent=2, ensure_ascii=False)[:2000])
+            print("=== END DEBUG FACTS ===\n")
             docs_meta = json.loads(context['documents_summary'])
 
             # Sanity checks and logging
@@ -653,19 +749,24 @@ class AIAnalyzer:
             if facts.get('competition'):
                 logger.info(f"  🎯 Competition entries: {len(facts['competition'])}")
 
-            # 2) NEW: Use canonical formatting system
-            logger.info("🔄 Using new canonical formatting system...")
-            sections = self._collect_by_section(facts)
+            # 2) NEW SIMPLIFIED APPROACH: Use full text for analysis
+            if self.full_text:
+                logger.info("🔄 Using SIMPLIFIED analysis with full text...")
+                final = self._generate_simple_analyst_summary(self.full_text, facts)
+            else:
+                # Fallback to canonical formatting if no full text
+                logger.info("⚠️ No full text available, using canonical formatting...")
+                sections = self._collect_by_section(facts)
 
-            # Log what we collected per section
-            logger.info(f"📝 Data collected by section:")
-            for section_key in SECTIONS_ORDER:
-                bullets = sections.get(section_key, [])
-                if bullets:
-                    logger.info(f"  - {SECTION_TITLE[section_key]} {len(bullets)} items")
+                # Log what we collected per section
+                logger.info(f"📝 Data collected by section:")
+                for section_key in SECTIONS_ORDER:
+                    bullets = sections.get(section_key, [])
+                    if bullets:
+                        logger.info(f"  - {SECTION_TITLE[section_key]} {len(bullets)} items")
 
-            # 3) Build analyst output with gaps (passing facts for field-level detection)
-            final = self._build_analyst_output(sections, facts)
+                # 3) Build analyst output with gaps (passing facts for field-level detection)
+                final = self._build_analyst_output(sections, facts)
 
             # Apply emoji mapping if needed
             final = self._map_emojis(final)
@@ -786,19 +887,30 @@ class AIAnalyzer:
     def answer_question(self, question: str) -> str:
         """Answer specific questions about the analyzed data room"""
         try:
-            if not self.current_analysis or not self.analysis_context:
+            # Check if we have data to work with
+            if not self.full_text and (not self.current_analysis or not self.analysis_context):
                 return "❌ No data room has been analyzed yet. Please run /analyze first."
 
             logger.info(f"🤔 Answering question: {question[:100]}...")
 
+            # Prioritize full_text if available (most complete content)
+            if self.full_text:
+                logger.info("📖 Using full text for Q&A (best quality)")
+                content_for_qa = self.full_text
+            elif self.analysis_context and 'full_content' in self.analysis_context:
+                logger.info("📄 Using analysis context for Q&A")
+                content_for_qa = self.analysis_context['full_content']
+            else:
+                return "❌ No content available for Q&A. Please run /analyze first."
+
             # Extract financial data for Q&A context
             from utils.financial_extractor import extract_financial_data, format_financial_data_for_prompt
-            financial_data = extract_financial_data(self.analysis_context['full_content'])
+            financial_data = extract_financial_data(content_for_qa)
             formatted_financials = format_financial_data_for_prompt(financial_data)
 
             # Create Q&A prompt with FULL CONTENT and EXTRACTED FINANCIAL DATA
             qa_prompt = QA_PROMPT.format(
-                analyzed_documents_summary=self.analysis_context['full_content'],  # ← CONTENIDO REAL sin truncamiento
+                analyzed_documents_summary=content_for_qa,  # ← CONTENIDO REAL sin truncamiento
                 extracted_financials=formatted_financials,
                 user_question=question
             )
