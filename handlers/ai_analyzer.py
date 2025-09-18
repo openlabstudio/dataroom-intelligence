@@ -644,19 +644,6 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
 
     def _build_analyst_output(self, sections: dict, facts: dict = None) -> str:
         """Build fixed format analyst output with configurable gaps mode"""
-        # DEBUG: Ver qué datos estamos recibiendo
-        import json
-        print("\n=== DEBUG: DATOS RECIBIDOS EN _build_analyst_output ===")
-        print("SECTIONS keys:", list(sections.keys()) if sections else "None")
-        print("FACTS keys:", list(facts.keys()) if facts else "None")
-        if sections:
-            print("\nSECTIONS DATA (first 500 chars):")
-            print(json.dumps(sections, indent=2, ensure_ascii=False)[:500])
-        if facts:
-            print("\nFACTS DATA (first 500 chars):")
-            print(json.dumps(facts, indent=2, ensure_ascii=False)[:500])
-        print("=== END DEBUG ===\n")
-
         lines = ["📊 **ANÁLISIS DEL DECK**\n"]
 
         # Render each section in fixed order
@@ -722,25 +709,7 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
                          market_profile=None) -> Dict[str, Any]:
         """Generate Deck Summary (facts-only) + Gaps (Critical/Nice-to-have), sin inferencias."""
         try:
-            logger.info("🔥 NEW ANALYZE_DATAROOM METHOD EXECUTING - DECK SUMMARY + GAPS!")
-            logger.info("🧠 Starting AI analysis: Deck Summary + Gaps approach...")
-
-            # DEBUG: Ver qué datos llegan exactamente
-            import json
-            print("\n=== DEBUG: ENTRADA analyze_dataroom ===")
-            print("document_summary keys:", list(document_summary.keys()) if document_summary else "None")
-            print("processed_documents count:", len(processed_documents) if processed_documents else 0)
-            if market_profile:
-                print(f"market_profile: {market_profile.vertical}/{market_profile.sub_vertical}")
-            if document_summary:
-                # Ver si hay structured_data
-                if 'structured_data' in document_summary:
-                    print("\nSTRUCTURED_DATA en document_summary (first 2000 chars):")
-                    print(json.dumps(document_summary['structured_data'], indent=2, ensure_ascii=False)[:2000])
-                else:
-                    print("NO HAY structured_data en document_summary")
-                    print("document_summary content:", json.dumps(document_summary, indent=2, ensure_ascii=False)[:1000])
-            print("=== END DEBUG ===\n")
+            logger.info("🧠 Starting AI analysis with deck summary approach...")
 
             # Store documents for Q&A
             self.processed_documents = processed_documents
@@ -770,13 +739,6 @@ REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
                     'geo_focus': getattr(market_profile, 'geo_focus', '')
                 }
 
-            # DEBUG: Ver qué hay en facts
-            print("\n=== DEBUG: FACTS CONTENT ===")
-            print("facts keys:", list(facts.keys()) if facts else "None")
-            if facts:
-                print("\nFACTS DATA (first 2000 chars):")
-                print(json.dumps(facts, indent=2, ensure_ascii=False)[:2000])
-            print("=== END DEBUG FACTS ===\n")
             docs_meta = json.loads(context['documents_summary'])
 
             # Sanity checks and logging
