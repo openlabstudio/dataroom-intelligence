@@ -287,7 +287,12 @@ GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
 - Usa bullets (•) para mejor legibilidad
 - Tono objetivo y profesional de analista de VC
 
-IMPORTANTE: Solo información del deck. No inventes datos."""
+REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
+1. SOLO usa información que aparece TEXTUALMENTE en el deck
+2. Si un dato no está en el deck, marca como "No especificado" o "No mencionado"
+3. NO inferir, NO suponer, NO extrapolar datos
+4. Cada métrica debe venir directamente del texto proporcionado
+5. Si hay ambigüedad, menciona la ambigüedad en lugar de asumir"""
 
             response = self.client.chat.completions.create(
                 model=self.model,
