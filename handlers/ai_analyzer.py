@@ -290,22 +290,66 @@ CONTENIDO COMPLETO DEL DECK:
 {full_text[:10000]}
 
 GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
-- Máximo 3200 caracteres totales (para dejar espacio para la taxonomía)
-- Estructura con secciones en MAYÚSCULAS: EMPRESA, MODELO DE NEGOCIO, MÉTRICAS CLAVE, TRACCIÓN, EQUIPO, INVERSIÓN SOLICITADA, GAPS DE INFORMACIÓN
+- Máximo 3000 caracteres totales (para dejar espacio para resumen y score)
+- Primera línea: RESUMEN EJECUTIVO de 1 línea (máx 100 caracteres)
+- Estructura con secciones en MAYÚSCULAS como se muestra abajo
 - NO uses dobles asteriscos ** en ningún lugar
-- Comienza cada bullet con • seguido directamente del texto (sin asteriscos)
-- Incluye TODOS los números y métricas específicos del deck
-- Identifica gaps de información crítica al final
+- Comienza cada bullet con • seguido directamente del texto
+- Para números clave usa formato consistente: Métrica: Valor
 - Tono objetivo y profesional de analista de VC
 
-FORMATO EXACTO DE SECCIONES:
+FORMATO EXACTO REQUERIDO:
+
+RESUMEN EJECUTIVO
+[Una línea de máximo 100 caracteres resumiendo empresa, tracción y ronda]
+
 EMPRESA
-• Descripción de la empresa...
-• Fundada en...
+• Descripción clara y concisa
+• Año fundación: [año o "No especificado"]
+• Ubicación: [ciudad/país o "No especificado"]
 
 MODELO DE NEGOCIO
-• Tipo de modelo...
-• Fuentes de ingreso...
+• Modelo: [B2B/B2C/B2B2C + descripción]
+• Revenue streams: [lista o "No especificado"]
+• Pricing: [modelo de precios o "No especificado"]
+
+MÉTRICAS CLAVE
+• Revenue/GMV: [valor]
+• Usuarios/Clientes: [número]
+• Crecimiento: [%]
+• Otras métricas relevantes con formato Nombre: Valor
+
+TRACCIÓN
+• [Métricas de crecimiento mes a mes si están disponibles]
+• [Clientes principales o logos si se mencionan]
+• [Hitos alcanzados]
+
+EQUIPO
+• Fundadores: [nombres y roles]
+• Tamaño equipo: [número]
+• Background relevante: [experiencia previa si se menciona]
+
+INVERSIÓN
+• Ronda actual: [monto y tipo]
+• Valoración: [si se menciona]
+• Uso de fondos: [principales categorías]
+• Inversores previos: [si se mencionan]
+
+GAPS CRÍTICOS (deal-breakers para esta etapa)
+• [Máximo 3 gaps más críticos que faltan]
+
+INFORMACIÓN ADICIONAL ÚTIL
+• [Otros datos que sería bueno tener pero no son críticos]
+
+INVESTMENT READINESS SCORE
+[X/10] - [Breve explicación de 1 línea]
+Fortalezas: [2-3 puntos clave marcados con ✓]
+A mejorar: [2-3 puntos clave marcados con ✗]
+
+PRÓXIMOS PASOS SUGERIDOS
+• [Acción específica 1 para el VC]
+• [Acción específica 2 para el VC]
+• [Acción específica 3 para el VC]
 
 REGLAS CRÍTICAS - PROHIBIDO INVENTAR:
 1. SOLO usa información que aparece TEXTUALMENTE en el deck
