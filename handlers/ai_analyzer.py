@@ -290,61 +290,54 @@ CONTENIDO COMPLETO DEL DECK:
 {full_text[:10000]}
 
 GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
-- Máximo 3000 caracteres totales (para dejar espacio para resumen y score)
-- Primera línea: RESUMEN EJECUTIVO de 1 línea (máx 100 caracteres)
-- Estructura con secciones en MAYÚSCULAS como se muestra abajo
+- Máximo 3200 caracteres totales
+- Primera línea: RESUMEN EJECUTIVO de 1 línea resumiendo empresa, tracción y ronda
+- Estructura con secciones en MAYÚSCULAS
 - NO uses dobles asteriscos ** en ningún lugar
 - Comienza cada bullet con • seguido directamente del texto
-- Para números clave usa formato consistente: Métrica: Valor
+- EXTRAE TODOS los números y métricas que encuentres, no los omitas
 - Tono objetivo y profesional de analista de VC
 
-FORMATO EXACTO REQUERIDO:
+FORMATO REQUERIDO:
 
 RESUMEN EJECUTIVO
-[Una línea de máximo 100 caracteres resumiendo empresa, tracción y ronda]
+[Una línea resumiendo empresa, tracción clave y ronda de inversión]
 
 EMPRESA
-• Descripción clara y concisa
-• Año fundación: [año o "No especificado"]
-• Ubicación: [ciudad/país o "No especificado"]
+• [Descripción de la empresa y qué hace]
+• [Año fundación si se menciona, sino omitir esta línea]
+• [Ubicación si se menciona, sino omitir esta línea]
 
 MODELO DE NEGOCIO
-• Modelo: [B2B/B2C/B2B2C + descripción]
-• Revenue streams: [lista o "No especificado"]
-• Pricing: [modelo de precios o "No especificado"]
+• [Tipo de modelo B2B/B2C/etc y descripción]
+• [Revenue streams si se mencionan]
+• [Modelo de pricing si se menciona]
 
-MÉTRICAS CLAVE
-• Revenue/GMV: [valor]
-• Usuarios/Clientes: [número]
-• Crecimiento: [%]
-• Otras métricas relevantes con formato Nombre: Valor
+MÉTRICAS Y TRACCIÓN
+• [TODOS los números del deck: revenue, GMV, usuarios, merchants, growth %, etc.]
+• [Cualquier métrica de crecimiento o tracción]
+• [Clientes destacados, logos, partnerships]
+• [Hitos alcanzados, premios, aceleradoras]
 
-TRACCIÓN
-• [Métricas de crecimiento mes a mes si están disponibles]
-• [Clientes principales o logos si se mencionan]
-• [Hitos alcanzados]
+EQUIPO E INVERSIÓN
+• [Fundadores con nombres y roles]
+• [Tamaño del equipo si se menciona]
+• [Background relevante del equipo]
+• [Ronda actual: monto y tipo]
+• [Valoración si se menciona]
+• [Uso de fondos]
+• [Inversores previos si se mencionan]
 
-EQUIPO
-• Fundadores: [nombres y roles]
-• Tamaño equipo: [número]
-• Background relevante: [experiencia previa si se menciona]
+GAPS CRÍTICOS
+• [Los 3 gaps más importantes que faltan para esta etapa de inversión]
 
-INVERSIÓN
-• Ronda actual: [monto y tipo]
-• Valoración: [si se menciona]
-• Uso de fondos: [principales categorías]
-• Inversores previos: [si se mencionan]
-
-GAPS CRÍTICOS (deal-breakers para esta etapa)
-• [Máximo 3 gaps más críticos que faltan]
-
-INFORMACIÓN ADICIONAL ÚTIL
-• [Otros datos que sería bueno tener pero no son críticos]
+OTROS GAPS
+• [Información adicional que sería útil pero no crítica]
 
 INVESTMENT READINESS SCORE
-[X/10] - [Breve explicación de 1 línea]
-Fortalezas: [2-3 puntos clave marcados con ✓]
-A mejorar: [2-3 puntos clave marcados con ✗]
+[X/10] - [Breve justificación de 1 línea]
+Fortalezas: [2-3 fortalezas clave marcadas con ✓]
+A mejorar: [2-3 debilidades marcadas con ✗]
 
 PRÓXIMOS PASOS SUGERIDOS
 • [Acción específica 1 para el VC]
