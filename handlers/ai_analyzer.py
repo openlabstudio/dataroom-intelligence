@@ -274,38 +274,35 @@ class AIAnalyzer:
     def _generate_simple_analyst_summary(self, full_text: str, facts: dict = None) -> str:
         """Generate a simple analyst summary using full text"""
         try:
-            # Get market taxonomy if available
-            market_info = ""
-            if facts and "market" in facts:
-                market_info = f"Vertical de mercado detectado: {facts.get('market', 'No identificado')}\n\n"
+            prompt = f"""Eres un analista senior de venture capital evaluando este pitch deck.
 
-            prompt = f"""Eres un analista senior de un fondo de venture capital.
-            Analiza este pitch deck y genera un resumen ejecutivo profesional.
+CONTENIDO COMPLETO DEL DECK:
+{full_text[:10000]}
 
-            {market_info}
+GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
+- Máximo 3500 caracteres totales
+- Estructura clara con secciones: Empresa, Modelo de Negocio, Métricas Clave, Tracción, Equipo, Inversión Solicitada
+- Incluye TODOS los números y métricas específicos del deck
+- Identifica gaps de información crítica al final
+- Usa bullets (•) para mejor legibilidad
+- Tono objetivo y profesional de analista de VC
 
-            CONTENIDO COMPLETO DEL DECK:
-            {full_text[:6000]}
-
-            INSTRUCCIONES:
-            1. Genera un resumen ejecutivo de 10-15 bullets points
-            2. Incluye los datos más relevantes para inversión: métricas, tracción, equipo, modelo de negocio
-            3. Usa números específicos cuando los encuentres
-            4. Identifica gaps críticos de información faltante al final
-            5. Formato: Usa bullets con • y destaca números importantes
-            6. El tono debe ser profesional y objetivo como un analista de VC
-
-            IMPORTANTE: Solo usa información del deck, no inventes ni infieras datos."""
+IMPORTANTE: Solo información del deck. No inventes datos."""
 
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=2000
+                temperature=0.2,
+                max_tokens=1500
             )
 
             summary = response.choices[0].message.content
-            logger.info("✅ Generated simple analyst summary")
+
+            # Ensure it's under 3500 chars for Slack
+            if len(summary) > 3500:
+                summary = summary[:3497] + "..."
+
+            logger.info(f"✅ Generated analyst summary ({len(summary)} chars)")
             return summary
 
         except Exception as e:
