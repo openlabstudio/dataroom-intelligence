@@ -328,7 +328,7 @@ INPUTS
 {doc_map}
 
 2) CORPUS (document text marked with per-document locators):
-{dataroom_text[:25000]}
+{dataroom_text}
 
 INPUT INTEGRITY (MANDATORY)
 - The CORPUS must be provided slide/page/sheet marked (e.g., [A·S1], [B·p4], [C·Summary!C12]) and NOT truncated by character count.
