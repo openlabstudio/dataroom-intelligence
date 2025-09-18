@@ -276,7 +276,8 @@ class AIAnalyzer:
         doc_map = []
         for i, doc in enumerate(processed_documents):
             doc_code = chr(ord('A') + i)  # A, B, C, etc.
-            filename = doc.get('filename', f'Document_{i+1}')
+            # Try multiple possible filename fields
+            filename = doc.get('name') or doc.get('filename') or f'Document_{i+1}'
             doc_map.append(f"[{doc_code}] {filename}")
         return "\n".join(doc_map)
 
@@ -287,7 +288,8 @@ class AIAnalyzer:
         # For each document, add locators
         for i, doc in enumerate(processed_documents):
             doc_code = chr(ord('A') + i)  # A, B, C, etc.
-            doc_text = doc.get('full_text', '')
+            # Get text content from multiple possible fields
+            doc_text = doc.get('full_text') or doc.get('content', '')
 
             # Split into chunks and add locators
             if 'pages' in doc and doc['pages']:
@@ -359,9 +361,9 @@ EVIDENCE RULES (STRICT)
 4) Disambiguation:
    - "Tax-free eligible sales" (or similar) is MARKET OPPORTUNITY, NOT company revenue/GMV. Label it as such.
    - Do NOT call "market share" a breakdown like "not issued / not reimbursed".
-5) Deduplication:
-   - Merge bilingual near-duplicates by number: merchants/comerciantes; users/travelers/viajeros; invoices/facturas.
-   - If the same metric+value appears with different periods, keep the more specific period; include both only if clearly distinct and each has its own citation.
+   - Never relabel VAT as GMV or Revenue; show them as separate bullets with their own citations.
+   - If conflicting values for the same metric exist, prefer the one with a clearer period; if both are relevant, list both with their own citations and periods.
+5) Deduplication: Merge bilingual near-duplicates by number (merchants/comerciantes, users/travelers/viajeros, invoices/facturas). If the same metric+value appears with different periods, keep the more specific period; include both only if clearly distinct and each has its own citation.
 6) No opinions or scoring. No "7/10", no "Strengths/Weaknesses", no "Next steps". Only facts and GAPS.
 
 STYLE & LENGTH
