@@ -353,10 +353,11 @@ EVIDENCE RULES (STRICT)
    - Single doc: [S#] is OK.
    - Multi-doc: use the legend and a locator, e.g., [A·S12], [B·p4], [C·Summary!C12]. If the exact locator is unknown, OMIT the bullet.
 3) Label financial metrics precisely using the literal concept and period if present:
-   - GMV: €… (Qx 'YY / FY / TTM / cumulative)
-   - Revenue: €… (period)
-   - VAT: €… (period)
-   - Burn / Runway: … (period)
+   - GMV: €… (period) where period is the exact time frame stated in the document
+   - Revenue: €… (period) where period is the exact time frame stated in the document
+   - VAT: €… (period) where period is the exact time frame stated in the document
+   - Burn / Runway: … (period) where period is the exact time frame stated in the document
+   Always include the period in parentheses when available (e.g., "GMV: €77M (2023)" not just "GMV: €77M").
    If the concept label is ambiguous (e.g., can't tell if it's VAT vs GMV), OMIT it.
 4) Disambiguation:
    - "Tax-free eligible sales" (or similar) is MARKET OPPORTUNITY, NOT company revenue/GMV. Label it as such.
@@ -413,9 +414,10 @@ CRITICAL GAPS
 • [Gap 3]
 
 SOURCES
-[List unique citations in ascending order, grouped by document code. Example:
-[A·S12, S13, S16] [B·Summary!C12] [C·p4]
-And include the legend up top — the DOCUMENT MAP provided in the input.]"""
+[List unique citations grouped by document code, with multiple locators from the same document grouped together. Examples:
+[A·S1, S5, S12] [B·p2, p7] [C·Summary!C4]
+When multiple pages/slides from same document are cited, group them together separated by commas.
+Include the DOCUMENT MAP legend from the input for reference.]"""
 
             response = self.client.chat.completions.create(
                 model=self.model,

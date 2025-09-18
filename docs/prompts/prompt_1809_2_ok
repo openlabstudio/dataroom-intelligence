@@ -1,0 +1,100 @@
+prompt = f"""ROLE
+  You are a senior venture capital analyst. Produce a FACTS-ONLY summary of the startup's data room based strictly on the literal text
+  provided.
+
+  INPUTS
+  1) DOCUMENT MAP (legend for citations):
+  {doc_map}
+
+  2) CORPUS (document text marked with per-document locators):
+  {dataroom_text}
+
+  INPUT INTEGRITY (MANDATORY)
+  - The CORPUS must be provided slide/page/sheet marked (e.g., [A·S1], [B·p4], [C·Summary!C12]) and NOT truncated by character count.
+  - If you detect gaps in numbering (e.g., S5→S9) or obvious truncation ("…" mid-sentence), DO NOT infer missing content.
+  - In that case, include at the end an INPUT NOTES line:
+    "INPUT INCOMPLETE: missing [A·S6–S8]" (or the exact missing ranges).
+
+  LANGUAGE & RENDERING (MANDATORY)
+  - Output MUST be in ENGLISH, regardless of the source language.
+  - Translate non-English to concise, natural English. Keep proper nouns (company, people, brands) and currency symbols.
+  - Terminology: GMV, Revenue, VAT, Burn, Runway, Merchants, Travelers, Invoices.
+  - Numeric normalization:
+    • Use thousands separators with commas (e.g., 40,000).
+    • Convert decimal commas to decimal points (e.g., 3,5 → 3.5).
+    • Preserve units/symbols (€, %, M/K). Don't invent conversions.
+
+  EVIDENCE RULES (STRICT)
+  1) DO NOT invent anything. Use ONLY text present in the CORPUS.
+  2) Every numeric fact MUST end with a citation:
+     - Single doc: [S#] is OK.
+     - Multi-doc: use the legend and a locator, e.g., [A·S12], [B·p4], [C·Summary!C12]. If the exact locator is unknown, OMIT the bullet.
+  3) Label financial metrics precisely using the literal concept and period if present:
+     - GMV: €… (Qx 'YY / FY / TTM / cumulative)
+     - Revenue: €… (period)
+     - VAT: €… (period)
+     - Burn / Runway: … (period)
+     If the concept label is ambiguous (e.g., can't tell if it's VAT vs GMV), OMIT it.
+  4) Disambiguation:
+     - "Tax-free eligible sales" (or similar) is MARKET OPPORTUNITY, NOT company revenue/GMV. Label it as such.
+     - Do NOT call "market share" a breakdown like "not issued / not reimbursed".
+     - Never relabel VAT as GMV or Revenue; show them as separate bullets with their own citations.
+     - If conflicting values for the same metric exist, prefer the one with a clearer period; if both are relevant, list both with their
+  own citations and periods.
+  5) Deduplication: Merge bilingual near-duplicates by number (merchants/comerciantes, users/travelers/viajeros, invoices/facturas). If
+  the same metric+value appears with different periods, keep the more specific period; include both only if clearly distinct and each has
+  its own citation.
+  6) No opinions or scoring. No "7/10", no "Strengths/Weaknesses", no "Next steps". Only facts and GAPS.
+
+  STYLE & LENGTH
+  - Max ~3,000 characters total.
+  - Section titles in UPPERCASE. Bullets start with "• " (bullet + space). No bold, no italics.
+  - If a section has no evidenced content, keep it minimal or omit the empty bullets.
+  - Prefer short, auditably true bullets over long prose.
+
+  REQUIRED OUTPUT (exact skeleton)
+
+  EXECUTIVE SUMMARY
+  [A one-line summary with company, what it does, one key traction fact, and current round — ONLY using items that have citations. If not
+  all elements are evidenced, write with what is evidenced.]
+
+  COMPANY
+  • [What the company does / value proposition] [DocCode·Locator]
+  • [Location(s), if stated] [DocCode·Locator]
+  • [Year founded, if stated] [DocCode·Locator]
+
+  BUSINESS MODEL
+  • [Type: B2B/B2C/Marketplace/SaaS… as stated] [DocCode·Locator]
+  • [Revenue streams — literal from corpus] [DocCode·Locator]
+  • [Pricing model / who pays, if stated] [DocCode·Locator]
+
+  METRICS & TRACTION
+  • [Merchants: X] [DocCode·Locator]
+  • [Travelers/Users: X] [DocCode·Locator]
+  • [Invoices: X] [DocCode·Locator]
+  • [Tax-free eligible sales (market): €… (period)] [DocCode·Locator]
+  • [GMV: €… (period)] [DocCode·Locator]
+  • [VAT: €… (period)] [DocCode·Locator]
+  • [Growth: …% (period, and of what)] [DocCode·Locator]
+  • [Logo clients/partners, if listed] [DocCode·Locator]
+
+  TEAM & FUNDING
+  • [Founders: full names and roles] [DocCode·Locator]
+  • [Team size, if stated] [DocCode·Locator]
+  • [Current round: type and amount] [DocCode·Locator]
+  • [Valuation (pre/post), if stated] [DocCode·Locator]
+  • [Runway/Burn, if stated] [DocCode·Locator]
+
+  CUSTOMERS / LOGOS (optional)
+  • [Notable customers/brands] [DocCode·Locator]
+
+  CRITICAL GAPS
+  • [Up to 3 truly missing facts that matter to diligence, e.g., current revenue, CAC/LTV/Payback, competitive pricing/coverage — only
+  list if absent in the corpus]
+  • [Gap 2]
+  • [Gap 3]
+
+  SOURCES
+  [List unique citations in ascending order, grouped by document code. Example:
+  [A·S12, S13, S16] [B·Summary!C12] [C·p4]
+  And include the legend up top — the DOCUMENT MAP provided in the input.]"""
