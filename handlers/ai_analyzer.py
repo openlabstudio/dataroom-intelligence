@@ -291,33 +291,38 @@ CONTENIDO COMPLETO DEL DECK:
 
 GENERA UN RESUMEN EJECUTIVO PROFESIONAL:
 - Máximo 3200 caracteres totales
-- Primera línea: RESUMEN EJECUTIVO de 1 línea resumiendo empresa, tracción y ronda
+- Primera línea: RESUMEN EJECUTIVO de 1 línea resumiendo empresa, tracción clave y ronda
 - Estructura con secciones en MAYÚSCULAS
 - NO uses dobles asteriscos ** en ningún lugar
 - Comienza cada bullet con • seguido directamente del texto
 - EXTRAE TODOS los números y métricas que encuentres, no los omitas
+- BUSCA ESPECÍFICAMENTE: valoración, pre-money, post-money, runway, burn rate, año fundación, nombres completos de fundadores
 - Tono objetivo y profesional de analista de VC
 
 FORMATO REQUERIDO:
 
 RESUMEN EJECUTIVO
-[Una línea resumiendo empresa, tracción clave y ronda de inversión]
+[Una línea con empresa, mercado/sector, tracción principal y ronda de inversión]
 
 EMPRESA
-• [Descripción de la empresa y qué hace]
-• [Año fundación si se menciona, sino omitir esta línea]
-• [Ubicación si se menciona, sino omitir esta línea]
+• [Descripción clara de la empresa y qué problema resuelve]
+• [Año fundación: YYYY si se menciona, sino omitir esta línea]
+• [Ubicación: ciudades/países si se menciona, sino omitir esta línea]
 
 MODELO DE NEGOCIO
-• [Tipo de modelo B2B/B2C/etc y descripción]
-• [Revenue streams si se mencionan]
-• [Modelo de pricing si se menciona]
+• [Tipo de modelo B2B/B2C/marketplace/SaaS etc y descripción]
+• [Revenue streams: como generan ingresos]
+• [Pricing: modelo de precios si se menciona]
 
-MÉTRICAS Y TRACCIÓN
-• [TODOS los números del deck: revenue, GMV, usuarios, merchants, growth %, etc.]
-• [Cualquier métrica de crecimiento o tracción]
-• [Clientes destacados, logos, partnerships]
-• [Hitos alcanzados, premios, aceleradoras]
+MÉTRICAS CLAVE
+• [Usuarios/clientes: números de usuarios, clientes, merchants, etc.]
+• [Volumen: transacciones, revenue, GMV, ventas, etc.]
+• [Crecimiento: % growth, MoM, YoY, etc.]
+
+TRACCIÓN Y LOGROS
+• [Clientes destacados, logos importantes, partnerships]
+• [Hitos alcanzados, premios, aceleradoras, certificaciones]
+• [Métricas de engagement, retención, o performance]
 
 EQUIPO E INVERSIÓN
 • [Fundadores con nombres y roles]
@@ -329,10 +334,10 @@ EQUIPO E INVERSIÓN
 • [Inversores previos si se mencionan]
 
 GAPS CRÍTICOS
-• [Los 3 gaps más importantes que faltan para esta etapa de inversión]
+• [Máximo 3 gaps más críticos: valoración, unit economics (CAC/LTV/burn), competencia directa, etc.]
 
 OTROS GAPS
-• [Información adicional que sería útil pero no crítica]
+• [Información útil: año fundación, background equipo, roadmap detallado, etc.]
 
 INVESTMENT READINESS SCORE
 [X/10] - [Breve justificación de 1 línea]
