@@ -282,7 +282,7 @@ class AIAnalyzer:
                 sub_vertical = market.get('sub_vertical', '')
                 solution = market.get('solution', '')
                 if vertical and sub_vertical:
-                    market_taxonomy = f"🎯 MARKET VERTICAL: {vertical}\n📍 SUB-VERTICAL: {sub_vertical}\n💡 SOLUTION: {solution}\n\n"
+                    market_taxonomy = f"MARKET VERTICAL: {vertical}\nSUB-VERTICAL: {sub_vertical}\nSOLUTION: {solution}\n\n"
 
             prompt = f"""Eres un analista senior de venture capital evaluando este pitch deck.
 
