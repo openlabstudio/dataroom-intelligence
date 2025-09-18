@@ -290,11 +290,11 @@ Rules:
         **EXTRACT THE FOLLOWING DATA:**
 
         **FINANCIAL METRICS:**
-        - Funding rounds, amounts, and valuations (with slide numbers)
-        - Revenue figures and projections
-        - Market size (TAM/SAM/SOM)
-        - Key financial KPIs
-        - Burn rate, runway, or cash flow data
+        - Funding rounds, amounts, and valuations (with slide numbers AND TIME PERIODS/DATES)
+        - Revenue figures and projections WITH TIME PERIODS (e.g., "€10M (2023)", "€25M (2024 projection)")
+        - Market size (TAM/SAM/SOM) WITH YEAR if specified
+        - Key financial KPIs WITH TIME PERIODS
+        - Burn rate, runway, or cash flow data WITH TIME PERIODS
 
         **TRACTION DATA:**
         - User/customer numbers and growth
@@ -303,9 +303,9 @@ Rules:
         - Key partnerships and customers
 
         **TEAM INFORMATION:**
-        - Founders and their backgrounds
-        - Key team members and their experience
-        - Advisory board if mentioned
+        - Founders with their EXACT names and roles as stated in the document (do not normalize roles)
+        - Key team members with their EXACT titles and experience
+        - Advisory board if mentioned (with exact titles)
 
         **BUSINESS MODEL:**
         - Revenue model and pricing structure

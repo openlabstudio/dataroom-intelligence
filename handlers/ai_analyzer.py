@@ -276,8 +276,11 @@ class AIAnalyzer:
         doc_map = []
         for i, doc in enumerate(processed_documents):
             doc_code = chr(ord('A') + i)  # A, B, C, etc.
-            # Try multiple possible filename fields
+            # Use real filename from the document
             filename = doc.get('name') or doc.get('filename') or f'Document_{i+1}'
+            # Keep real filename without generic "Document_" prefix
+            if filename.startswith('Document_') and doc.get('name'):
+                filename = doc['name']
             doc_map.append(f"[{doc_code}] {filename}")
         return "\n".join(doc_map)
 
@@ -348,10 +351,11 @@ LANGUAGE & RENDERING (MANDATORY)
   • Preserve units/symbols (€, %, M/K). Don't invent conversions.
 
 EVIDENCE RULES (STRICT)
-1) DO NOT invent anything. Use ONLY text present in the CORPUS.
+1) DO NOT invent anything. Use ONLY text present in the CORPUS. No inferential phrases like "suggests", "implies", "indicates", "appears to be".
 2) Every numeric fact MUST end with a citation:
    - Single doc: [S#] is OK.
    - Multi-doc: use the legend and a locator, e.g., [A·S12], [B·p4], [C·Summary!C12]. If the exact locator is unknown, OMIT the bullet.
+   - Logo/image facts: add [img] marker when data comes from images or logos
 3) Label financial metrics precisely using the literal concept and period if present:
    - GMV: €… (Qx 'YY / FY / TTM / cumulative)
    - Revenue: €… (period)
@@ -364,7 +368,7 @@ EVIDENCE RULES (STRICT)
    - Never relabel VAT as GMV or Revenue; show them as separate bullets with their own citations.
    - If conflicting values for the same metric exist, prefer the one with a clearer period; if both are relevant, list both with their own citations and periods.
 5) Deduplication: Merge bilingual near-duplicates by number (merchants/comerciantes, users/travelers/viajeros, invoices/facturas). If the same metric+value appears with different periods, keep the more specific period; include both only if clearly distinct and each has its own citation.
-6) No opinions or scoring. No "7/10", no "Strengths/Weaknesses", no "Next steps". Only facts and GAPS.
+6) No opinions or scoring. No "7/10", no "Strengths/Weaknesses", no "Next steps". Only LITERAL FACTS extracted from documents and GAPS.
 
 STYLE & LENGTH
 - Max ~3,000 characters total.
@@ -398,7 +402,7 @@ METRICS & TRACTION
 • [Logo clients/partners, if listed] [DocCode·Locator]
 
 TEAM & FUNDING
-• [Founders: full names and roles] [DocCode·Locator]
+• [Founders: exact names and roles as stated in documents] [DocCode·Locator]
 • [Team size, if stated] [DocCode·Locator]
 • [Current round: type and amount] [DocCode·Locator]
 • [Valuation (pre/post), if stated] [DocCode·Locator]
@@ -463,7 +467,8 @@ And include the legend up top — the DOCUMENT MAP provided in the input.]"""
             else:
                 formatted = value
 
-            if period and period.lower() not in ["", "n/a", "unknown"]:
+            # Always add period if available and meaningful
+            if period and period.lower() not in ["", "n/a", "unknown", "not specified"]:
                 formatted += f" ({period})"
             return formatted
 
@@ -1114,8 +1119,8 @@ And include the legend up top — the DOCUMENT MAP provided in the input.]"""
                 return f"{c}{v}"
         return v
 
-    def _fmt_financial_entry(self, metric: str, entry: Dict[str, Any]) -> Optional[str]:
-        """Format financial entries into readable text."""
+    def _fmt_financial_entry(self, metric: str, entry: Dict[str, Any], doc_code: Optional[str] = None) -> Optional[str]:
+        """Format financial entries into readable text with period information."""
         m = metric.lower()
 
         # GMV, Revenue, VAT, Burn
@@ -1125,8 +1130,16 @@ And include the legend up top — the DOCUMENT MAP provided in the input.]"""
                 return None
             txt = f"{m.upper()}: {num}"
             period = entry.get("period")
-            if period:
+            if period and period.lower() not in ["", "n/a", "unknown"]:
                 txt += f" ({period})"
+            # Add citation if available
+            if doc_code and entry.get("slide"):
+                txt += f" [{doc_code}·S{entry['slide']}]"
+            elif entry.get("slide"):
+                txt += f" [S{entry['slide']}]"
+            # Add [img] marker if from image/logo
+            if entry.get("from_image") or entry.get("is_logo"):
+                txt += " [img]"
             return txt
 
         # Runway
