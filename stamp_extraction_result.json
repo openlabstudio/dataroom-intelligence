@@ -1,0 +1,210 @@
+{
+  "name": "Stamp_Investor Deck.pdf",
+  "type": "pdf",
+  "content": "{\"financials\": {\"revenue\": [], \"gmv\": [{\"value\": \"75M\", \"currency\": \"€\", \"period\": \"Q1 27\", \"slide\": 16}, {\"value\": \"75M\", \"currency\": \"€\", \"period\": \"Q1 27\", \"slide\": 16}], \"vat\": [{\"value\": \"14M\", \"currency\": \"€\", \"period\": \"TTM\", \"slide\": 13}, {\"value\": \"14M\", \"currency\": \"€\", \"period\": \"TTM\", \"slide\": 13}], \"burn\": [], \"runway_months\": [], \"funding_rounds\": [{\"round\": \"Seed\", \"amount\": \"2M\", \"currency\": \"€\", \"valuation\": \"12M\", \"slide\": 16}, {\"round\": \"Seed\", \"amount\": \"2M\", \"currency\": \"€\", \"valuation\": \"12M\", \"slide\": 16}]}, \"unit_economics\": {\"cac\": [], \"ltv\": [{\"value\": \"3.8\", \"currency\": \"EUR\", \"slide\": 14}, {\"value\": \"3.8\", \"currency\": \"EUR\", \"slide\": 14}], \"payback_months\": [], \"gross_margin\": [], \"contribution_margin\": []}, \"traction\": {\"merchants\": [{\"value\": \"1300\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 11}, {\"value\": \"1300\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 12}], \"users\": [{\"value\": \"40000\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 11}, {\"value\": \"40000\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 12}], \"transactions\": [{\"value\": \"100000\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 11}, {\"value\": \"100000\", \"period\": \"cumulative\", \"growth\": \"+250%\", \"slide\": 12}], \"retention\": [], \"nps\": []}, \"value_proposition\": [], \"differentiation\": [], \"market\": [{\"quote\": \"TAM: €70B | SAM: €35B | SOM: €1.5B+\", \"slide\": 8}], \"product\": [], \"roadmap\": [], \"gtm\": [], \"icp\": [], \"channels\": [], \"pricing_model\": [], \"take_rate\": [], \"competition\": [], \"team\": [{\"quote\": \"Equipo multidisciplinar de 24 personas repartidas entre Milán, Madrid, Valencia y centros tecnológicos.\", \"slide\": 15}], \"business_model\": [{\"quote\": \"B2B Real TaxFree\", \"slide\": 14}], \"risks\": [], \"regulatory\": [], \"why_now\": [{\"quote\": \"Europa se está convirtiendo en el destino de compras favorito para América y Asia.\", \"slide\": 10}], \"use_of_funds\": [{\"quote\": \"Expansión del producto, Operaciones, Cumplimiento y Legal, Ventas y Marketing\", \"slide\": 16}], \"case_studies\": [], \"slides_covered\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}",
+  "structured_data": {
+    "financials": {
+      "revenue": [],
+      "gmv": [
+        {
+          "value": "75M",
+          "currency": "€",
+          "period": "Q1 27",
+          "slide": 16
+        },
+        {
+          "value": "75M",
+          "currency": "€",
+          "period": "Q1 27",
+          "slide": 16
+        }
+      ],
+      "vat": [
+        {
+          "value": "14M",
+          "currency": "€",
+          "period": "TTM",
+          "slide": 13
+        },
+        {
+          "value": "14M",
+          "currency": "€",
+          "period": "TTM",
+          "slide": 13
+        }
+      ],
+      "burn": [],
+      "runway_months": [],
+      "funding_rounds": [
+        {
+          "round": "Seed",
+          "amount": "2M",
+          "currency": "€",
+          "valuation": "12M",
+          "slide": 16
+        },
+        {
+          "round": "Seed",
+          "amount": "2M",
+          "currency": "€",
+          "valuation": "12M",
+          "slide": 16
+        }
+      ]
+    },
+    "unit_economics": {
+      "cac": [],
+      "ltv": [
+        {
+          "value": "3.8",
+          "currency": "EUR",
+          "slide": 14
+        },
+        {
+          "value": "3.8",
+          "currency": "EUR",
+          "slide": 14
+        }
+      ],
+      "payback_months": [],
+      "gross_margin": [],
+      "contribution_margin": []
+    },
+    "traction": {
+      "merchants": [
+        {
+          "value": "1300",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 11
+        },
+        {
+          "value": "1300",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 12
+        }
+      ],
+      "users": [
+        {
+          "value": "40000",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 11
+        },
+        {
+          "value": "40000",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 12
+        }
+      ],
+      "transactions": [
+        {
+          "value": "100000",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 11
+        },
+        {
+          "value": "100000",
+          "period": "cumulative",
+          "growth": "+250%",
+          "slide": 12
+        }
+      ],
+      "retention": [],
+      "nps": []
+    },
+    "value_proposition": [],
+    "differentiation": [],
+    "market": [
+      {
+        "quote": "TAM: €70B | SAM: €35B | SOM: €1.5B+",
+        "slide": 8
+      }
+    ],
+    "product": [],
+    "roadmap": [],
+    "gtm": [],
+    "icp": [],
+    "channels": [],
+    "pricing_model": [],
+    "take_rate": [],
+    "competition": [],
+    "team": [
+      {
+        "quote": "Equipo multidisciplinar de 24 personas repartidas entre Milán, Madrid, Valencia y centros tecnológicos.",
+        "slide": 15
+      }
+    ],
+    "business_model": [
+      {
+        "quote": "B2B Real TaxFree",
+        "slide": 14
+      }
+    ],
+    "risks": [],
+    "regulatory": [],
+    "why_now": [
+      {
+        "quote": "Europa se está convirtiendo en el destino de compras favorito para América y Asia.",
+        "slide": 10
+      }
+    ],
+    "use_of_funds": [
+      {
+        "quote": "Expansión del producto, Operaciones, Cumplimiento y Legal, Ventas y Marketing",
+        "slide": 16
+      }
+    ],
+    "case_studies": [],
+    "slides_covered": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ]
+  },
+  "full_text": "### Slide 1: Introduction\n- **Company Name:** STAMP\n- **Tagline:** Real TaxFree Shopping for Global Travelers\n- **Spanish Tagline:** Redefiniendo las compras TaxFree con innovación y simplicidad.\n\n### Slide 2: Core Message\n- **Message:** STAMP es TaxFree. El resto es Tax Refund.\n\n### Slide 3: Value Proposition\n- **Title:** Real TaxFree Shopping. Instantly.\n- **Description:** \n  - El Tax-Free permite a los viajeros de fuera de la UE recuperar el IVA de sus compras en Europa.\n  - STAMP lo hace fácil. Quita el IVA al momento de la compra.\n- **Vision:** Ser la plataforma de referencia que conecta comercios con compradores internacionales.\n- **Purpose:** Empoderar a comercios y viajeros con soluciones que simplifican el comercio internacional.\n\n### Slide 4: Problem Statement\n- **Title:** ¿Cuál es el problema?\n- **Issues:**\n  - Los intermediarios se quedan hasta con el 60% de tu dinero.\n  - Comisiones ocultas e inconsistentes.\n  - La devolución es un proceso adicional = Largas colas.\n\n### Slide 5: Solution\n- **Title:** Solución\n- **Solution:** Compras Real TaxFree\n  - Evita el IVA en el momento de la compra.\n  - Instantáneo. Transparente. Precios globales.\n  - Tecnología inteligente que sustituye a los intermediarios.\n\n### Slide 6: Platform Overview\n- **STAMP as a Platform:**\n  - No es un intermediario, es una plataforma.\n  - Conectado directamente con las plataformas gubernamentales.\n  - Reduce el riesgo financiero.\n- **For Travelers:** TaxFree Shopping Real\n\n### Slide 7: Product Suite\n- **Components:**\n  - Merchant Portal\n  - Miniprogram\n  - Backoffice\n  - Engagement Platform\n  - CRM\n\n### Slide 8: Market Opportunity\n- **Market Size:**\n  - TAM: €70B | SAM: €35B | SOM: €1.5B+\n- **Opportunity:**\n  - 45% of clients do not issue invoices.\n  - 20% of invoices are not reimbursed.\n\n### Slide 9: Competitive Landscape\n- **Comparison:** Tax Refund vs Plataforma Real TaxFree\n- **Strategy:** Ser digital no es nuestra estrategia. Es nuestra naturaleza.\n\n### Slide 10: Expansion Plans\n- **Current Focus:** Expanding in Southern and Northern Europe.\n- **Future Plans:** Preparing for BME ScaleUp.\n\n### Slide 11: Traction\n- **Growth:** +250%\n- **Metrics:**\n  - +1300 Comerciantes\n  - +40,000 Viajeros\n  - +100,000 Facturas\n\n### Slide 12: Impact\n- **Clients:** Includes brands like Longines, Omega, MaxMara.\n- **Benefits:** Incremento de ventas hasta un 20-25%, Ahorros instantáneos.\n\n### Slide 13: Achievements\n- **Metrics:**\n  - 77M€ Ventas libres de impuestos elegibles en tienda.\n  - +14M€ en IVA gestionado.\n\n### Slide 14: Business Model\n- **Model:** B2B Real TaxFree\n- **Customer Engagement Platform:** Modelo Premium\n\n### Slide 15: Team\n- **Key Members:**\n  - Abel Navajas, Álvaro Fortanete, Javier Castillo, Sebastián Perez\n- **Team Size:** 24 personas\n\n### Slide 16: Funding\n- **Seed Round:** 2M€\n- **Use of Funds:** Expansion del producto, Ventas y Marketing\n\n### Slide 17: Closing\n- **Call to Action:** Se parte de STAMP, ¡Hoy!\n\n### Slide 18: Branding\n- **Logo:** STAMP\n\nThis summary captures the key details from each slide of the pitch deck. If you have specific questions about any section, feel free to ask!",
+  "metadata": {
+    "extraction_method": "gpt-4o_files_api_json",
+    "has_content": true,
+    "has_full_text": true,
+    "slides_covered": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "facts_count": 9
+  }
+}

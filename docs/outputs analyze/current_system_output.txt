@@ -1,0 +1,19 @@
+=== AI Analyzer Results ===
+Analysis success: True
+Summary length: 1527 characters
+
+=== Searching for Valuation in AI Analyzer Output ===
+✓ Found: 'Pre-money valuation of €12M'
+✓ Found: '€12M'
+
+✅ Found 2 valuation references in AI output!
+
+=== Structured Data Debug ===
+Financial data found:
+  revenue: []
+  gmv: [{'value': '75M', 'currency': '€', 'period': 'Q1 27', 'slide': 16}]
+  vat: [{'value': '14M', 'currency': '€', 'period': 'cumulative', 'slide': 13}]
+  burn: []
+  runway_months: []
+  funding_rounds: [{'round': 'Seed', 'amount': '2M', 'currency': '€', 'valuation': '12M', 'slide': 16}]
+Structured data keys: ['financials', 'unit_economics', 'traction', 'value_proposition', 'differentiation', 'market', 'product', 'roadmap', 'gtm', 'icp', 'channels', 'pricing_model', 'take_rate', 'competition', 'team', 'business_model', 'risks', 'regulatory', 'why_now', 'use_of_funds', 'case_studies', 'slides_covered']

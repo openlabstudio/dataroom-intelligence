@@ -168,6 +168,22 @@ def handle_analyze_command(ack, body, client):
         if drive_link.lower() == 'debug':
             return debug_sessions(user_id, channel_id, client)
 
+        # SPECIAL SINGLE-PASS MODE: /analyze single-pass [drive-link]
+        # Clean Slack formatting first (remove *)
+        clean_drive_link = drive_link.replace('*', '').strip()
+        if clean_drive_link.lower().startswith('single-pass'):
+            parts = clean_drive_link.split(' ', 1)
+            if len(parts) > 1:
+                actual_drive_link = parts[1].strip()
+                logger.info(f"🔍 SINGLE-PASS PARSED LINK: '{actual_drive_link}' (length: {len(actual_drive_link)})")
+                return handle_single_pass_analysis(user_id, channel_id, actual_drive_link, client)
+            else:
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text="❌ Please provide a Google Drive link with single-pass mode.\n\nUsage: `/analyze single-pass [google-drive-link]`"
+                )
+                return
+
         # Debug logs after immediate acknowledgment
         logger.info(f"🎯 ANALYZE COMMAND - Starting for user {user_id}")
         logger.info(f"🎯 ANALYZE COMMAND - Channel: {channel_id}")
@@ -976,6 +992,153 @@ def main():
     except Exception as e:
         logger.error(f"❌ Fatal error: {e}")
         raise
+
+def handle_single_pass_analysis(user_id: str, channel_id: str, drive_link: str, client):
+    """Handle single-pass analysis mode (Option A)"""
+    try:
+        logger.info(f"🎯 SINGLE-PASS ANALYSIS - Starting for user {user_id}")
+        logger.info(f"🎯 SINGLE-PASS ANALYSIS - Drive link: {drive_link}")
+
+        # Send initial message
+        initial_response = client.chat_postMessage(
+            channel=channel_id,
+            text="🚀 **Single-Pass Analysis (Option A)**\n\n" +
+                 f"📁 Link: *{drive_link}*\n" +
+                 f"⚡ Using direct PDF-to-summary approach...\n\n" +
+                 f"🎯 This should capture ALL financial data including valuations!\n" +
+                 f"⌛ **Estimated time: 45-60 seconds**"
+        )
+
+        # Start background processing
+        threading.Thread(
+            target=perform_single_pass_analysis,
+            args=(client, channel_id, user_id, drive_link, initial_response['ts']),
+            daemon=True
+        ).start()
+
+    except Exception as e:
+        logger.error(f"❌ Error in single-pass analysis: {e}")
+        client.chat_postMessage(
+            channel=channel_id,
+            text=f"❌ Error starting single-pass analysis: {str(e)}"
+        )
+
+def perform_single_pass_analysis(client, channel_id: str, user_id: str, drive_link: str, progress_message_ts: str):
+    """Perform the actual single-pass analysis in background"""
+    try:
+        logger.info("🚀 Starting single-pass analysis background processing...")
+
+        # Update progress
+        client.chat_update(
+            channel=channel_id,
+            ts=progress_message_ts,
+            text="🚀 **Single-Pass Analysis (Option A)**\n\n" +
+                 f"📁 Processing documents from Drive...\n" +
+                 f"⚡ Using direct PDF-to-summary approach...\n\n" +
+                 f"🔄 **Status: Downloading documents...**"
+        )
+
+        # Download documents from Google Drive
+        from handlers.drive_handler import GoogleDriveHandler
+        drive_handler = GoogleDriveHandler()
+        downloaded_files = drive_handler.download_dataroom(drive_link)
+
+        if not downloaded_files:
+            client.chat_update(
+                channel=channel_id,
+                ts=progress_message_ts,
+                text="❌ No documents found in the Google Drive folder."
+            )
+            return
+
+        # Update progress
+        client.chat_update(
+            channel=channel_id,
+            ts=progress_message_ts,
+            text="🚀 **Single-Pass Analysis (Option A)**\n\n" +
+                 f"📁 Found {len(downloaded_files)} documents\n" +
+                 f"⚡ Running single-pass analysis...\n\n" +
+                 f"🔄 **Status: Analyzing with GPT-4o...**"
+        )
+
+        # Process PDFs with single-pass analysis
+        from handlers.gpt4o_pdf_processor import GPT4oDirectProcessor
+        from config.settings import Config
+        config_obj = Config()
+        gpt4o_processor = GPT4oDirectProcessor(config_obj.OPENAI_API_KEY)
+        analysis_results = []
+
+        for file_info in downloaded_files:
+            if file_info['mime_type'] == 'application/pdf':
+                logger.info(f"🎯 Processing {file_info['name']} with single-pass analysis")
+                result = gpt4o_processor.single_pass_analysis(
+                    file_info['path'],
+                    file_info['name']
+                )
+                if result and result.get('content'):
+                    analysis_results.append(result)
+                    logger.info(f"✅ Single-pass analysis completed for {file_info['name']}")
+
+        if not analysis_results:
+            client.chat_update(
+                channel=channel_id,
+                ts=progress_message_ts,
+                text="❌ No analysis results generated. No PDFs found or processing failed."
+            )
+            return
+
+        # Format results for Slack
+        slack_message = "🎯 **Single-Pass Analysis Results (Option A)**\n\n"
+
+        for result in analysis_results:
+            slack_message += f"📄 **{result['name']}**\n\n"
+            content = result.get('content', '').strip()
+
+            # Check for valuation in the content
+            import re
+            valuation_found = bool(re.search(r'12M.*valuation|valuation.*12M|12M.*pre-money|pre-money.*12M', content, re.IGNORECASE))
+
+            if valuation_found:
+                slack_message += "✅ **VALUATION CAPTURED!** €12M found in analysis\n\n"
+            else:
+                slack_message += "❌ **Valuation missing** - needs investigation\n\n"
+
+            # Add the analysis content (truncated for Slack)
+            if len(content) > 2500:
+                slack_message += content[:2500] + "\n\n...(truncated for Slack)\n\n"
+            else:
+                slack_message += content + "\n\n"
+
+            slack_message += "---\n\n"
+
+        # Store session data
+        user_sessions[user_id] = {
+            'status': 'completed',
+            'analysis_type': 'single_pass',
+            'processed_documents': analysis_results,
+            'current_analysis': {
+                'content': analysis_results[0].get('content', '') if analysis_results else '',
+                'content_length': len(analysis_results[0].get('content', '')) if analysis_results else 0
+            },
+            'session_path': f".datarooms/{channel_id}"
+        }
+
+        # Send final results
+        client.chat_update(
+            channel=channel_id,
+            ts=progress_message_ts,
+            text=slack_message[:3000]  # Slack message limit
+        )
+
+        logger.info("✅ Single-pass analysis completed successfully")
+
+    except Exception as e:
+        logger.error(f"❌ Error in single-pass analysis: {e}")
+        client.chat_update(
+            channel=channel_id,
+            ts=progress_message_ts,
+            text=f"❌ Single-pass analysis failed: {str(e)}"
+        )
 
 if __name__ == "__main__":
     main()

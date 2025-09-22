@@ -1,0 +1,60 @@
+project: Dataroom Intelligence SaaS
+version: 0.1.0
+description: A project to build a multi-tenant SaaS application for AI-powered analysis of investment datarooms, based on a RAG architecture.
+
+phases:
+  - id: "PHASE_1"
+    name: "La Fundación del RAG - Extracción y Persistencia de Datos"
+    status: "completed"
+    tasks:
+      - id: "TASK_1.1"
+        name: "Añadir dependencia PyMuPDF a requirements.txt"
+        status: "completed"
+      - id: "TASK_1.2"
+        name: "Implementar lógica de sesiones por canal"
+        status: "completed"
+      - id: "TASK_1.3"
+        name: "Refactorizar doc_processor.py con lógica de extracción híbrida"
+        status: "completed"
+      - id: "TASK_1.4"
+        name: "Implementar guardado persistente de los resultados de la extracción"
+        status: "completed"
+
+  - id: "PHASE_1B"
+    name: "Pipeline Correction - Fixing Extraction-Analysis Decoupling"
+    status: "in_progress"
+    tasks:
+      - id: "TASK_1B.1"
+        name: "Add intelligent PDF classification (pre-flight check)"
+        status: "not_started"
+      - id: "TASK_1B.2"
+        name: "Implement holistic processing for image-only PDFs"
+        status: "not_started"
+      - id: "TASK_1B.3"
+        name: "Fix data flow to preserve pages[] structure"
+        status: "not_started"
+      - id: "TASK_1B.4"
+        name: "Validate quality matches Gemini reference"
+        status: "not_started"
+
+  - id: "PHASE_2"
+    name: "El Cerebro del RAG - Vectorización e Indexación"
+    status: "not_started"
+    tasks:
+      - id: "TASK_2.1"
+        name: "Añadir dependencias (faiss-cpu, sentence-transformers)"
+        status: "not_started"
+      - id: "TASK_2.2"
+        name: "Implementar lógica de 'chunking' de texto"
+        status: "not_started"
+      - id: "TASK_2.3"
+        name: "Modificar /analyze para generar y guardar el índice vectorial"
+        status: "not_started"
+
+  - id: "PHASE_3"
+    name: "La Interacción RAG - Consultas Semánticas"
+    status: "not_started"
+    tasks:
+      - id: "TASK_3.1"
+        name: "Refactorizar /ask para usar el índice vectorial"
+        status: "not_started"
