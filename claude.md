@@ -2,83 +2,81 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL INSTRUCTION
+
+**NO haré NADA** sin que el usuario diga explícitamente el verbo de acción. NO asumiré permisos implícitos.
+
+Ejemplos:
+- ✅ "Actualiza el archivo X" → Procedo
+- ✅ "Haz commit de los cambios" → Procedo
+- ❌ Usuario dice "sí" → NO asumo que puedo hacer commit
+- ❌ "Esto se ve bien" → NO asumo que puedo proceder
+
+**Esperaré instrucciones específicas para CUALQUIER acción.**
+
 ## Application Architecture
 
-**DataRoom Intelligence Bot** - AI-powered data room analysis for venture capital firms with streamlined GPT-4o Direct processing.
+**DataRoom Intelligence Bot** - Single-tenant RAG system for venture capital firms with professional document analysis.
 
 ### Current Project Status
-- **Phase**: Vision Analysis Phase (QA Validated) - GPT-4o Direct PDF Processing
-- **Branch**: `phase3-advanced-analyze` - Current active development branch
-- **System Status**: ✅ **PRODUCTION READY** - GPT-4o Direct PDF processing with QA validation complete
-- **Architecture Status**: ✅ **SIMPLIFIED** - Traditional PDF extraction methods eliminated, GPT-4o Direct only
-- **Recent Enhancement**: Vision processing removed, traditional PDF fallback methods removed (PyPDF2/pdfplumber/OCR)
+- **Phase**: ✅ **GREENFIELD READY** - Clean slate for single-tenant RAG implementation
+- **Branch**: `rag-dataroom-v1` - Greenfield development branch
+- **System Status**: 🚧 **READY FOR DEVELOPMENT** - PROJECT_BRIEF.md complete, codebase cleaned
+- **Architecture Status**: 📋 **DOCUMENTED** - Single-tenant RAG architecture fully specified
+- **Recent Change**: Complete greenfield reset, old system backed up in git history
 
 ### Core Architecture Patterns
 
-**Streamlined Processing Architecture**:
-- **PDF Processing**: GPT-4o Direct only (traditional methods eliminated)
-- **Market Research**: Enhanced source collection with BMAD Framework integration
-- **Document Analysis**: Structured extraction with slide references
-- **Session Management**: In-memory user sessions for state persistence
+**Single-Tenant RAG Architecture**:
+- **PDF Processing**: LlamaParse → Structured Markdown → Smart Chunking → Vector Embeddings
+- **Vector Storage**: ChromaDB with channel-based collections (simple isolation)
+- **Document Analysis**: RAG retrieval + GPT-4o synthesis with source attribution
+- **Channel Management**: Simple channel = dataroom mapping (no multi-tenancy complexity)
 
-**PDF Processing Architecture (Recently Updated)**:
+**RAG Processing Pipeline**:
 ```
-OLD: PDF → GPT-4o → [FAIL] → PyPDF2 → [FAIL] → pdfplumber → [FAIL] → OCR
-NEW: PDF → GPT-4o Direct → Structured Results (or graceful failure)
+PDF Documents (Drive) → LlamaParse (PDF→Markdown) → Smart Chunking (Structure-aware)
+→ Embeddings (OpenAI) → Vector Storage (ChromaDB) → RAG Retrieval → GPT-4o Analysis
 ```
 
-**Benefits of GPT-4o Direct Only**:
-- ✅ **Superior Quality**: Contextual financial data extraction vs raw text
-- ✅ **Structured Output**: Slide references and organized data
-- ✅ **Simplified Maintenance**: Single processing pipeline
-- ✅ **Better Performance**: No fallback chain overhead
+**Single-Tenant Benefits**:
+- ✅ **Complete Data Isolation**: Each VC firm has dedicated instance
+- ✅ **Simplified Architecture**: No client segregation logic needed
+- ✅ **Channel-Based Storage**: channel_id directly maps to dataroom
+- ✅ **Customization**: Client-specific configurations and prompts
 
-**Core Agent System**:
-- `MarketDetectionAgent` - Market vertical classification
-- `MarketResearchOrchestrator` - Enhanced with BMAD Framework integration
-- `enhanced_source_collection.py` - 50+ source collection with quality scoring
+**No Legacy Components**: All agents, handlers, and complex fallback systems removed for greenfield.
 
-**Session Management**: User sessions stored in-memory (`user_sessions` dict) containing document analysis state.
-
-**Production-Only Architecture**: All development uses production APIs directly with cost monitoring.
+**Development Status**: Ready for RAG core implementation following PROJECT_BRIEF.md specification.
 
 ## Core Components
 
 **Entry Point**: `app.py` - Flask + Slack Bolt application with Railway deployment support
 
-**Handlers Directory**: `/handlers/`
-- `ai_analyzer.py` - GPT-4 integration wrapper
-- `drive_handler.py` - Google Drive document extraction
-- `doc_processor.py` - **UPDATED**: GPT-4o Direct PDF processing only (traditional methods removed)
-- `gpt4o_pdf_processor.py` - GPT-4o Direct processor implementation
-- `market_research_handler.py` - Slack command orchestration
-
-**Agents Directory**: `/agents/`
-- `base_agent.py` - Abstract base class for all agents
-- `market_detection.py` - Market vertical classification
-- `market_research_orchestrator.py` - Enhanced with BMAD Framework integration
-- `progress_tracker.py` - Progress tracking for Slack UX
-- `enhanced_source_collection.py` - Progressive 4-phase source collection
-- `bmad_framework/` - BMAD Framework Professional Market Intelligence Enhancement
-
-**Utils Directory**: `/utils/`
-- `expert_formatter.py` - GPT-4 content synthesis system
-- `financial_extractor.py` - Financial data extraction utilities
-- `logger.py` - Logging configuration
-- `slack_formatter.py` - Slack message formatting
-- `web_search.py` - Web search utilities
+**Greenfield Directory Structure**: Ready for RAG implementation
+- `core/` - RAG functionality (empty, ready for development)
+- `models/` - Data models (empty, ready for development)
+- `handlers/` - Slack command handlers (empty, ready for development)
+- `utils/` - Utility functions (empty, ready for development)
+- `tests/` - Test suite (empty, ready for development)
 
 **Configuration**: `config/settings.py` - Environment-based configuration management
 
-## Available Slack Commands
+**Preserved Infrastructure**:
+- Flask + Slack Bolt foundation
+- Railway deployment configuration
+- Environment management
+- Basic project structure
 
-Core commands for testing and operation:
-- `/analyze [google-drive-link]` - Main document analysis using GPT-4o Direct processing
-- `/analyze debug` - Session status (very useful for development)
-- `/market-research` - Independent market analysis with enhanced source collection
-- `/ask [question]` - Q&A on analyzed documents
-- `/reset` - Clear user session
-- `/health` - System health check
+## Planned Slack Commands (From PROJECT_BRIEF.md)
+
+RAG commands to be implemented:
+- `/load [google-drive-url] [optional: dataroom-name]` - Load documents into channel's dataroom
+- `/current` - Show current channel's dataroom info
+- `/list-datarooms` - List all datarooms across channels in workspace
+- `/summary` - Generate comprehensive VC analysis of current dataroom
+- `/ask [question]` - Interactive Q&A on current dataroom
+- `/health` - System health check (preserved)
 
 ## Common Development Commands
 
@@ -98,9 +96,9 @@ python app.py
 
 ### Environment Management
 ```bash
-# Required environment variables:
-export OPENAI_API_KEY=sk-...
-export TAVILY_API_KEY=tvly-...
+# Required environment variables for RAG system:
+export OPENAI_API_KEY=sk-...          # For embeddings and GPT-4o
+export LLAMA_CLOUD_API_KEY=llx-...    # For LlamaParse (NEW)
 export SLACK_BOT_TOKEN=xoxb-...
 export SLACK_APP_TOKEN=xapp-...
 export SLACK_SIGNING_SECRET=...
@@ -128,29 +126,37 @@ except Exception as e:
     return format_error_response("operation", str(e))
 ```
 
-### GPT-4o PDF Processing Pattern
+### RAG Processing Pattern
 ```python
-# GPT-4o Direct processing (no fallback)
-if self.gpt4o_processor:
-    result = self.gpt4o_processor.process_pdf_document(file_path, file_name)
-    if result and result.get('content'):
-        return result
-    else:
-        # Graceful failure - no fallback to traditional methods
-        return structured_empty_result
+# Single-tenant RAG processing
+def load_dataroom(channel_id: str, drive_url: str, custom_name: str = None):
+    # 1. Parse documents with LlamaParse
+    markdown_docs = llamaparse.parse_documents(drive_url)
+
+    # 2. Smart chunking with structure preservation
+    chunks = markdown_chunker.chunk(markdown_docs)
+
+    # 3. Generate embeddings
+    embeddings = openai_embeddings.embed(chunks)
+
+    # 4. Store in channel-specific collection
+    vector_db = ChromaDB(collection=f"channel_{channel_id}")
+    vector_db.store(chunks, embeddings)
+
+    return f"📊 Dataroom loaded and ready"
 ```
 
 ## Architecture Principles
 
-**Production-First Development**: All development uses production APIs directly with cost monitoring
+**Single-Tenant Design**: One instance per VC firm with complete data isolation
 
-**Session Persistence**: Commands depend on session state - always check `user_id in user_sessions`
+**Channel-Based Storage**: Simple channel_id → dataroom mapping (no multi-tenancy complexity)
 
-**Transparent Error Handling**: Clear error messages when services fail, no mock data fallbacks
+**RAG-First Processing**: LlamaParse → Chunking → Embeddings → Vector Storage → Retrieval
 
-**GPT-4o Direct Processing**: Single processing method for PDFs, traditional methods eliminated
+**Production APIs Only**: All development uses real APIs with cost monitoring
 
-**Quality Over Complexity**: Simplified architecture with superior results
+**Quality Over Complexity**: Simplified architecture following PROJECT_BRIEF.md specification
 
 ## Environment Variables Required
 
@@ -160,9 +166,9 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
 SLACK_SIGNING_SECRET=...
 
-# AI Services
-OPENAI_API_KEY=sk-...
-TAVILY_API_KEY=tvly-...
+# RAG Stack APIs
+OPENAI_API_KEY=sk-...              # Embeddings + GPT-4o
+LLAMA_CLOUD_API_KEY=llx-...        # LlamaParse
 
 # Google Drive
 GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
@@ -170,55 +176,54 @@ GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
 ## Development Workflow
 
-1. **Direct production API development** - All development uses real APIs with cost monitoring
-2. **Incremental development and testing** - Build features incrementally with real API feedback
-3. **Test session persistence** - Use `/analyze debug` frequently
-4. **Quality validation** - Test GPT-4o processing with real documents
-5. **Commit working increments** - Stability over features
+1. **RAG-First Development** - Implement core RAG pipeline following PROJECT_BRIEF.md
+2. **Single-Tenant Focus** - Simple channel → dataroom mapping, no multi-tenancy
+3. **Production APIs Only** - Real LlamaParse + OpenAI + ChromaDB from day one
+4. **Explicit Permissions** - NEVER take actions without explicit user verb commands
+5. **Test with Real Documents** - Validate RAG quality with actual VC datarooms
 
-## Recent Changes and Removals
+## Greenfield Transformation
 
-### ❌ **REMOVED COMPONENTS**:
-- **Vision Processing Pipeline**: Complete removal of vision integration (handlers/vision_*.py files removed)
-- **Vision Dependencies**: handlers/enhanced_session_manager.py removed, stories/ directory with Vision stories deleted
-- **Vision Logic**: All Vision processing code removed from handlers/ai_analyzer.py methods
-- **Traditional PDF Methods**: PyPDF2, pdfplumber, OCR extraction methods eliminated
-- **Fallback Architecture**: Complex fallback chain replaced with GPT-4o Direct only
-- **Test Mode Complexity**: Simplified to production-only development
-- **Unused Dependencies**: PyPDF2, pdfplumber, pytesseract, pdf2image, Pillow removed from requirements
+### 🧹 **REMOVED (Greenfield Reset)**:
+- **Entire Legacy System**: All handlers, agents, utils, tests from previous system
+- **Complex Multi-Tenancy**: Removed session management, user segregation logic
+- **Market Research**: BMAD framework, enhanced source collection, orchestrators
+- **Traditional Processing**: GPT-4o direct, fallback chains, vision processing
+- **Development Artifacts**: QA gates, test cases, documentation, decision logs
 
-### ✅ **ENHANCED COMPONENTS**:
-- **GPT-4o Direct Processing**: Streamlined PDF processing with superior structured extraction
-- **Enhanced Source Collection**: 50+ source collection with quality scoring
-- **BMAD Framework Integration**: Professional market intelligence methodologies
-- **Simplified Architecture**: Reduced complexity while maintaining functionality
-- **QA Validated**: Complete QA validation of GPT-4o processing implementation
+### 🚀 **NEW GREENFIELD FOUNDATION**:
+- **Single-Tenant RAG**: Simple, clean architecture per PROJECT_BRIEF.md
+- **Channel-Based Storage**: Direct channel → dataroom mapping
+- **Professional Pipeline**: LlamaParse → Chunking → Embeddings → ChromaDB → GPT-4o
+- **Empty Structure**: Ready for RAG implementation with clear directories
+- **Git History**: Previous system preserved as backup in commit history
 
 ## Testing and Validation
 
-**Current Status**: All core functionality QA validated and production-ready
+**Current Status**: 🚧 **GREENFIELD READY** - No tests yet, RAG system to be implemented
 
-**Testing Commands**:
+**Future Testing Strategy** (from PROJECT_BRIEF.md):
+- **Quality Metrics**: >90% data extraction accuracy, <15s response time
+- **Test Datarooms**: Simple pitch deck, complex financial model, multi-document cases
+- **Evaluation Framework**: Automated quality testing for standard VC queries
+
+**Basic Health Check**:
 ```bash
-# Test document processing
-python -c "from handlers.doc_processor import DocumentProcessor; dp = DocumentProcessor(); print('✅ Ready')"
-
-# Test GPT-4o processor
-python -c "from handlers.gpt4o_pdf_processor import GPT4oDirectProcessor; print('✅ GPT-4o Available')"
-
-# Run application
+# Run application (basic Flask + Slack)
 python app.py
 ```
 
 ## Common Gotchas
 
-**Session Dependencies**: Many commands require prior `/analyze` execution - always check session state
+**Channel Context**: Commands operate on current channel's dataroom - ensure proper channel mapping
 
 **Slack Acknowledgment**: All Slack handlers must call `ack()` immediately to prevent timeouts
 
-**GPT-4o Only Processing**: No fallback methods available - ensure GPT-4o processor is properly initialized
+**RAG Dependencies**: Ensure LlamaParse + OpenAI + ChromaDB are properly configured
 
 **Production APIs**: All development uses real APIs - monitor costs during development
+
+**Explicit Permissions**: NEVER take actions without explicit user command verbs
 
 ## Railway Deployment
 
@@ -226,13 +231,17 @@ Application auto-deploys from main branch with environment-based configuration. 
 
 ## Current Development Focus
 
-**System Status**: ✅ **STABLE AND PRODUCTION-READY**
+**System Status**: 🚧 **GREENFIELD READY FOR RAG IMPLEMENTATION**
 
-**Key Achievements**:
-- GPT-4o Direct PDF processing implementation complete and QA validated
-- Traditional extraction methods successfully eliminated
-- Architecture simplified without capability loss
-- Dependencies cleaned up and optimized
-- Vision processing removed (no longer needed)
+**Completed Preparation**:
+- Complete greenfield reset with legacy system backup
+- PROJECT_BRIEF.md with detailed single-tenant RAG architecture
+- Clean directory structure ready for development
+- Infrastructure preserved (Flask, Slack, Railway deployment)
+- Critical instruction: explicit permission requirement implemented
 
-**Next Evolution**: Focus on market research quality improvements and professional report generation using existing BMAD Framework foundation.
+**Next Steps**:
+1. Wait for user instruction to begin RAG core implementation
+2. Follow PROJECT_BRIEF.md specification exactly
+3. Implement single-tenant channel-based dataroom system
+4. Build professional RAG pipeline: LlamaParse → ChromaDB → GPT-4o
