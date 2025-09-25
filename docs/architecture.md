@@ -1,41 +1,36 @@
-# DataRoom Intelligence Bot v2.0 Architecture Document
+# DataRoom Intelligence Bot v2.0 Architecture Document (v1.4)
 
 ## 1. Introduction
 
-This document outlines the overall project architecture for the **DataRoom Intelligence Bot v2.0**, including backend systems, data processing pipelines, and core service components. Its primary goal is to serve as the guiding architectural blueprint for development, ensuring consistency and adherence to the chosen patterns and technologies defined in the PRD.
+This document outlines the implementation-ready architecture for the **DataRoom Intelligence Bot v2.0**. It is fully aligned with **PRD v1.1** and serves as the definitive technical blueprint for development.
 
-### 1.1. Starter Template or Existing Project
+### 1.1. Technical Changelog (v1.3 → v1.4)
 
-This is a **greenfield implementation** of a new RAG architecture. However, it is not being built entirely from scratch.
+*   **Workflows:** Added `/summary` sequence diagram.
+*   **Citations:** Specified citation format for tabular data (Excel/CSV).
+*   **Data Management:** Detailed the `/export` admin command.
+*   **Observability:** Defined specific alert thresholds for latency SLOs.
+*   **Decisions:** Finalized recommendations for open questions.
 
-*   **Existing Foundation:** The project will retain and build upon the existing Python application shell, which includes the **Flask** server for health checks and the **Slack Bolt** framework for command handling.
-*   **New Core Logic:** All core data processing and analysis logic (the `doc_processor`, `ai_analyzer`, and new RAG components) will be completely rebuilt as specified in the PRD.
+### 1.2. Traceability Matrix
 
-No other external starter templates will be used.
-
-### 1.2. Change Log
-
-| Date | Version | Description | Author |
-| :--- | :--- | :--- | :--- |
-| 2025-09-22 | 1.0 | Initial Architecture draft based on PRD v1.0. | Winston (Architect) |
+| Architecture Section | Related PRD Requirements |
+| :--- | :--- |
+| Parsing & GDrive | `FR4`, `FR10`, `FR12` |
+| Vector Store & Atomic Swap | `FR9`, `FR13`, `FR15` |
+| RAG & Performance | `FR13`, `NFR3` |
+| Command Behaviors | `FR7`, `FR8`, `FR11` |
+| Jobs & Progress | `NFR6` |
+| Security & Tenancy | `NFR4`, `NFR9`, `FR15` |
+| Cost & Quotas | `FR14` |
+| Observability | `NFR8` |
+| Internationalization | `NFR7` |
 
 ---
 
 ## 2. High Level Architecture
 
-### 2.1. Technical Summary
-
-This architecture implements a professional **Retrieval-Augmented Generation (RAG)** pipeline within a Python-based monolithic application. The core of the system is a data processing engine that uses **LlamaParse** for layout-aware document parsing and **LlamaIndex** for orchestration, with **ChromaDB** serving as the vector store. This design directly addresses the primary goal of the PRD (G3) by creating a high-fidelity, structured data foundation to enable reliable, context-aware analysis by the **GPT-4o** model.
-
-### 2.2. High Level Overview
-
-*   **Architectural Style:** The system is designed as a **Monolith**. This is a pragmatic choice for the MVP, prioritizing development speed, ease of deployment, and simplified debugging over the complexities of a distributed system.
-*   **Repository Structure:** A **Monorepo** will be used, containing all application code, handlers, and core logic in a single repository. This simplifies dependency management and ensures atomic commits across the system.
-*   **Primary Data Flow:**
-    1.  **Ingestion (`/load`):** Documents are downloaded from a source, parsed into structured Markdown by **LlamaParse**, segmented into layout-aware chunks, converted to embeddings, and stored in a persistent **ChromaDB** collection.
-    2.  **Retrieval (`/ask`, `/summary`):** A user query is used to retrieve relevant chunks from the vector store. These chunks, along with the original query, are passed to the **GPT-4o** model for synthesis, and the final answer is returned to the user.
-
-### 2.3. High Level Project Diagram
+### 2.1. Component Diagram
 
 ```mermaid
 graph TD
@@ -44,528 +39,291 @@ graph TD
     end
 
     subgraph Application Layer (Python Monolith)
-        B[Slack Bolt Handlers]
-        C[Dataroom Manager]
-        D[RAG Engine]
-        E[Core Services]
+        B[Slack Bolt Handlers] --> C[Dataroom Manager];
+        B --> D[RAG Engine];
+        C --> F[Redis];
+        C --> E[Job Tracker];
+        D --> G[Parsing Service];
+        D --> H[Vector Store];
+        D --> J[OpenAI API];
+        E --> F;
     end
 
-    subgraph Data Layer
-        F[ChromaDB (Vector Store)]
-        G[JSON Index (Dataroom Metadata)]
+    subgraph Data & Cache Layer
+        F[Redis (Sessions, Jobs, Cache)]
+        I[ChromaDB (Vector Store)]
     end
 
     subgraph External Services
-        H[Google Drive API]
-        I[LlamaParse API]
-        J[OpenAI API]
+        K[Google Drive API]
+        L[LlamaParse API]
+        M[Cohere API]
+        J;
     end
 
-    A -- /load, /connect, /ask, etc. --> B;
-    B -- Manages --> C;
-    B -- Uses --> D;
-    C -- Accesses --> G;
-    D -- Uses --> E;
-    D -- Accesses --> F;
-    E -- Calls --> H;
-    E -- Calls --> I;
-    D -- Calls --> J;
+    A -- Commands --> B;
+    G -- Uses --> K;
+    G -- Uses --> L;
+    H -- Manages --> I;
+    D -- Uses --> M;
 ```
 
-### 2.4. Architectural and Design Patterns
+### 2.2. Sequence Diagrams
 
-*   **Repository Pattern:** This pattern will be used to abstract all data storage operations. Specifically, the `DataroomManager` will handle metadata storage (via a JSON file for the MVP), and a `VectorStore` service will abstract the interactions with ChromaDB.
-    *   *Rationale:* This decouples our application logic from the specific database implementation, making it easier to swap out ChromaDB for Pinecone in the future or change how metadata is stored. It also simplifies testing.
-*   **Service Layer:** The core logic will be organized into distinct services within the `core/` directory (e.g., `ParsingService`, `RAGEngine`). These services will be instantiated and used by the Slack command handlers.
-    *   *Rationale:* This promotes a clean separation of concerns between the presentation layer (Slack handlers) and the business logic, improving modularity and testability.
-*   **Asynchronous Task Execution:** The `/load` command, which is a long-running I/O-bound operation, will be executed in a background thread.
-    *   *Rationale:* This fulfills requirement **NFR6** by preventing the application from appearing frozen and allowing the bot to provide progress updates to the user in Slack.
-
----
-
-## 3. Tech Stack
-
-### 3.1. Cloud Infrastructure
-
-*   **Provider:** Railway.app (or similar PaaS)
-    *   *Rationale:* For the MVP, a simple Platform-as-a-Service is ideal. It minimizes infrastructure overhead, allowing us to focus on application development. The presence of `railway.toml` in the repository suggests a pre-existing preference.
-*   **Key Services:** App Hosting, Persistent Volumes (for ChromaDB).
-
-### 3.2. Technology Stack Table
-
-| Category | Technology | Version | Purpose | Rationale |
-| :--- | :--- | :--- | :--- | :--- |
-| **Language** | Python | ~3.11 | Primary development language | Mature, extensive data science ecosystem, required by core frameworks. |
-| **Backend Framework** | Flask | ~2.3 | Web server for health checks | Lightweight, simple, and already integrated into the project. |
-| **Slack Integration** | Slack Bolt for Python | ~1.18 | Core Slack app framework | The official and robust library for building Slack apps. |
-| **PDF Parsing** | LlamaParse API | N/A (API) | PDF to Markdown conversion | Chosen for its optimal balance of quality, speed, and native Markdown output. |
-| **RAG Framework** | LlamaIndex | ~0.9.0 | RAG orchestration | Purpose-built for RAG, with excellent support for our chosen components. |
-| **Vector Database** | ChromaDB | ~0.4.0 | Vector storage for embeddings | Simple, local-first, and sufficient for MVP needs. Allows for future migration. |
-| **Embeddings Model**| OpenAI API | `text-embedding-3-small` | Text-to-vector conversion | Best balance of performance and cost in the OpenAI model family. |
-| **LLM** | OpenAI API | `gpt-4o` | Core model for synthesis/analysis | State-of-the-art reasoning, speed, and large context window. |
-| **Data Validation** | Pydantic | ~2.0 | Data validation & settings | Modern, robust data validation to ensure type safety and reliability. |
-
----
-
-## 4. Data Models
-
-For our MVP, the data model is simple and focuses on two core entities: the `Dataroom` and the `ChannelConnection`.
-
-### 4.1. Dataroom
-
-This is the central entity in our system. It represents a single, processed collection of documents that has been loaded into the system via the `/load` command.
-
-*   **Purpose:** To act as a persistent, reusable container for a complete set of analyzed documents and their corresponding vector embeddings.
-*   **Key Attributes:**
-    *   `dataroom_id` (string): A unique identifier for the dataroom (e.g., `dr_20250922_startup_x`).
-    *   `name` (string): The user-friendly display name (e.g., "Startup X Series A").
-    *   `created_at` (datetime): Timestamp of when the dataroom was created.
-    *   `source_url` (string): The original Google Drive URL from which the documents were loaded.
-    *   `vector_collection_name` (string): The name of the corresponding collection within ChromaDB where the document chunks are stored.
-    *   `document_manifest` (list): A list of metadata objects for each document processed, including filename, page count, and chunk count.
-*   **Relationships:** A `Dataroom` can be connected to one or more `ChannelConnection`s.
-
-### 4.2. ChannelConnection
-
-This is not a database model, but a simple mapping to track which Dataroom is active in which Slack channel. For the MVP, this will be managed by the `DataroomManager` and can be persisted in a simple JSON file.
-
-*   **Purpose:** To link a specific Slack channel to a specific `Dataroom`, providing the context for commands like `/ask` and `/summary`.
-*   **Key Attributes:**
-    *   `channel_id` (string): The unique ID of the Slack channel (e.g., `C09E2JQ6YET`).
-    *   `dataroom_id` (string): The ID of the `Dataroom` currently connected to this channel.
-
----
-
-## 5. Components
-
-The application will be organized into the following logical components, primarily separated into a `handlers` layer for Slack interactions and a `core` layer for business logic.
-
-### 5.1. Slack Command Handlers
-
-*   **Responsibility:** This layer is the entry point for all user interactions. Its sole responsibility is to parse incoming Slack commands, validate inputs, call the appropriate core services, and format the results for posting back to Slack. It contains no business logic.
-*   **Key Interfaces:** `handle_load()`, `handle_connect()`, `handle_ask()`, `handle_summary()`, etc.
-*   **Dependencies:** `DataroomManager`, `RAGEngine`.
-*   **Location:** `handlers/`
-
-### 5.2. DataroomManager
-
-*   **Responsibility:** To be the central service for managing the lifecycle of Dataroom entities and their connections to Slack channels. It handles the creation, persistence, and retrieval of all Dataroom metadata.
-*   **Key Interfaces:** `create_dataroom()`, `get_dataroom_by_name()`, `list_all_datarooms()`, `connect_channel_to_dataroom()`, `get_active_dataroom_for_channel()`.
-*   **Dependencies:** `RAGEngine` (to trigger processing), `VectorStore` (to manage collections).
-*   **Location:** `core/dataroom_manager.py`
-
-### 5.3. ParsingService
-
-*   **Responsibility:** To abstract all interactions with the external document parsing API (LlamaParse). This component's job is to take a file path and return structured Markdown.
-*   **Key Interfaces:** `parse_document(file_path)`.
-*   **Dependencies:** LlamaParse API Client.
-*   **Location:** `core/parser.py`
-
-### 5.4. RAGEngine
-
-*   **Responsibility:** To orchestrate the entire RAG pipeline for a given set of documents. This includes chunking the parsed Markdown, generating embeddings, storing them in the vector store, and handling the retrieval/synthesis process for answering questions.
-*   **Key Interfaces:** `process_and_store_documents()`, `query()`, `get_summary()`.
-*   **Dependencies:** `ParsingService`, `VectorStore`, OpenAI API Client.
-*   **Location:** `core/rag_engine.py`
-
-### 5.5. VectorStore
-
-*   **Responsibility:** To provide a simple, abstract interface for interacting with the vector database (ChromaDB). This isolates the rest of the application from the specific implementation details of the DB.
-*   **Key Interfaces:** `create_collection()`, `add_nodes()`, `semantic_search()`.
-*   **Dependencies:** ChromaDB Client.
-*   **Location:** `core/vector_store.py`
-
----
-
-## 6. External APIs
-
-This project relies on three primary external services for its core functionality, plus the Google Drive API for document retrieval.
-
-### 6.1. LlamaParse API
-
-*   **Purpose:** To parse source documents (especially PDFs) into high-quality, structured Markdown, preserving layout elements like tables. This is the cornerstone of our data ingestion pipeline.
-*   **Documentation:** [LlamaParse API Reference](https://cloud.llamaindex.ai/parse)
-*   **Authentication:** API Key provided via the `LLAMA_CLOUD_API_KEY` environment variable.
-*   **Rate Limits:** Subject to the user's LlamaCloud plan. The implementation must handle potential rate limit errors gracefully.
-*   **Key Endpoints Used:** The `llama-parse` library abstracts the direct endpoint, which is effectively `POST /api/v1/parse`.
-
-### 6.2. OpenAI API
-
-This API is used for two distinct purposes: generating embeddings and synthesizing text.
-
-*   **Purpose:**
-    1.  **Embeddings:** To convert the structured text chunks into vector representations for semantic search.
-    2.  **Chat Completions:** To generate narrative summaries and answers based on the user's query and the retrieved context.
-*   **Documentation:** [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
-*   **Authentication:** API Key provided via the `OPENAI_API_KEY` environment variable.
-*   **Rate Limits:** Depends on the user's OpenAI account tier. The application must implement retry logic (as per NFR5).
-*   **Key Endpoints Used:**
-    *   `POST /v1/embeddings` (using model `text-embedding-3-small`)
-    *   `POST /v1/chat/completions` (using model `gpt-4o`)
-
-### 6.3. Google Drive API
-
-*   **Purpose:** To list and download source documents from the Google Drive folder URL provided by the user in the `/load` command.
-*   **Documentation:** [Google Drive API Reference](https://developers.google.com/drive/api/v3/reference)
-*   **Authentication:** Service Account JSON credentials provided via the `GOOGLE_SERVICE_ACCOUNT_JSON` environment variable.
-*   **Rate Limits:** Standard Google API usage limits apply.
-*   **Key Endpoints Used:**
-    *   `files.list`
-    *   `files.get` (with `alt=media` for download)
-
----
-
-## 7. Core Workflows
-
-### 7.1. Workflow 1: Data Ingestion via `/load` Command
-
-This diagram illustrates the asynchronous process of loading and processing a new dataroom.
-
+**`/load` Workflow**
 ```mermaid
 sequenceDiagram
-    actor User
-    participant Slack API
-    participant Slack Handlers
-    participant DataroomManager
-    participant RAGEngine
-    participant GDrive API
-    participant LlamaParse API
-    participant OpenAI API
-    participant VectorStore
+  participant U as User
+  participant S as Slack Bot
+  participant J as Job Tracker (Redis)
+  participant G as GDrive
+  participant P as ParsingService
+  participant V as VectorStore (Chroma)
 
-    User->>+Slack API: /load [url] [name]
-    Slack API->>+Slack Handlers: Command Received
-    Slack Handlers-->>-User: "✅ Request received. Processing will begin shortly..."
-    
-    par Background Processing
-        Slack Handlers->>+DataroomManager: create_dataroom(name, url)
-        DataroomManager->>+RAGEngine: process_and_store_documents(files)
-        RAGEngine->>+GDrive API: download_files(url)
-        GDrive API-->>-RAGEngine: Return file paths
-        
-        loop For each file
-            RAGEngine->>+LlamaParse API: parse(file)
-            LlamaParse API-->>-RAGEngine: Return Markdown
-        end
-        
-        RAGEngine->>RAGEngine: Chunk Markdown
-        
-        loop For each chunk
-            RAGEngine->>+OpenAI API: create_embedding(chunk)
-            OpenAI API-->>-RAGEngine: Return vector
-        end
-        
-        RAGEngine->>+VectorStore: add_vectors(collection_name, vectors)
-        VectorStore-->>-RAGEngine: Success
-        RAGEngine-->>-DataroomManager: Processing Complete
-        DataroomManager-->>-Slack Handlers: Dataroom Ready
-        
-        Slack Handlers->>+Slack API: Post "✅ Dataroom '[name]' is loaded and ready" message
-        Slack API-->>-User: Display success message
-    end
+  U->>S: /load gdrive:<folder>
+  S->>J: create job (status=queued, thread_ts)
+  S->>G: list+download (depth=2, backoff)
+  G-->>S: files
+  S->>P: parse→normalize
+  P-->>S: chunks+metadata
+  S->>V: embed+index (staging)
+  S->>J: status updates (downloading→...→swapping)
+  S->>V: swap staging→active (atomic)
+  S-->>U: done
 ```
 
-### 7.2. Workflow 2: Q&A via `/ask` Command
-
-This diagram illustrates the synchronous process of answering a user's question.
-
+**`/ask` Workflow**
 ```mermaid
 sequenceDiagram
-    actor User
-    participant Slack API
-    participant Slack Handlers
-    participant DataroomManager
-    participant RAGEngine
-    participant VectorStore
-    participant OpenAI API
+  participant U as User
+  participant S as Slack Bot
+  participant R as RAG Engine
+  participant C as Cohere Rerank
+  participant V as VectorStore
+  participant O as OpenAI
 
-    User->>+Slack API: /ask [question]
-    Slack API->>+Slack Handlers: Command Received
-    
-    Slack Handlers->>+DataroomManager: get_active_dataroom_for_channel(channel_id)
-    DataroomManager-->>-Slack Handlers: Return dataroom_id
-    
-    Slack Handlers->>+RAGEngine: query(question, dataroom_id)
-    RAGEngine->>+OpenAI API: create_embedding(question)
-    OpenAI API-->>-RAGEngine: Return query_vector
-    
-    RAGEngine->>+VectorStore: semantic_search(collection_name, query_vector)
-    VectorStore-->>-RAGEngine: Return relevant chunks
-    
-    RAGEngine->>RAGEngine: Re-rank chunks (Story 3.1)
-    RAGEngine->>RAGEngine: Construct Prompt
-    
-    RAGEngine->>+OpenAI API: get_completion(prompt)
-    OpenAI API-->>-RAGEngine: Return synthesized answer
-    
-    RAGEngine-->>-Slack Handlers: Return final answer
-    Slack Handlers->>Slack Handlers: Format answer
-    
-    Slack Handlers->>+Slack API: Post formatted answer
-    Slack API-->>-User: Display answer
+  U->>S: /ask ...
+  S->>R: retrieve (k=20)
+  R->>C: rerank → k'=5
+  R->>O: synth (streaming, timeout 25s)
+  S-->>U: answer + citations (≤5)
+```
+
+**`/summary` Workflow**
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Slack Bot
+  participant R as RAG Engine
+  participant C as Cohere Rerank
+  participant V as VectorStore
+  participant O as OpenAI
+
+  U->>S: /summary
+  S->>R: retrieve (k=20) for summary scope
+  R->>C: rerank → k'=5
+  R->>O: synth (streaming, timeout 25s)
+  S-->>U: streamed summary + citations (≤5)
+```
+
+**`/delete` Workflow**
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Slack Bot
+  participant V as VectorStore
+  participant R as Redis
+
+  U->>S: /delete dataroom
+  S->>V: wipe collection
+  S->>R: delete all metadata
+  S-->>U: confirmation
 ```
 
 ---
 
-## 8. Database Schema
+## 3. Parsing & Data Normalization
+Fulfills: `FR4`, `FR10`, `FR12`
 
-### 8.1. Metadata Storage: JSON Files
+### 3.1. `ParsingService`
+A central `ParsingService` will manage document ingestion via a registry of format-specific adapters.
 
-For the MVP, all non-vector metadata will be stored in simple JSON files on the local filesystem. This approach is simple, human-readable, and sufficient for our single-tenant architecture, avoiding the need for a traditional relational database.
+*   **PDF Adapter:** Uses **LlamaParse** to convert PDF to Markdown.
+*   **XLSX/CSV Adapter:** Uses **pandas/openpyxl** to extract each sheet into a JSON object of tables, plus a Markdown summary of any non-tabular text.
+*   **TXT/DOCX Adapter:** Converts documents directly to clean Markdown.
+*   **OCR:** Scanned PDFs are explicitly **out of scope for MVP** and will result in an error.
 
-**`datarooms.json`**
-*   **Purpose:** Acts as the primary index for all persistent Datarooms.
-*   **Structure:** A dictionary where the key is the `dataroom_id` and the value is an object containing its metadata.
+### 3.2. Google Drive Integration
+*   **URL Parsing:** The handler will extract the `folderId` from any valid Google Drive folder URL format.
+*   **Permissions:** The system requires the Service Account to have "Reader" permissions on the target folder.
+*   **Recursion:** The downloader will recursively process subfolders up to a depth of **2 levels**.
+*   **Limits:** A configurable max file size of **25 MB** per file is enforced.
+*   **Resilience:** Downloads will use a retry mechanism with exponential backoff (**NFR5**).
 
-    ```json
-    {
-      "dr_20250922_startup_x": {
-        "name": "Startup X Series A",
-        "created_at": "2025-09-22T18:00:00Z",
-        "source_url": "https://drive.google.com/...",
-        "vector_collection_name": "collection_startup_x_123",
-        "document_manifest": [
-          { "name": "pitch_deck.pdf", "chunks": 192 },
-          { "name": "financials.xlsx", "chunks": 45 }
-        ]
-      }
-    }
-    ```
-
-**`connections.json`**
-*   **Purpose:** Maps an active Slack channel to a Dataroom.
-*   **Structure:** A simple dictionary where the key is the `channel_id` and the value is the `dataroom_id`.
-
-    ```json
-    {
-      "C09E2JQ6YET": "dr_20250922_startup_x"
-    }
-    ```
-
-### 8.2. Vector Store Schema (ChromaDB)
-
-ChromaDB is a document-oriented vector database. We will not define a rigid schema, but rather a consistent structure for the **metadata** associated with each vector/chunk. This metadata is critical for source attribution and advanced retrieval strategies.
-
-*   **Collection Name:** Each Dataroom will have its own collection in ChromaDB, named using its `vector_collection_name` (e.g., `collection_startup_x_123`).
-*   **Document Content:** The text content of each chunk.
-*   **Document Metadata Schema:** Each vector will have the following metadata attached:
-
-    ```json
-    {
-      "source_document_name": "pitch_deck.pdf",
-      "chunk_type": "table", // or "paragraph", "list_item", etc.
-      "page_number": 5, // If applicable
-      "parent_chunk_id": "parent_chunk_abc" // For Parent Document Retrieval
-    }
-    ```
-*   **Rationale:** This metadata structure allows us to filter queries (e.g., "search only in tables") and to reliably trace any piece of retrieved context back to its exact source document and location, fulfilling requirement **NFR2**.
-
----
-
-## 9. Source Tree
-
-The project will follow a clean, modular structure designed to separate the Slack-facing handlers from the core business logic.
-
-```
-dataroom-intelligence/
-├── .env.example              # Environment variable template
-├── .gitignore
-├── app.py                    # Main Flask/Slack application entry point
-├── Procfile                  # For deployment (e.g., Railway, Heroku)
-├── requirements.txt          # Python dependencies
-│
-├── core/                     # Core business logic and services (The "Engine")
-│   ├── __init__.py
-│   ├── dataroom_manager.py   # Manages Dataroom entities and connections
-│   ├── parser.py             # Handles LlamaParse API integration
-│   ├── rag_engine.py         # Orchestrates the RAG pipeline (chunk, embed, retrieve, synth)
-│   └── vector_store.py       # Abstraction for ChromaDB
-│
-├── data/                     # Local data persistence for MVP
-│   ├── datarooms.json        # Metadata index for all Dataroom entities
-│   ├── connections.json      # Maps Slack channels to Dataroom IDs
-│   └── vector_storage/       # Directory for ChromaDB's on-disk persistence
-│
-├── handlers/                 # Slack command handlers (The "Presentation Layer")
-│   ├── __init__.py
-│   ├── admin_handlers.py     # Handles /list, /current, /disconnect, /help
-│   ├── ask_handler.py        # Handles the /ask command
-│   ├── connect_handler.py    # Handles the /connect command
-│   ├── load_handler.py       # Handles the /load command
-│   └── summary_handler.py    # Handles the /summary command
-│
-├── models/                   # Pydantic data models
-│   ├── __init__.py
-│   └── dataroom.py           # Defines the Dataroom and Document models
-│
-├── prompts/                  # Centralized storage for all LLM prompts
-│   ├── __init__.py
-│   ├── analysis_prompts.py   # Prompts for /summary
-│   └── qa_prompts.py         # Prompts for /ask
-│
-├── docs/                     # Project documentation
-│   ├── prd.md                # The Product Requirements Document
-│   └── architecture.md       # This document
-│
-└── tests/                    # Unit and Integration tests
-    ├── __init__.py
-    ├── test_core_logic.py
-    └── test_handlers.py
+### 3.3. Chunk Metadata Schema
+Every chunk stored in the vector database will include the following metadata for traceability:
+```json
+{
+  "doc_id": "doc_abc123",
+  "source_path": "original_folder/financials.xlsx",
+  "page_or_sheet": "Q3 Financials",
+  "table_id": "table_01",
+  "row_index": 5,
+  "lang": "es"
+}
 ```
 
 ---
 
-## 10. Infrastructure and Deployment
+## 4. Data Storage & State Management
 
-### 10.1. Infrastructure as Code
+### 4.1. Vector Store & Atomic Swaps
+Fulfills: `FR9`, `FR13`, `FR15`
 
-*   **Tool:** Railway Native Configuration (`railway.toml`)
-*   **Location:** Root of the repository.
-*   **Approach:** We will use Railway's built-in "Infrastructure as Code" capabilities to define our services and build/start commands.
+The `VectorStore` component will manage ChromaDB collections and implement atomic replacement for datarooms.
 
-### 10.2. Deployment Strategy
+*   **Process (`staging -> swap`):** When `/load` is run on an existing dataroom, a new collection is created with a "staging" suffix. Only upon successful completion of the entire pipeline, the `DataroomManager` updates its metadata to point to the new staging collection. The old collection is then deleted. If any step fails, the staging collection is deleted, leaving the original untouched.
+*   **Cache Invalidation:** A successful `swap` operation will automatically invalidate the Redis cache for that dataroom.
+*   **Deletion (`/delete`):** The `/delete` command will trigger a secure wipe of the vector collection in ChromaDB and **all associated metadata in Redis**.
 
-*   **Strategy:** Continuous Deployment.
-*   **CI/CD Platform:** GitHub Actions.
-*   **Trigger:** Every merge to the `main` branch will automatically trigger the CI/CD pipeline to run tests and deploy to production.
+### 4.2. Job & Session State (Redis) — ampliación (NFR6)
 
-### 10.3. Environments
-
-*   **`development`:** The local machines of our developers.
-*   **`production`:** The live environment hosted on Railway.
-
-### 10.4. Environment Promotion Flow
-
-The promotion flow is simple and automated:
-`Local Development` -> `Git Push to main` -> `GitHub Actions (Run Tests)` -> `Deploy to Production on Railway`
-
-### 10.5. Rollback Strategy
-
-*   **Primary Method:** Manual one-click rollback via the Railway platform UI.
-*   **Rationale:** Railway maintains a history of all deployments, allowing for instant rollback to a previous stable version in case of a critical issue.
-
-### 10.6. Local Development Workflow
-
-*   **Problem:** Slack requires a public URL to send events, but a developer's local server is not public.
-*   **Solution:** We will use a tunneling service (`ngrok`) and a dedicated "Development" Slack App to allow developers to test their local code live without affecting the production application.
-*   **Workflow:**
-    1.  A separate "Development" Slack App with its own API tokens will be used.
-    2.  The developer runs the application locally, using the development tokens.
-    3.  The developer starts `ngrok` to create a secure, public URL that tunnels to their local server.
-    4.  The developer temporarily sets their `ngrok` URL as the "Request URL" in the Development Slack App's configuration.
-    5.  This provides perfect isolation, allowing for safe and rapid testing in a private channel or test workspace.
+*   **Session State:** The mapping of `channel_id` to `dataroom_id` will be stored in Redis.
+*   **Job Progress & State Machine:** The state of asynchronous `/load` jobs will be stored in Redis to ensure persistence and concurrency safety. The defined states are: `queued` → `downloading` → `parsing` → `embedding` → `indexing` → `swapping` → `done`|`error`.
+*   **Idempotent Slack Updates:** All progress updates will be made by **editing** the same initial Slack message, using the `thread_ts` stored in the Redis job object to prevent duplicate messages.
 
 ---
 
-## 11. Error Handling Strategy
+## 5. RAG, Performance, & Internationalization
 
-### 11.1. General Approach
+### 5.1. RAG & Re-ranking Strategy
+**Trazabilidad:** `FR13` (RAG & re-ranking), `NFR3` (rendimiento).
 
-*   **Error Model:** The application will use standard Python exceptions. We will define a hierarchy of custom exceptions (e.g., `DataroomNotFoundError`, `ParsingError`) that inherit from a base `AppException`.
-*   **Error Propagation:** The `core` service layer will be responsible for raising specific exceptions. The `handlers` layer will be responsible for catching all exceptions, logging the full technical details, and sending a user-friendly, formatted error message to Slack. Under no circumstances should a raw stack trace be shown to the end-user.
+*   **Retrieval Strategy:** Parent-Child Retrieval (child chunks: **~400-800 tokens**; parent chunks: **~1.5k-2k tokens**).
+*   **Re-ranking:** Retrieve an initial set of **k=20** child chunks, then use **CohereRerank** to refine the set to the **k'=5** most relevant parent chunks.
 
-### 11.2. Logging Standards
+### 5.2. Latency, Caching & Degradation
+*   **Latency Budgets & Timeouts:**
+    *   `LLAMAPARSE_TIMEOUT` ≤ **20s**
+    *   `COHERE_TIMEOUT` ≤ **8s**
+    *   `OPENAI_TIMEOUT_SUMMARY` ≤ **25s** (with **streaming** enabled)
+*   **Caching:** A Redis cache with a **15-minute TTL**, scoped **per-dataroom**, will be implemented for frequent queries.
+*   **Controlled Degradation:** If a service call exceeds its timeout budget, the system will log the event, mark the response as `degraded=true` in metrics, and attempt a fallback (e.g., by skipping the re-ranking step) to provide a partial answer instead of a complete failure.
 
-*   **Library:** Python's built-in `logging` module.
-*   **Format:** Structured JSON. This allows for easy parsing and filtering in a production logging system.
-*   **Required Context:** To enable effective debugging, every log entry generated during a user request must include a unique `trace_id` and the `channel_id` from the Slack event.
+### 5.3. Internationalization (i18n)
+Fulfills: `NFR7`
 
-### 11.3. Error Handling Patterns
-
-*   **External API Errors:**
-    *   **Retry Policy:** For transient network errors or temporary service unavailability (e.g., 503 errors from LlamaParse), the application will use a retry mechanism with exponential backoff (as per **NFR5**).
-    *   **Fail-Fast:** For permanent errors (e.g., 401 Invalid API Key, 404 Not Found), the application will fail immediately and log a critical error.
-*   **Business Logic Errors:**
-    *   Custom exceptions will be used to represent known error states (e.g., user tries to `/connect` to a non-existent dataroom).
-    *   The handler will catch these specific exceptions and provide a helpful, context-aware message to the user (e.g., "Error: Dataroom 'xyz' not found. Use `/list` to see available datarooms.").
-
----
-
-## 12. Coding Standards
-
-These standards are mandatory for all code committed to the repository.
-
-### 12.1. Core Standards
-
-*   **Language:** Python 3.11+
-*   **Style & Linting:** The project will use **Black** for uncompromising code formatting and **Ruff** for linting. A pre-commit hook should be configured to automatically format and lint code before every commit.
-*   **Test Organization:** Test files must be located in the `tests/` directory and follow the `test_*.py` naming convention.
-
-### 12.2. Naming Conventions
-
-*   Standard **PEP 8** will be followed: `snake_case` for functions, methods, and variables; `PascalCase` for classes.
-
-### 12.3. Critical Rules
-
-1.  **Type Hinting is Mandatory:** All function and method signatures, including arguments and return values, MUST use Python's standard type hints.
-    *   *Rationale:* This is critical for static analysis, code completion, and ensuring data flows correctly between components. It is the single most important rule for preventing bugs in a project of this nature.
-2.  **Strict Separation of Concerns:** Logic must be delegated to the appropriate layer. Handlers in the `handlers/` directory should contain no business logic; their role is to parse requests and call services in the `core/` directory.
-    *   *Rationale:* This enforces our component-based architecture, making the system modular and testable.
-3.  **No Hardcoded Secrets:** API keys, tokens, and other secrets MUST NOT be written in the source code. They must be loaded exclusively from environment variables via the configuration system.
-    *   *Rationale:* This is a fundamental security requirement.
-4.  **Use the Structured Logger:** All diagnostic output must use the configured structured logger. `print()` statements are forbidden in committed code.
-    *   *Rationale:* This ensures our logs are consistent, machine-readable, and useful for debugging in production.
+*   **Embeddings y prompts:** The chosen embedding model (`text-embedding-3-small`) is multilingual and supports both English and Spanish. Prompts must be engineered to handle multilingual contexts.
+*   **Detección de idioma:** The language will be detected per document during parsing and stored in the chunk metadata (e.g., `"lang": "es"`).
+*   **Encoding:** All text input and output will be normalized to **UTF-8**.
 
 ---
 
-## 13. Test Strategy and Standards
+## 6. Core Workflows & Command Behaviors
 
-### 13.1. Testing Philosophy
+### 6.1. `/ask` Command Behavior
+**Trazabilidad:** `FR7` (formato y límite de citas), `FR13` (retrieval + re-ranking), `NFR3` (rendimiento).
 
-*   **Approach:** Test-After. For the speed required by the MVP, tests will be written immediately after the functionality of a component is implemented and manually verified.
-*   **Coverage Goals:** We will aim for **>80% line coverage** for all modules in the `core/` directory. The `handlers/` layer will be tested primarily via integration tests.
-*   **Test Pyramid:** Our focus will be on a wide base of fast **Unit Tests**, a smaller set of **Integration Tests** for the core data pipeline, and a final manual **End-to-End Validation** as defined in Epic 4.
+#### Citations (FR7)
+*   **Formato**: `[Document Name, Page X]`.
+*   **Límite**: máximo **5** citas por respuesta.
+*   **Validación**: si hay >5, se seleccionan las más relevantes por score tras re-ranking.
+*   **Excel/CSV**: cuando el origen es tabular, el formato será: `[Workbook.xlsx, Sheet "<sheet_name>", Table <table_id>]`. Si procede, se añade `Row <row_index>`. *Ejemplo*: `[financials.xlsx, Sheet "Q3", Table 01, Row 5]`.
 
-### 13.2. Test Types and Organization
-
-#### Unit Tests
-*   **Framework:** `pytest`
-*   **File Convention:** `tests/test_*.py`
-*   **Location:** The `tests/` directory.
-*   **Mocking Library:** Python's built-in `unittest.mock`.
-*   **AI Agent Requirements:**
-    *   The developer agent MUST generate unit tests for all public methods in the `core/` services.
-    *   All external dependencies (especially API calls to LlamaParse and OpenAI) MUST be mocked.
-    *   Tests should follow the "Arrange, Act, Assert" (AAA) pattern.
-
-#### Integration Tests
-*   **Scope:** The primary integration test will validate the entire data ingestion pipeline triggered by the `/load` command, from parsing to storage.
-*   **Location:** `tests/integration/`
-*   **Test Infrastructure:**
-    *   **External APIs:** All external APIs (LlamaParse, OpenAI) will be mocked using `unittest.mock` to ensure tests are fast and do not incur costs.
-    *   **Vector Database:** Tests will run against a real, temporary ChromaDB instance on disk to verify the storage and retrieval mechanism.
-
-### 13.3. Test Data Management
-
-*   **Strategy:** A dedicated `tests/fixtures/` directory will be created to hold all test data.
-*   **Fixtures:** This directory will contain small, representative sample documents (e.g., a 1-page PDF with a table, a sample `.txt` file) and "golden files" with the expected Markdown output after parsing.
+### 6.2. Error State Messages
+*   **/current (no connection):** "No Dataroom is currently connected to this channel. Use `/list` to see available Datarooms and `/connect [dataroom-name]` to connect one."
+*   **/disconnect (no connection):** "This channel is not connected to any Dataroom."
 
 ---
 
-## 14. Security
+## 7. Security, Cost, and Observability
 
-### 14.1. Input Validation
+### 7.1. Security & Tenancy
+Fulfills: `NFR4`, `NFR9`
+*   **Tenancy:** The system is **single-tenant per instance/workspace**.
+*   **Encryption:** All data is secured with **encryption in transit (TLS 1.2+)** and **encryption at rest** (via platform-managed encrypted volumes and databases).
+*   **Data Management:** A `/delete` command provides secure data wipe. An admin-only command, `/export [dataroom-name]`, will be available for portability, packaging all dataroom metadata and normalized documents into a downloadable ZIP (≤ 1 GB) with a 15-minute link expiration.
 
-*   **Validation Library:** `Pydantic` will be used for all data validation.
-*   **Validation Location:** All incoming data from Slack commands MUST be validated in the `handlers` layer before being passed to any `core` service. We will operate on a "zero trust" basis for all external input.
+### 7.2. Cost & Quotas
+Fulfills: `FR14`
 
-### 14.2. Authentication & Authorization
+#### Enforcements & Alerts (FR14)
 
-*   **Authentication:** All communication with external APIs (LlamaParse, OpenAI, Google Drive) will be authenticated using API Keys or Service Accounts as defined in the "External APIs" section. Communication with Slack is secured via Slack's token-based system.
-*   **Authorization:** For the MVP, the authorization model is simple. Any user who is a member of a Slack channel where the bot is present is authorized to use all of its commands. There are no per-user roles or permissions.
+*   **80% de cuota**: aviso en el canal con detalle de consumo y enlace a documentación/upgrade.
+*   **100% de cuota**: **bloqueo duro** de nuevas operaciones afectadas (p. ej., `/load`). Se informa al usuario con mensaje de límite alcanzado.
+*   **Override admin (opcional)**: si `ALLOW_ADMIN_QUOTA_OVERRIDE=true`, usuarios con rol admin podrán ejecutar la operación añadiendo `--override`, quedando auditado en logs/metrics.
 
-### 14.3. Secrets Management
+### 7.3. Observability
+Fulfills: `NFR8`
+*   **Metrics:** The application will be instrumented to emit key metrics for each command: `P50/P95 latency`, `input/output token counts`, `estimated_cost`, `error_rate`, `retry_count`.
+*   **Tracing:** All operations within a single command execution will be linked by a unique `trace_id`.
+*   **Alerting thresholds**:
+    *   **Warning**: P95 latency ≥ **28s** en `/summary` durante 10 min.
+    *   **Critical**: P95 latency ≥ **30s** (igual al SLO) durante 5 min → dispara alerta y evalúa degradación controlada.
 
-*   **Development:** Secrets will be managed using local `.env` files, which MUST NOT be committed to version control.
-*   **Production:** Secrets will be managed exclusively through the environment variable system provided by our deployment platform (Railway).
-*   **Critical Rule:** Secrets (API keys, tokens) MUST NEVER be hardcoded in the source code.
+#### Medición de SLOs (NFR3)
 
-### 14.4. Data Protection
+Los SLOs se miden en **P95** sobre una ventana rodante de **N ≥ 200 solicitudes o 14 días**, lo que ocurra primero, bajo las condiciones del PRD (≤50 documentos y ≤100 MB por dataroom).
 
-*   **Encryption in Transit:** All communication with external APIs and with the Slack API MUST use HTTPS.
-*   **Encryption at Rest:** We will rely on the default filesystem encryption provided by the production deployment platform (Railway) for our persisted data (JSON files, ChromaDB data).
-*   **PII Handling:** While we are not explicitly processing PII, all documents loaded into the system must be treated as confidential. The single-tenant architecture is our primary control to ensure data isolation and confidentiality.
+---
 
-### 14.5. Dependency Security
+## 8. Configuration Table
 
-*   **Scanning Tool:** We will use **GitHub's Dependabot** to automatically scan our `requirements.txt` file for known vulnerabilities and recommend updates.
+| Environment Variable | Description | Example Value | PRD Trace |
+| :--- | :--- | :--- | :--- |
+| `LLAMA_CLOUD_API_KEY` | API key for LlamaParse service. | `llx-...` | `FR4` |
+| `OPENAI_API_KEY` | API key for OpenAI models. | `sk-...` | `FR13` |
+| `COHERE_API_KEY` | API key for Cohere re-ranking service. | `coh-...` | `FR13` |
+| `REDIS_URL` | Connection string for the Redis instance. | `redis://...` | `NFR5` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Path to GDrive service account credentials JSON file. | `/app/keys/sa.json` | `FR12` |
+| `MAX_FILE_SIZE_MB` | Max size for a single file in a load. | `25` | `FR12` |
+| `MAX_LOAD_DOCS` | Max number of documents in a single load. | `50` | `FR14` |
+| `MAX_LOAD_SIZE_MB` | Max total size of a single load. | `100` | `FR14` |
+| `SUBFOLDER_DEPTH` | Recursion depth for Google Drive folders. | `2` | `FR12` |
+| `RAG_CACHE_TTL_S` | Cache TTL in seconds for RAG queries. | `900` | `FR13` |
+| `MAX_CONCURRENT_LOADS` | Max concurrent `/load` jobs. | `2` | `NFR5` |
+| `MAX_QPS_OPENAI` | QPS limit for OpenAI calls. | `5` | `NFR5` |
+| `MAX_QPS_COHERE` | QPS limit for Cohere calls. | `5` | `NFR5` |
+| `MAX_QPS_LLAMAPARSE` | QPS limit for LlamaParse calls. | `2` | `NFR5` |
+| `LLAMAPARSE_TIMEOUT` | Hard timeout (s) for LlamaParse. | `20` | `NFR3` |
+| `COHERE_TIMEOUT` | Hard timeout (s) for Cohere. | `8` | `NFR3` |
+| `OPENAI_TIMEOUT_SUMMARY` | Hard timeout (s) for OpenAI summary. | `25` | `NFR3` |
+
+---
+
+## 9. Slack App Manifest
+
+*   **Minimum Scopes:** `commands`, `chat:write`, `files:read`, `channels:history`, `users:read`.
+*   **Slash commands:** `/load`, `/ask`, `/summary`, `/list`, `/current`, `/connect`, `/disconnect`, `/delete`, `/help`.
+*   **Entornos:**
+    *   **dev:** app separada, workspace de pruebas, ngrok.
+    *   **prod:** instalación por workspace single-tenant.
+
+---
+
+## 10. CI/CD
+
+*   **Pipeline (GitHub Actions):**
+    1.  On Pull Request: Run Linter (`ruff`) and Unit Tests (`pytest`).
+    2.  On Merge to `main`: Build Docker image.
+    3.  Deploy image to production environment (e.g., Railway).
+    4.  **Post-deploy Smoke & Regression Tests:**
+        *   **Smoke:** `/_health`, `/help`, `/list` in a test workspace.
+        *   **Key Cases:** Run a representative sample from the PRD v1.1 Test Cases, including XLSX parsing, GDrive URL failure, streaming `/summary`, and atomic swap rollback.
+    5.  **Rollback:** Automatically trigger a rollback on the deployment platform if any smoke or key test case fails.
+*   **Secret Management:** Secrets will be managed via the environment-specific secret store provided by the deployment platform.
+
+---
+
+## 11. Open Questions & Recommendations
+
+1.  **Partial failures in `/load`**
+    *   *Decision (MVP)*: fail-fast con mensaje claro del fichero problemático.
+    *   *vNext*: “skip + report” por fichero y sumario de omitidos.
+
+2.  **Quota 100% behavior**
+    *   *Decision*: **bloqueo duro** de nuevas operaciones (p. ej., `/load`).
+    *   *Opcional*: `ALLOW_ADMIN_QUOTA_OVERRIDE=true` para override auditado.
+
+3.  **Embeddings provider & cost guardrails**
+    *   *Decision propuesta*: `text-embedding-3-small` (multilingüe ES/EN). Documentar coste por 1K tokens y límite de contexto efectivo; incluir en un *runbook* operativo.
